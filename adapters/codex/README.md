@@ -29,6 +29,12 @@ Verified against Codex 0.162.1 source:
   (`npm install -g @lightcode/cli`, then `lc doctor`).
 - Long-running commands show their output when they finish, not while they
   run.
+- Wrapped commands run inside Codex's sandbox. With `workspace-write`,
+  `~/.lightcode` is not writable, so `lc run` keeps originals in a private
+  `$TMPDIR/lightcode-<uid>` directory instead (`lc report` reads both). To
+  keep everything in one place, add `~/.lightcode` (as an absolute path) to
+  `sandbox_workspace_write.writable_roots`. In `read-only` mode nothing can be
+  saved, so nothing is filtered.
 
 ## Install
 

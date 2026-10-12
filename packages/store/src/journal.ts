@@ -40,6 +40,7 @@ export class FileJournal implements JournalPort {
       }
     }
     const records: JournalRecord[] = []
+    const wanted = filter.sessionId
     for (const file of files) {
       let text: string
       try { text = readFileSync(file, 'utf8') } catch { continue }
@@ -47,10 +48,15 @@ export class FileJournal implements JournalPort {
         if (!line) continue
         try {
           const value = JSON.parse(line) as JournalRecord
-          if (value?.schemaVersion === 1 && typeof value.type === 'string') records.push(value)
+          if (value?.schemaVersion === 1 && typeof value.type === 'string' && (wanted === undefined || value.sessionId === wanted)) records.push(value)
         } catch { /* Partial line. */ }
       }
     }
     return records
   }
+}
+
+/** Records from every data directory (see `dataDirs`). */
+export function readJournals(dirs: readonly string[], filter: { host?: string; sessionId?: string | null } = {}): JournalRecord[] {
+  return dirs.flatMap(dir => new FileJournal(dir).read(filter))
 }

@@ -1,6 +1,7 @@
 import { parseArgs } from 'node:util'
 import { economyCoverage, economyRuleDisplayName } from '@lightcode/core'
 import type { EconomyFilterName } from '@lightcode/core'
+import { FileArtifactStore } from '@lightcode/store'
 import { cliContext } from './context.ts'
 import { doctor, VERSION } from './doctor.ts'
 import { hook } from './hook.ts'
@@ -69,7 +70,7 @@ export async function main(argv: string[]): Promise<number> {
       return 0
     }
     case 'show': {
-      const text = rest[0] ? cliContext().artifacts.read(rest[0]) : undefined
+      const text = rest[0] ? cliContext().readArtifact(rest[0]) : undefined
       if (text === undefined) { process.stderr.write('lc show: no saved original with that sha256 (expired or never stored)\n'); return 1 }
       process.stdout.write(text)
       return 0
@@ -79,7 +80,8 @@ export async function main(argv: string[]): Promise<number> {
       const context = cliContext()
       const days = values.days === undefined ? context.loaded.config.artifacts.retentionDays : Number(values.days)
       if (!Number.isFinite(days) || days < 0) { process.stderr.write('lc gc: --days must be a non-negative number\n'); return 2 }
-      process.stdout.write(`removed ${context.artifacts.prune(days)} saved originals older than ${days} days\n`)
+      const removed = context.dataDirs.reduce((sum, dir) => sum + new FileArtifactStore(dir).prune(days), 0)
+      process.stdout.write(`removed ${removed} saved originals older than ${days} days\n`)
       return 0
     }
     case 'doctor': return doctor({ json: rest.includes('--json') })

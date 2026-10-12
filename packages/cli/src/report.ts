@@ -26,7 +26,7 @@ export function formatSummary(summary: EconomySummary, scope: string): string {
 
 export function report(options: { host?: string; session?: string; json?: boolean }): number {
   const context = cliContext()
-  const records = context.journal.read({ ...options.host === undefined ? {} : { host: options.host },
+  const records = context.readJournal({ ...options.host === undefined ? {} : { host: options.host },
     ...options.session === undefined ? {} : { sessionId: options.session } })
   const summary = summarizeEconomy(records)
   const scope = [options.host ?? 'all hosts', options.session ? `session ${options.session}` : 'all sessions'].join(', ')

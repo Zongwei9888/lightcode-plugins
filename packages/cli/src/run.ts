@@ -119,7 +119,10 @@ function project(options: RunOptions, command: string, code: number | null, sign
   const context = cliContext()
   const { config } = context.loaded
   if (config.economy.mode === 'off') return undefined
-  const engine = new EconomyEngine({ host: options.host, journal: context.journal, artifacts: context.artifacts,
+  // Originals must be savable before anything is filtered (sandboxed hosts may only allow TMPDIR).
+  const store = context.writable()
+  if (!store) return undefined
+  const engine = new EconomyEngine({ host: options.host, journal: store.journal, artifacts: store.artifacts,
     config: config.economy, mode: config.economy.mode, delivery: 'command-wrapper', streams: 'separate' })
   const stdout = decode(order.filter(item => item.fd === 1).map(item => item.chunk))
   const stderr = decode(order.filter(item => item.fd === 2).map(item => item.chunk))
@@ -136,7 +139,7 @@ function project(options: RunOptions, command: string, code: number | null, sign
     projectedErr = engine.process(request({ command, exitCode, interrupted, rendered: stderr,
       stdout: { start: 0, text: '' }, stderr: { start: 0, text: stderr } })).text
   }
-  try { collectDaily(context.dataDir, days => context.artifacts.prune(days), config.artifacts.retentionDays) } catch { /* Housekeeping only. */ }
+  try { collectDaily(store.dataDir, days => store.artifacts.prune(days), config.artifacts.retentionDays) } catch { /* Housekeeping only. */ }
   if (projectedOut === undefined && projectedErr === undefined) return undefined
   return { stdout: projectedOut ?? stdout, stderr: projectedErr ?? stderr, first: order[0]?.fd ?? 1 }
 }

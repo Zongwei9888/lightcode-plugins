@@ -1,5 +1,5 @@
-export { ensurePrivateDir, pathSegment, resolveDataDir } from './paths.ts'
+export { dataDirs, ensurePrivateDir, fallbackDataDir, pathSegment, resolveDataDir, writableDataDir } from './paths.ts'
 export { FileArtifactStore } from './artifacts.ts'
-export { FileJournal } from './journal.ts'
+export { FileJournal, readJournals } from './journal.ts'
 export { DEFAULT_CONFIG, collectDaily, loadConfig } from './config.ts'
 export type { EconomyConfig, LightCodeConfig, LoadedConfig } from './config.ts'

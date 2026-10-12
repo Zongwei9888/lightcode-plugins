@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, rmSync, statSync, utimesSync, writeFileSync } f
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { FileArtifactStore, FileJournal, collectDaily, loadConfig, pathSegment, resolveDataDir } from '../src/index.ts'
+import { FileArtifactStore, FileJournal, collectDaily, dataDirs, loadConfig, pathSegment, readJournals, resolveDataDir, writableDataDir } from '../src/index.ts'
 import type { EconomyRecord } from '@lightcode/protocol'
 
 const dirs: string[] = []
@@ -21,6 +21,27 @@ describe('paths', () => {
     expect(pathSegment('session-1')).toBe('session-1')
     expect(pathSegment('../escape')).toMatch(/^h-[a-f0-9]{32}$/)
     expect(pathSegment('a/b')).not.toContain('/')
+  })
+})
+
+describe('data directories', () => {
+  it('falls back to a private TMPDIR directory when the primary cannot be written', () => {
+    const tmp = temp()
+    const blocked = join(temp(), 'file-not-dir')
+    writeFileSync(blocked, '')
+    const env = { LIGHTCODE_HOME: join(blocked, 'home'), TMPDIR: tmp }
+    expect(dataDirs(env)).toEqual([join(blocked, 'home'), join(tmp, `lightcode-${process.getuid!()}`)])
+    expect(writableDataDir(env)).toBe(join(tmp, `lightcode-${process.getuid!()}`))
+    expect(statSync(writableDataDir(env)!).mode & 0o777).toBe(0o700)
+    const ok = temp()
+    expect(writableDataDir({ LIGHTCODE_HOME: ok, TMPDIR: tmp })).toBe(ok)
+  })
+  it('reads journals from every location and filters by session alone', () => {
+    const a = temp(), b = temp()
+    new FileJournal(a).append(record('s1', 'a'))
+    new FileJournal(b).append(record('s2', 'b'))
+    expect(readJournals([a, b])).toHaveLength(2)
+    expect(readJournals([a, b], { sessionId: 's2' }).map(item => (item as EconomyRecord).callId)).toEqual(['b'])
   })
 })
 

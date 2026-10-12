@@ -1,6 +1,6 @@
 import { mayProject } from '@lightcode/core'
 import { normalizeShellCommand } from '@lightcode/mechanisms'
-import { cliContext, shellQuote } from './context.ts'
+import { cliContext, onPath, shellQuote } from './context.ts'
 
 /** Codex hook input fields LightCode reads (see the Codex hooks schema). */
 interface CodexHookInput {
@@ -31,14 +31,18 @@ export function codexPreToolUse(input: CodexHookInput, env: NodeJS.ProcessEnv = 
   const trimmed = script.trimStart()
   if (trimmed.startsWith(`${WRAPPER} `) || /\bapply_?patch\b/.test(script)) return undefined
   if (!mayProject(script)) return undefined
+  // A rewrite to an unresolvable `lc` would turn every wrapped command into "command not found".
+  if (!onPath('lc', env)) return undefined
   const cwd = typeof input.cwd === 'string' ? input.cwd : undefined
   const context = cliContext({ ...cwd === undefined ? {} : { cwd }, env })
   const { economy } = context.loaded.config
   if (economy.mode === 'off') return undefined
   const sessionId = typeof input.session_id === 'string' && input.session_id ? input.session_id : null
   const callId = typeof input.tool_use_id === 'string' && input.tool_use_id ? input.tool_use_id : null
-  const normalized = economy.commandNormalization
-    ? normalizeShellCommand({ host: 'codex', journal: context.journal }, { sessionId, callId, tool: 'exec_command', command: script })
+  // Normalization changes what runs, so it is an `apply` action; observe mode only wraps to record.
+  const store = economy.commandNormalization && economy.mode === 'apply' ? context.writable() : undefined
+  const normalized = store
+    ? normalizeShellCommand({ host: 'codex', journal: store.journal }, { sessionId, callId, tool: 'exec_command', command: script })
     : undefined
   const flags = ['--host', 'codex', ...sessionId ? ['--session', sessionId] : [], ...callId ? ['--call', callId] : []]
   const command = `${WRAPPER} ${flags.map(shellQuote).join(' ')} -c ${shellQuote(normalized ?? script)}`

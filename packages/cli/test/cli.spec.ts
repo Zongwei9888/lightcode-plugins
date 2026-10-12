@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -58,6 +58,14 @@ describe('lc run', () => {
     const record = JSON.parse(journal.trim())
     expect(lc(['show', record.raw.sha256], { home }).out).toBe(raw)
   })
+  it('falls back to a private TMPDIR location when the data directory is not writable', () => {
+    const cwd = project(), tmp = temp(), blocked = join(temp(), 'file')
+    writeFileSync(blocked, '')
+    const env = { TMPDIR: tmp }
+    const home = join(blocked, 'home')
+    expect(lc(['run', '--host', 'test', '-c', 'grep -rn value src'], { cwd, home, env }).out).toContain('omitted')
+    expect(JSON.parse(lc(['report', '--json'], { home, env }).out)).toMatchObject({ projected: 1 })
+  })
   it('passes everything through when disabled', () => {
     const cwd = project()
     const raw = spawnSync('/bin/sh', ['-c', 'grep -rn value src'], { cwd, encoding: 'utf8' }).stdout
@@ -84,13 +92,24 @@ describe('commandText and quoting', () => {
 
 describe('Codex PreToolUse hook', () => {
   const input = (command: string) => ({ hook_event_name: 'PreToolUse', tool_name: 'Bash', session_id: 'thread-1', tool_use_id: 'call_1', tool_input: { command } })
+  const withLc = () => {
+    const bin = temp()
+    writeFileSync(join(bin, 'lc'), '#!/bin/sh\n')
+    chmodSync(join(bin, 'lc'), 0o755)
+    return { LIGHTCODE_HOME: temp(), PATH: bin }
+  }
   it('wraps recognizable commands and normalizes them', () => {
-    const output = JSON.parse(codexPreToolUse(input('rg value src'), { LIGHTCODE_HOME: temp() })!)
+    const output = JSON.parse(codexPreToolUse(input('rg value src'), withLc())!)
     expect(output).toEqual({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'allow',
       updatedInput: { command: "lc run --host codex --session thread-1 --call call_1 -c 'rg -n -H value src'" } } })
   })
+  it('wraps without normalizing in observe mode, and not at all when lc is not on PATH', () => {
+    const observed = JSON.parse(codexPreToolUse(input('rg value src'), { ...withLc(), LIGHTCODE_ECONOMY: 'observe' })!)
+    expect(observed.hookSpecificOutput.updatedInput.command).toBe("lc run --host codex --session thread-1 --call call_1 -c 'rg value src'")
+    expect(codexPreToolUse(input('rg value src'), { LIGHTCODE_HOME: temp(), PATH: temp() })).toBeUndefined()
+  })
   it('leaves other commands, patches, wrapped commands and other events alone', () => {
-    const env = { LIGHTCODE_HOME: temp() }
+    const env = withLc()
     expect(codexPreToolUse(input('echo hello'), env)).toBeUndefined()
     expect(codexPreToolUse(input("apply_patch <<'EOF'\n*** Begin Patch\nEOF"), env)).toBeUndefined()
     expect(codexPreToolUse(input("lc run -c 'pytest'"), env)).toBeUndefined()

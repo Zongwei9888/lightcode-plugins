@@ -10,7 +10,7 @@ import { formatTokens, isPrepared, EconomyEngine, normalizeShellCommand, summari
 import type { Prepared } from '@lightcode/mechanisms'
 import { HOST_PROFILES, V0_1_SPECS, negotiate } from '@lightcode/protocol'
 import type { MechanismMode, Negotiation } from '@lightcode/protocol'
-import { FileArtifactStore, FileJournal, collectDaily, loadConfig, resolveDataDir } from '@lightcode/store'
+import { FileArtifactStore, FileJournal, collectDaily, dataDirs, loadConfig, readJournals, resolveDataDir, writableDataDir } from '@lightcode/store'
 import type { LoadedConfig } from '@lightcode/store'
 import { bashShellResult } from './bash.ts'
 
@@ -39,7 +39,9 @@ interface SessionState {
 export function createLightCodeExtension(options: LightCodePiOptions = {}) {
   return function lightcode(pi: ExtensionAPI): void {
     const env = options.env ?? process.env
-    const dataDir = options.dataDir ?? resolveDataDir(env)
+    const configDir = options.dataDir ?? resolveDataDir(env)
+    const dataDir = options.dataDir ?? writableDataDir(env) ?? configDir
+    const readDirs = options.dataDir ? [options.dataDir] : dataDirs(env)
     const journal = new FileJournal(dataDir)
     const artifacts = new FileArtifactStore(dataDir)
     let state: SessionState | undefined
@@ -47,7 +49,7 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
     pi.registerFlag('lightcode', { type: 'string', default: '', description: 'LightCode Economy ceiling: apply, observe or off' })
 
     const start = (ctx: ExtensionContext): SessionState => {
-      const loaded = loadConfig({ dataDir, cwd: ctx.cwd, env })
+      const loaded = loadConfig({ dataDir: configDir, cwd: ctx.cwd, env })
       const flag = String(pi.getFlag('lightcode') ?? '').trim() as MechanismMode
       const economyCeiling = MODES.has(flag) && rank(flag) < rank(loaded.config.economy.mode) ? flag : loaded.config.economy.mode
       const negotiated = negotiate(V0_1_SPECS, HOST_PROFILES[HOST]!.capabilities, {
@@ -57,7 +59,7 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
       const sessionId = ctx.sessionManager.getSessionId() || null
       const engine = mode === 'off' ? undefined : new EconomyEngine({ host: HOST, journal, artifacts, config: loaded.config.economy,
         mode, delivery: 'in-process', streams: 'merged' })
-      const previous = sessionId ? summarizeEconomy(journal.read({ host: HOST, sessionId })) : undefined
+      const previous = sessionId ? summarizeEconomy(readJournals(readDirs, { host: HOST, sessionId })) : undefined
       try { collectDaily(dataDir, days => artifacts.prune(days), loaded.config.artifacts.retentionDays) } catch { /* Housekeeping only. */ }
       return {
         sessionId, loaded, negotiated, engine,
@@ -133,7 +135,7 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
       description: 'LightCode: savings in this session and what this host supports',
       handler: async (_args, ctx) => {
         const session = current(ctx)
-        const summary = summarizeEconomy(session.sessionId ? journal.read({ host: HOST, sessionId: session.sessionId }) : [])
+        const summary = summarizeEconomy(session.sessionId ? readJournals(readDirs, { host: HOST, sessionId: session.sessionId }) : [])
         const lines = [
           `LightCode Economy: ${summary.projected} outputs filtered, ~${formatTokens(summary.savedTokens)} tokens saved, ${summary.passed} passed unchanged`,
           ...session.negotiated.map(item => `${item.mechanism}: ${item.mode} (${item.reason})`),
