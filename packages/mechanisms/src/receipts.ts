@@ -1,0 +1,73 @@
+import { literalCommand } from '@lightcode/core'
+import type { EconomyRecord, JournalRecord } from '@lightcode/protocol'
+
+export interface EconomySummary {
+  readonly decisions: number
+  readonly projected: number
+  readonly previewed: number
+  readonly passed: number
+  readonly failedOpen: number
+  /** Applied projections only. */
+  readonly rawTokens: number
+  readonly projectedTokens: number
+  readonly savedTokens: number
+  readonly savedBytes: number
+  /** Would-be savings of observe-mode previews. */
+  readonly previewSavedTokens: number
+  readonly byFilter: readonly { readonly filter: string; readonly count: number; readonly savedTokens: number }[]
+  readonly passReasons: readonly { readonly reason: string; readonly count: number }[]
+  /** Command heads that no filter covers: the best candidates for new filters. */
+  readonly uncovered: readonly { readonly command: string; readonly count: number; readonly rawTokens: number }[]
+  readonly rewrites: number
+}
+
+const ranked = <T extends { count: number }>(map: Map<string, T>) => [...map.values()].sort((a, b) => b.count - a.count)
+
+export function summarizeEconomy(records: Iterable<JournalRecord>): EconomySummary {
+  let decisions = 0, projected = 0, previewed = 0, passed = 0, failedOpen = 0, rewrites = 0
+  let rawTokens = 0, projectedTokens = 0, savedBytes = 0, previewSavedTokens = 0
+  const filters = new Map<string, { filter: string; count: number; savedTokens: number }>()
+  const reasons = new Map<string, { reason: string; count: number }>()
+  const uncovered = new Map<string, { command: string; count: number; rawTokens: number }>()
+  for (const item of records) {
+    if (item.type === 'economy/command-rewrite') { rewrites++; continue }
+    if (item.type !== 'economy/decision') continue
+    const record = item as EconomyRecord
+    decisions++
+    if (record.outcome === 'projected' && record.raw && record.projected) {
+      projected++
+      rawTokens += record.raw.tokens
+      projectedTokens += record.projected.tokens
+      savedBytes += record.raw.bytes - record.projected.bytes
+      const key = record.filter ?? 'unknown'
+      const entry = filters.get(key) ?? { filter: key, count: 0, savedTokens: 0 }
+      entry.count++
+      entry.savedTokens += record.raw.tokens - record.projected.tokens
+      filters.set(key, entry)
+    } else if (record.outcome === 'previewed') {
+      previewed++
+      if (record.raw && record.projected) previewSavedTokens += record.raw.tokens - record.projected.tokens
+    } else if (record.outcome === 'failed-open') failedOpen++
+    else {
+      passed++
+      const reason = record.matchDetail ? `${record.reason}:${record.matchDetail}` : record.reason ?? 'unknown'
+      const entry = reasons.get(reason) ?? { reason, count: 0 }
+      entry.count++
+      reasons.set(reason, entry)
+      if (record.matchDetail === 'command-not-covered') {
+        const head = literalCommand(record.command)?.[0] ?? record.command.trim().split(/\s+/)[0] ?? ''
+        const miss = uncovered.get(head) ?? { command: head, count: 0, rawTokens: 0 }
+        miss.count++
+        miss.rawTokens += record.raw?.tokens ?? 0
+        uncovered.set(head, miss)
+      }
+    }
+  }
+  return { decisions, projected, previewed, passed, failedOpen, rawTokens, projectedTokens,
+    savedTokens: rawTokens - projectedTokens, savedBytes, previewSavedTokens,
+    byFilter: ranked(filters).map(item => ({ ...item })), passReasons: ranked(reasons), uncovered: ranked(uncovered).slice(0, 20), rewrites }
+}
+
+export function formatTokens(value: number): string {
+  return value >= 1_000_000 ? `${(value / 1_000_000).toFixed(1)}M` : value >= 1000 ? `${(value / 1000).toFixed(1)}k` : String(value)
+}

@@ -1,0 +1,22 @@
+{
+  "name": "lightcode-monorepo",
+  "private": true,
+  "type": "module",
+  "description": "LightCode: deterministic, recoverable context economy for coding agents (pi, DeepSeek Harness, Codex).",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@10.4.1",
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "pnpm build && pnpm -r --workspace-concurrency=1 test",
+    "check": "pnpm typecheck && pnpm test"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.3"
+  }
+}

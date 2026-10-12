@@ -1,0 +1,22 @@
+{
+  "name": "@lightcode/core",
+  "version": "0.1.0-dev.0",
+  "description": "Host-independent LightCode logic: deterministic tool-output filters, source maps and admission rules.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    }
+  },
+  "files": ["lib", "src", "NOTICE.md"],
+  "scripts": {
+    "test": "vitest run"
+  },
+  "sideEffects": false
+}

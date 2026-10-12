@@ -1,0 +1,38 @@
+{
+  "name": "@lightcode/pi",
+  "version": "0.1.0-dev.0",
+  "description": "LightCode for the pi coding agent: deterministic shell-output filtering with the original kept in the session.",
+  "license": "MIT",
+  "type": "module",
+  "keywords": ["pi-package", "pi-extension", "lightcode", "context", "tokens"],
+  "engines": {
+    "node": ">=22"
+  },
+  "pi": {
+    "extensions": ["./src/extension.ts"]
+  },
+  "exports": {
+    ".": {
+      "source": "./src/extension.ts",
+      "types": "./lib/extension.d.ts",
+      "default": "./lib/extension.js"
+    }
+  },
+  "files": ["lib", "src"],
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@lightcode/core": "workspace:*",
+    "@lightcode/mechanisms": "workspace:*",
+    "@lightcode/protocol": "workspace:*",
+    "@lightcode/store": "workspace:*"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-ai": "^1.1.0",
+    "@earendil-works/pi-coding-agent": "1.1.0"
+  }
+}

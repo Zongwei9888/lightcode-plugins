@@ -1,0 +1,7 @@
+{
+  "name": "lightcode-custom-node-failure-fixture",
+  "private": true,
+  "scripts": {
+    "test": "node ../custom-node-failure.mjs"
+  }
+}

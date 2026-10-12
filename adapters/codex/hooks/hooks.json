@@ -1,0 +1,17 @@
+{
+  "description": "LightCode Economy: wrap recognizable shell commands in `lc run` so their output is filtered before the model sees it.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "lc hook codex",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

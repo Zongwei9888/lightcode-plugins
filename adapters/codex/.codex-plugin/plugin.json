@@ -1,0 +1,10 @@
+{
+  "name": "lightcode",
+  "version": "0.1.0-dev.0",
+  "description": "Deterministic shell-output filtering: recognized commands run through `lc run`, which prints a smaller projection and keeps the original privately.",
+  "keywords": ["context", "tokens", "output-filtering"],
+  "hooks": "./hooks/hooks.json",
+  "interface": {
+    "displayName": "LightCode"
+  }
+}

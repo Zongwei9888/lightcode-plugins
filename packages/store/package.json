@@ -1,0 +1,29 @@
+{
+  "name": "@lightcode/store",
+  "version": "0.1.0-dev.0",
+  "description": "Local LightCode data: private journal, original-output store and configuration.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    }
+  },
+  "files": [
+    "lib",
+    "src"
+  ],
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@lightcode/core": "workspace:*",
+    "@lightcode/protocol": "workspace:*"
+  },
+  "sideEffects": false
+}

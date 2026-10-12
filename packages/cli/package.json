@@ -1,0 +1,34 @@
+{
+  "name": "@lightcode/cli",
+  "version": "0.1.0-dev.0",
+  "description": "The lc command: run commands with filtered output, Codex hooks, reports and diagnostics.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/hook.ts",
+      "types": "./lib/hook.d.ts",
+      "default": "./lib/hook.js"
+    }
+  },
+  "files": [
+    "bin",
+    "lib",
+    "src"
+  ],
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@lightcode/core": "workspace:*",
+    "@lightcode/protocol": "workspace:*",
+    "@lightcode/store": "workspace:*",
+    "@lightcode/mechanisms": "workspace:*"
+  },
+  "bin": {
+    "lc": "./bin/lc.js"
+  }
+}

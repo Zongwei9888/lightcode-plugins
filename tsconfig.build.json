@@ -1,0 +1,23 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "packages/core"
+    },
+    {
+      "path": "packages/protocol"
+    },
+    {
+      "path": "packages/store"
+    },
+    {
+      "path": "packages/mechanisms"
+    },
+    {
+      "path": "packages/cli"
+    },
+    {
+      "path": "adapters/pi"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+node_modules/
+lib/
+*.tsbuildinfo
+coverage/
+.DS_Store
+.env
+.env.*
+*.log
+# Local LightCode data written by tests or manual runs
+.lightcode/
