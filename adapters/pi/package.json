@@ -1,7 +1,7 @@
 {
   "name": "@lightcode/pi",
   "version": "0.1.0",
-  "description": "LightCode for the pi coding agent: shrinks recognized bash output (tests, builds, diffs, searches) before the model reads it, keeping the original in the session.",
+  "description": "LightCode for the pi coding agent: shrinks recognized bash output (tests, builds, diffs, searches) and its own grep/find results before the model reads them, keeping the original in the session.",
   "license": "MIT",
   "type": "module",
   "keywords": [

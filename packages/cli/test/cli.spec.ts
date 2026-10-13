@@ -92,6 +92,9 @@ describe('lc run', () => {
     expect(JSON.parse(lc(['report', '--host', 'test', '--session', 'parent', '--json'], { home }).out)).toMatchObject({ decisions: 2, projected: 1 })
     expect(lc(['report', '--host', 'test', '--session', 'parent'], { home }).out).toContain('session parent and its 1 subagent session')
     expect(JSON.parse(lc(['report', '--host', 'test', '--json'], { home }).out)).toMatchObject({ decisions: 2, projected: 1 })
+    // Without a host, every host's records of those sessions count.
+    expect(JSON.parse(lc(['report', '--session', 'parent', '--json'], { home }).out)).toMatchObject({ decisions: 2, projected: 1 })
+    expect(lc(['report', '--session', 'parent'], { home }).out).toContain('all hosts, session parent and its 1 subagent session')
   })
 })
 

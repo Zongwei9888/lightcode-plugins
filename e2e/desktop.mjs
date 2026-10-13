@@ -6,9 +6,9 @@
  * Desktop is not distributed through npm, so this scenario needs an unpacked
  * application: set LIGHTCODE_E2E_DESKTOP_APP to `DeepSeek Harness.app`.
  * Desktop is built for macOS and Windows only, and this scenario drives the
- * macOS app. A source build produces one with
- * `pnpm run build && pnpm run package:desktop:mac:arm64:dir` in a DeepSeek
- * Harness checkout. The app runs with its own DSH_HOME, LIGHTCODE_HOME,
+ * macOS app: the one in the official DMG (download.deepseek.com) or a source
+ * build (`pnpm run build && pnpm run package:desktop:mac:arm64:dir` in a
+ * DeepSeek Harness checkout). The app runs with its own DSH_HOME, LIGHTCODE_HOME,
  * Electron user data and Documents directory, so nothing outside the run
  * directory changes; the empty log folder Electron creates outside the user
  * data directory is removed again. Its window appears on screen while the

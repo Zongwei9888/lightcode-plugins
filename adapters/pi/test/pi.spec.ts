@@ -104,11 +104,11 @@ describe('pi adapter (real pi 1.1 session, faux model)', () => {
     const cwd = workspace(), dataDir = temp()
     // The parent's environment is what the pi processes it starts inherit.
     const parentEnv: NodeJS.ProcessEnv = {}
-    const parent = await runPi({ cwd, extension: createLightCodeExtension({ dataDir, env: parentEnv }), commands: ['seq 1 3'] })
-    expect(parentEnv[PARENT_SESSION_ENV]).toBe(`pi:${parent.sessionId}`)
+    const parent = await runPi({ cwd, extension: createLightCodeExtension({ dataDir, env: parentEnv, pid: 1001, ppid: 1 }), commands: ['seq 1 3'] })
+    expect(parentEnv[PARENT_SESSION_ENV]).toBe(`pi:1001:${parent.sessionId}`)
     const childEnv = { ...parentEnv }
-    const child = await runPi({ cwd, extension: createLightCodeExtension({ dataDir, env: childEnv }), commands: ['grep -rn value src'] })
-    expect(childEnv[PARENT_SESSION_ENV]).toBe(`pi:${child.sessionId}`)
+    const child = await runPi({ cwd, extension: createLightCodeExtension({ dataDir, env: childEnv, pid: 1002, ppid: 1001 }), commands: ['grep -rn value src'] })
+    expect(childEnv[PARENT_SESSION_ENV]).toBe(`pi:1002:${child.sessionId}`)
     const read = (sessionId: string) => readJournals([dataDir], { host: 'pi', sessionId })
     expect(read(parent.sessionId).filter(record => record.type === 'session/subagent')).toMatchObject([{ childSessionId: child.sessionId }])
     const subagents = collectSubagents(read, parent.sessionId)
@@ -116,8 +116,21 @@ describe('pi adapter (real pi 1.1 session, faux model)', () => {
     expect(summarizeEconomy(subagents.records)).toMatchObject({ projected: 1 })
     // A session that LightCode does not run in hands nothing down.
     const offEnv: NodeJS.ProcessEnv = { LIGHTCODE_DISABLE: '1' }
-    await runPi({ cwd, extension: createLightCodeExtension({ dataDir, env: offEnv }), commands: ['seq 1 3'] })
+    await runPi({ cwd, extension: createLightCodeExtension({ dataDir, env: offEnv, pid: 1003, ppid: 1 }), commands: ['seq 1 3'] })
     expect(offEnv[PARENT_SESSION_ENV]).toBeUndefined()
+  })
+
+  it('does not take a later session of the same process, or a pi started further down, for a subagent', async () => {
+    const cwd = workspace(), dataDir = temp()
+    const env: NodeJS.ProcessEnv = {}
+    // /new, /resume, /fork and /reload run the extension again in the same process, with the same environment.
+    const first = await runPi({ cwd, extension: createLightCodeExtension({ dataDir, env, pid: 2001, ppid: 1 }), commands: ['grep -rn value src'] })
+    const second = await runPi({ cwd, extension: createLightCodeExtension({ dataDir, env, pid: 2001, ppid: 1 }), commands: ['grep -rn value src'] })
+    // A pi started from a long-lived process (a shell, a tmux server) that itself came from this pi.
+    const later = await runPi({ cwd, extension: createLightCodeExtension({ dataDir, env: { ...env }, pid: 2003, ppid: 2002 }), commands: ['seq 1 3'] })
+    const read = (sessionId: string) => readJournals([dataDir], { host: 'pi', sessionId })
+    for (const run of [first, second, later]) expect(read(run.sessionId).filter(record => record.type === 'session/subagent')).toEqual([])
+    expect(collectSubagents(read, first.sessionId).sessions).toEqual([])
   })
 
   it('records previews without changing anything in observe mode', async () => {

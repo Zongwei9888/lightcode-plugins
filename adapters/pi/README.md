@@ -61,8 +61,10 @@ with the other LightCode hosts; see the
   left alone. `grep` rows of one file are grouped under its path and `find`
   paths under their directory; every row, path and limit notice stays, in
   order. `read`, `edit`, `write` and `ls` are never changed.
-- Output pi already truncated (over 2000 lines or 50 KB), commands that timed
-  out or were aborted, and anything not recognized pass through unchanged.
+- `bash` output pi already truncated (over 2000 lines or 50 KB), commands that
+  timed out or were aborted, and anything not recognized pass through
+  unchanged. `grep` and `find` results pi capped are still laid out, with pi's
+  limit notice kept as it is.
 - pi merges stdout and stderr and appends `Command exited with code N` on
   failure; that footer is always kept.
 
@@ -73,7 +75,9 @@ separate `pi` process, such as the subagent example that ships with pi
 (`examples/extensions/subagent` in `@earendil-works/pi-coding-agent`), load LightCode in that process as well, so the subagent's `bash` output is
 filtered the same way. The parent's status bar and `/lightcode` include what
 its subagents saved: LightCode hands the parent session's ID to the processes
-pi starts in the `LIGHTCODE_PARENT_SESSION` environment variable. Tested with
+pi starts in the `LIGHTCODE_PARENT_SESSION` environment variable, and only a
+direct child process of that pi takes it up, so a later session in the same pi
+(`/new`, `/resume`, `/fork`) is not counted as a subagent. Tested with
 the subagent example in single and parallel mode; subagents that run inside the
 parent's process are not covered.
 
@@ -100,6 +104,6 @@ pi 的 `context_edit` 交付，**pi 自己的会话文件、TUI 和导出仍是�
 - 安装：`pi install npm:@lightcode/pi`（加 `-l` 只装到当前项目）
 - 状态栏显示本会话省下的 token；`/lightcode` 查看明细
 - pi 自带的 `grep`、`find` 工具的结果做无损排版（同一文件的匹配、同一目录的路径归到一起，每行、每个路径和提示都保留）；`read`、`edit`、`write`、`ls` 从不改动
-- 子 agent：每个子 agent 单独起一个 `pi` 进程的子 agent 扩展（如 pi 自带的 subagent 示例）里，LightCode 同样生效；父会话的状态栏和 `/lightcode` 会把子 agent 省下的一起算上（通过环境变量 `LIGHTCODE_PARENT_SESSION` 传递父会话 ID）
+- 子 agent：每个子 agent 单独起一个 `pi` 进程的子 agent 扩展（如 pi 自带的 subagent 示例）里，LightCode 同样生效；父会话的状态栏和 `/lightcode` 会把子 agent 省下的一起算上（通过环境变量 `LIGHTCODE_PARENT_SESSION` 传递父会话 ID，只有该 pi 直接启动的子进程才会认领；同一个 pi 里 `/new`、`/resume`、`/fork` 出来的会话不算子 agent）
 - `pi --lightcode observe` 本次运行只记录不改动；`pi config` 里可以关闭扩展
 - 卸载：`pi remove npm:@lightcode/pi`

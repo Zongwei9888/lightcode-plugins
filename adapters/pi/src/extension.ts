@@ -5,6 +5,7 @@
  * keeps the original result, the model sees the projection from its first
  * read on, and LightCode's journal records the source map and a private copy.
  */
+import { statSync } from 'node:fs'
 import type { ExtensionAPI, ExtensionContext, ToolResultEvent, TurnEndEvent } from '@earendil-works/pi-coding-agent'
 import { sha256 } from '@lightcode/core'
 import { collectSubagents, describeToolCall, formatTokens, isPrepared, EconomyEngine, normalizeShellCommand, recordSubagent, summarizeEconomy } from '@lightcode/mechanisms'
@@ -21,10 +22,13 @@ const STATUS_KEY = 'lightcode'
 /**
  * Subagents run as `pi` processes started from this one (the subagent example
  * extension and packages built on it), so the session that starts them hands
- * its ID down through the environment they inherit.
+ * its ID down through the environment they inherit: `pi:<process ID>:<session ID>`.
+ * Only a direct child process of the writer takes it up. A later session of
+ * the same process (`/new`, `/resume`, `/fork`, `/reload`) or a `pi` started
+ * from some other long-lived descendant is no subagent.
  */
 export const PARENT_SESSION_ENV = 'LIGHTCODE_PARENT_SESSION'
-const PARENT_PREFIX = `${HOST}:`
+const PARENT_VALUE = /^pi:([1-9]\d*):(.+)$/
 /** pi's own tools; anything else (a subagent tool among them) may have started subagents. */
 const BUILT_IN_TOOLS = new Set(['bash', 'read', 'edit', 'write', 'grep', 'find', 'ls'])
 const MODES = new Set<MechanismMode>(['apply', 'observe', 'off'])
@@ -33,6 +37,9 @@ export interface LightCodePiOptions {
   /** Defaults to `$LIGHTCODE_HOME` or `~/.lightcode`. */
   readonly dataDir?: string
   readonly env?: NodeJS.ProcessEnv
+  /** This process and its parent; tests stand in for separate processes. */
+  readonly pid?: number
+  readonly ppid?: number
 }
 
 interface SessionState {
@@ -57,13 +64,28 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
     const readDirs = options.dataDir ? [options.dataDir] : dataDirs(env)
     const journal = new FileJournal(dataDir)
     const artifacts = new FileArtifactStore(dataDir)
-    // Read before this process's own session replaces it for the processes it starts.
-    const inherited = env[PARENT_SESSION_ENV]?.startsWith(PARENT_PREFIX) ? env[PARENT_SESSION_ENV].slice(PARENT_PREFIX.length) : undefined
+    const pid = options.pid ?? process.pid
+    const handedDown = PARENT_VALUE.exec(env[PARENT_SESSION_ENV] ?? '')
+    const inherited = handedDown && Number(handedDown[1]) === (options.ppid ?? process.ppid) ? handedDown[2] : undefined
     const linked = new Set<string>()
     let state: SessionState | undefined
     const read = (sessionId: string) => readJournals(readDirs, { host: HOST, sessionId })
-    const subagentSummary = (sessionId: string | null) =>
-      sessionId ? summarizeEconomy(collectSubagents(read, sessionId).records) : undefined
+    // Journal files only grow: their sizes, taken before reading, say whether a total can change.
+    const sizes = (sessionIds: readonly string[]) => sessionIds.flatMap(id => readDirs.map(dir => {
+      try { return statSync(new FileJournal(dir).fileOf(HOST, id)).size } catch { return -1 }
+    })).join(',')
+    let subagentCache: { readonly root: string; readonly stamp: string; readonly children: readonly string[]; readonly saved: number } | undefined
+    const subagentSaved = (sessionId: string | null): number => {
+      if (!sessionId) return 0
+      const known = subagentCache?.root === sessionId ? subagentCache.children : []
+      const stamp = sizes([sessionId, ...known])
+      if (subagentCache?.root === sessionId && subagentCache.stamp === stamp) return subagentCache.saved
+      const found = collectSubagents(read, sessionId)
+      const saved = summarizeEconomy(found.records).savedTokens
+      // A newly found subagent changes the stamp's shape, so the next call reads once more.
+      subagentCache = { root: sessionId, stamp, children: found.sessions, saved }
+      return saved
+    }
 
     pi.registerFlag('lightcode', { type: 'string', default: '', description: 'LightCode Economy ceiling: apply, observe or off' })
 
@@ -85,13 +107,13 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
           linked.add(sessionId)
           try { recordSubagent(journal, HOST, inherited, sessionId) } catch { /* Only the parent's report loses this session. */ }
         }
-        env[PARENT_SESSION_ENV] = `${PARENT_PREFIX}${sessionId}`
+        env[PARENT_SESSION_ENV] = `pi:${pid}:${sessionId}`
       }
       return {
         sessionId, loaded, negotiated, engine,
         normalize: negotiated.find(item => item.mechanism === 'command-normalization')!.mode === 'apply',
         pending: new Map(), savedTokens: previous?.savedTokens ?? 0, projected: previous?.projected ?? 0,
-        subagentSavedTokens: engine ? subagentSummary(sessionId)?.savedTokens ?? 0 : 0,
+        subagentSavedTokens: engine ? subagentSaved(sessionId) : 0,
       }
     }
     const current = (ctx: ExtensionContext): SessionState => {
@@ -149,7 +171,7 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
       // A tool pi does not ship may have run subagents; their savings are in the journal by now.
       if (event.toolResults.some(message => !BUILT_IN_TOOLS.has(message.toolName))) {
         const before = session.subagentSavedTokens
-        try { session.subagentSavedTokens = subagentSummary(session.sessionId)?.savedTokens ?? 0 } catch { /* Status only. */ }
+        try { session.subagentSavedTokens = subagentSaved(session.sessionId) } catch { /* Status only. */ }
         if (session.subagentSavedTokens !== before) showStatus(ctx, session)
       }
       if (session.pending.size === 0) return

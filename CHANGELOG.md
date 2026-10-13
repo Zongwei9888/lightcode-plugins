@@ -25,7 +25,8 @@ First open-source release line: Token Economy on several hosts.
   `tools/post-execute` before DSH's spill policy; live Mode setting on its
   Plugins page; `/lightcode`; display metadata and icon. Tested on
   0.2.0-rc.2 and 0.2.1-alpha.2 (CLI and Web UI on macOS and Linux, the
-  Desktop app on macOS).
+  Desktop app on macOS: the signed 0.2.0-rc.2 release and a 0.2.1-alpha.2
+  build).
 - Native search tools: results of pi's `grep` / `find` and DeepSeek
   Harness's `grep` / `glob` are laid out losslessly (`native-grep`,
   `native-glob`): rows grouped by file, paths by directory, every match,
@@ -35,7 +36,9 @@ First open-source release line: Token Economy on several hosts.
   in-process `subagent` / `subagent_fork`; pi subagent extensions that start
   `pi` processes). A `session/subagent` journal record links each subagent
   session to its parent, so `/lightcode`, pi's status bar and
-  `lc report --session` include what subagents saved.
+  `lc report --session` include what subagents saved. On pi the parent's
+  session ID is handed to direct child processes only, so `/new`, `/resume`
+  and `/fork` never count as subagents.
 - `adapters/codex`: Codex plugin whose `PreToolUse` hook wraps recognizable
   shell commands in `lc run`; the repository doubles as a Codex marketplace.
 - The published packages are self-contained bundles with their licenses and

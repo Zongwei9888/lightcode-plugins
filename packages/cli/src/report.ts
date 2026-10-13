@@ -1,5 +1,6 @@
 import { collectSubagents, formatTokens, summarizeEconomy } from '@lightcode/mechanisms'
 import type { EconomySummary } from '@lightcode/mechanisms'
+import type { JournalRecord } from '@lightcode/protocol'
 import { cliContext } from './context.ts'
 
 export function formatSummary(summary: EconomySummary, scope: string): string {
@@ -27,9 +28,20 @@ export function formatSummary(summary: EconomySummary, scope: string): string {
 export function report(options: { host?: string; session?: string; json?: boolean }): number {
   const context = cliContext()
   const host = options.host === undefined ? {} : { host: options.host }
-  const records = context.readJournal({ ...host, ...options.session === undefined ? {} : { sessionId: options.session } })
-  // A session includes the subagent sessions it started.
-  const subagents = options.session === undefined ? undefined : collectSubagents(sessionId => context.readJournal({ ...host, sessionId }), options.session)
+  // A session includes the subagent sessions it started. With a host each session is one file;
+  // without one, every file is read once and indexed rather than once per subagent.
+  let read: (sessionId: string) => readonly JournalRecord[] = sessionId => context.readJournal({ ...host, sessionId })
+  if (options.session !== undefined && options.host === undefined) {
+    const bySession = new Map<string | null, JournalRecord[]>()
+    for (const record of context.readJournal({})) {
+      const list = bySession.get(record.sessionId)
+      if (list) list.push(record)
+      else bySession.set(record.sessionId, [record])
+    }
+    read = sessionId => bySession.get(sessionId) ?? []
+  }
+  const records = options.session === undefined ? context.readJournal(host) : read(options.session)
+  const subagents = options.session === undefined ? undefined : collectSubagents(read, options.session)
   const summary = summarizeEconomy(subagents ? [...records, ...subagents.records] : records)
   const n = subagents?.sessions.length ?? 0
   const session = options.session ? `session ${options.session}${n > 0 ? ` and its ${n} subagent session${n === 1 ? '' : 's'}` : ''}` : 'all sessions'
