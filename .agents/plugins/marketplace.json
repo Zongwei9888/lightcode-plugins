@@ -1,0 +1,6 @@
+{
+  "name": "lightcode",
+  "plugins": [
+    { "name": "lightcode", "source": "./adapters/codex" }
+  ]
+}

@@ -19,12 +19,20 @@ and signals, saves the original output under `~/.lightcode`, and prints a
 smaller, deterministic projection when one is admitted (strictly fewer bytes
 and tokens). Every other command is left alone.
 
-Verified against Codex 0.162.1 source:
+Verified against Codex 0.162.1, from its source and in real `codex exec`
+sessions:
 
 - The model's history keeps the original command; Codex still applies its
-  exec policy, approval and sandbox to the rewritten one.
+  exec policy, approval and sandbox to the rewritten one. Codex's own display
+  (the TUI and `codex exec --json`) shows the wrapped `lc run …` command.
 - Hooks from plugins (and `~/.codex/hooks.json`) run only after you trust
   them in `/hooks` or the startup review. Editing the hook revokes trust.
+  `codex exec` skips untrusted hooks silently, so trust the hook once in the
+  interactive TUI first.
+- Codex caps one command's output at 10,000 tokens by default and keeps the
+  head and tail of anything larger. Below that cap a projection is a direct
+  saving; above it Codex's cap still applies, and the projection means more
+  of the result fits inside it.
 - `lc` must be on the `PATH` of the shell Codex uses
   (`npm install -g @lightcode/cli`, then `lc doctor`).
 - Long-running commands show their output when they finish, not while they
@@ -38,10 +46,16 @@ Verified against Codex 0.162.1 source:
 
 ## Install
 
-Either install this directory as a local Codex plugin, or copy
-`hooks/hooks.json` to `~/.codex/hooks.json` (or a project's
-`.codex/hooks.json`). Then start Codex, trust the hook, and check savings
-with `lc report --host codex`.
+From a checkout of this repository (it doubles as a Codex marketplace):
+
+```sh
+codex plugin marketplace add /path/to/lightcode
+codex plugin add lightcode@lightcode
+```
+
+Or copy `hooks/hooks.json` to `~/.codex/hooks.json` (or a project's
+`.codex/hooks.json`). Then start Codex, trust the hook in `/hooks`, and check
+savings with `lc report --host codex`.
 
 Disable at any time with `LIGHTCODE_DISABLE=1`, or set
 `{"economy": {"mode": "observe"}}` in `~/.lightcode/config.json` to record

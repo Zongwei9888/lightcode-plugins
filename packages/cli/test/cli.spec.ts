@@ -57,6 +57,13 @@ describe('lc run', () => {
     const journal = spawnSync('/bin/sh', ['-c', 'cat journal/test/s1.jsonl'], { cwd: home, encoding: 'utf8' }).stdout
     const record = JSON.parse(journal.trim())
     expect(lc(['show', record.raw.sha256], { home }).out).toBe(raw)
+    expect(record.tool).toBe('bash')
+  })
+  it("records Codex's shell tool name, matching the hook's rewrite records", () => {
+    const cwd = project(), home = temp()
+    lc(['run', '--host', 'codex', '--session', 's1', '--call', 'c1', '-c', 'grep -rn value src'], { cwd, home })
+    const journal = spawnSync('/bin/sh', ['-c', 'cat journal/codex/s1.jsonl'], { cwd: home, encoding: 'utf8' }).stdout
+    expect(JSON.parse(journal.trim())).toMatchObject({ host: 'codex', callId: 'c1', tool: 'exec_command' })
   })
   it('falls back to a private TMPDIR location when the data directory is not writable', () => {
     const cwd = project(), tmp = temp(), blocked = join(temp(), 'file')

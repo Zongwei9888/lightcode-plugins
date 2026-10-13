@@ -31,11 +31,13 @@ function runArgs(argv: string[]) {
     host: { type: 'string' }, session: { type: 'string' }, call: { type: 'string' }, tool: { type: 'string' }, c: { type: 'string', short: 'c' },
   } })
   const env = process.env
+  const host = values.host ?? env.LIGHTCODE_HOST ?? 'shell'
   return {
-    host: values.host ?? env.LIGHTCODE_HOST ?? 'shell',
+    host,
     sessionId: values.session ?? env.LIGHTCODE_SESSION ?? null,
     callId: values.call ?? null,
-    tool: values.tool ?? 'bash',
+    // Name the host's own shell tool so decisions line up with the hook's rewrite records.
+    tool: values.tool ?? (host === 'codex' ? 'exec_command' : 'bash'),
     ...values.c !== undefined ? { script: values.c } : {},
     ...split >= 0 ? { argv: argv.slice(split + 1) } : {},
   }
