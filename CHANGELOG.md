@@ -12,7 +12,7 @@ First open-source release line: Token Economy on several hosts.
 - `@lightcode/protocol`: host capability vocabulary, verified host profiles
   and mode negotiation (`off` / `observe` / `apply`).
 - `@lightcode/store`: private journal, content-addressed original store with
-  retention, and configuration.
+  retention, and configuration (a project's file can only lower the mode).
 - `@lightcode/mechanisms`: the Economy engine (save original → journal →
   deliver projection; fail-open) and session receipts.
 - `@lightcode/cli`: `lc run`, `lc hook codex`, `lc report`, `lc doctor`,

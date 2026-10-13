@@ -102,6 +102,17 @@ describe('loadConfig', () => {
     expect(loadConfig({ dataDir: data, cwd, env: { LIGHTCODE_ECONOMY: 'apply' } }).config.economy.mode).toBe('apply')
     expect(loadConfig({ dataDir: data, cwd, env: { LIGHTCODE_DISABLE: '1' } }).config.economy.mode).toBe('off')
   })
+  it('lets a project lower the mode or switch rewriting off, never undo what the user turned off', () => {
+    const data = temp(), cwd = temp()
+    mkdirSync(join(cwd, '.lightcode'))
+    writeFileSync(join(data, 'config.json'), JSON.stringify({ economy: { mode: 'off', commandNormalization: false } }))
+    writeFileSync(join(cwd, '.lightcode', 'config.json'), JSON.stringify({ economy: { mode: 'apply', commandNormalization: true } }))
+    expect(loadConfig({ dataDir: data, cwd, env: {} }).config.economy).toMatchObject({ mode: 'off', commandNormalization: false })
+    writeFileSync(join(data, 'config.json'), JSON.stringify({ economy: { mode: 'observe' } }))
+    writeFileSync(join(cwd, '.lightcode', 'config.json'), JSON.stringify({ economy: { mode: 'off', commandNormalization: false } }))
+    expect(loadConfig({ dataDir: data, cwd, env: {} }).config.economy).toMatchObject({ mode: 'off', commandNormalization: false })
+    expect(loadConfig({ dataDir: data, cwd, env: { LIGHTCODE_ECONOMY: 'apply' } }).config.economy.mode).toBe('apply')
+  })
   it('turns Economy off on any invalid setting and keeps project files away from retention', () => {
     const data = temp(), cwd = temp()
     mkdirSync(join(cwd, '.lightcode'))

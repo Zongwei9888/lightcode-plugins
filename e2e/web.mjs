@@ -101,11 +101,19 @@ export async function runWeb({ cache, root, registry, log }) {
     const patch = () => readFileSync(join(profileDir, 'cordis.patch.yml'), 'utf8')
     // The chat composer is a contenteditable textbox; the sidebar also has a search input.
     const composer = () => page.locator('[role=textbox][contenteditable=true]').last()
-    // Leaving the Plugins panel resets it to its list, so pass through another panel first.
+    // Leaving the Plugins panel resets it to its list, so pass through another panel first; a detail
+    // page that is still open goes back through its own breadcrumb.
     const openPlugins = async () => {
-      await page.getByRole('button', { name: 'New session' }).first().click()
-      await page.getByRole('button', { name: 'Plugins' }).first().click()
-      await page.getByRole('button', { name: 'Add plugin', exact: true }).waitFor()
+      const list = page.getByRole('button', { name: 'Add plugin', exact: true })
+      for (let attempt = 0; attempt < 3; attempt++) {
+        await page.getByRole('button', { name: 'New session' }).first().click()
+        await page.getByRole('button', { name: 'Plugins' }).first().click()
+        if (await list.waitFor({ timeout: 5_000 }).then(() => true, () => false)) return
+        const crumb = page.locator('[data-plugin-detail] button, [data-plugin-row-detail] button').first()
+        if (await crumb.isVisible()) await crumb.click()
+        if (await list.waitFor({ timeout: 5_000 }).then(() => true, () => false)) return
+      }
+      await list.waitFor()
     }
     const openLightCode = async () => { await openPlugins(); await page.getByRole('button', { name: 'View LightCode' }).click(); await page.getByText('@lightcode/dsh', { exact: true }).first().waitFor() }
     const chat = async (name) => {

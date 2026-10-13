@@ -43,12 +43,13 @@ describe('DSH plugin entry', () => {
     expect(inject).toEqual(['tools'])
     // The Loader resolves `mode` to a live reference; `get()` reads the current value.
     expect(Config({}).mode.get()).toBe('apply')
+    expect(Config({}).inlineLimitChars).toBe(48_000)
     expect(Config({ mode: 'observe' }).mode.get()).toBe('observe')
     expect(() => Config({ mode: 'fast' as 'off' })).toThrow()
   })
   it('joins the post-execute waterfall innermost and filters the bash result itself', async () => {
     const { ctx, listeners } = fakeContext()
-    apply(ctx, { mode: live('apply') })
+    apply(ctx, { mode: live('apply'), inlineLimitChars: 48_000 })
     expect(listeners).toHaveLength(1)
     const result = bashResult({ stdout: pytestOutput(60) })
     const decision = await listeners[0]!.listener(call, result, async () => ({ kind: 'accept' }))
@@ -56,12 +57,12 @@ describe('DSH plugin entry', () => {
   })
   it('never swallows a downstream failure', async () => {
     const { ctx, listeners } = fakeContext()
-    apply(ctx, { mode: live('apply') })
+    apply(ctx, { mode: live('apply'), inlineLimitChars: 48_000 })
     await expect(listeners[0]!.listener(call, bashResult({ stdout: 'x' }), () => Promise.reject(new Error('downstream')))).rejects.toThrow('downstream')
   })
   it('registers /lightcode, which reports this session', async () => {
     const { ctx, listeners, commands } = fakeContext()
-    apply(ctx, { mode: live('apply') })
+    apply(ctx, { mode: live('apply'), inlineLimitChars: 48_000 })
     expect(commands.map(command => command.name)).toEqual(['lightcode'])
     await listeners[0]!.listener(call, bashResult({ stdout: pytestOutput(60) }), async () => ({ kind: 'accept' }))
     const output = await commands[0]!.handler({ agent: { session: { id: 's1' } }, rawInput: '' })

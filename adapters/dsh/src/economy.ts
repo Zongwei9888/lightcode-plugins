@@ -18,10 +18,19 @@ export const MODES: readonly MechanismMode[] = ['apply', 'observe', 'off']
 const RANK: Record<MechanismMode, number> = { off: 0, observe: 1, apply: 2 }
 const MAX_SESSIONS = 256
 const MAX_WARNINGS = 32
+/**
+ * DSH's spill policy keeps a result inline up to `maxInlineTokens` (12,500 by
+ * default), estimated as characters / 4; past it the model reads a head/tail
+ * preview and the full text goes to a spill file. A projection must stay
+ * under that line, or the spill file would hold a sample instead of the original.
+ */
+export const INLINE_LIMIT_CHARS = 48_000
 
 export interface DshEconomyOptions {
   /** The plugin's live `mode` setting: a ceiling that can only lower LightCode's own configuration. */
   readonly mode: () => MechanismMode
+  /** Longest projection delivered; see {@link INLINE_LIMIT_CHARS}. */
+  readonly inlineLimitChars?: number
   /** Defaults to `$LIGHTCODE_HOME` or `~/.lightcode`. */
   readonly dataDir?: string
   readonly env?: NodeJS.ProcessEnv
@@ -105,6 +114,7 @@ export function createDshEconomy(options: DshEconomyOptions): DshEconomy {
     if (!engine) {
       const { journal, artifacts } = storage()
       engine = new EconomyEngine({ host: HOST, journal, artifacts, config: state.loaded.config.economy, mode,
+        maxProjectedChars: options.inlineLimitChars ?? INLINE_LIMIT_CHARS,
         delivery: 'in-process', streams: 'separate', onError: error => warn(`LightCode: ${String(error)}; delivering the original output`) })
       state.engines.set(mode, engine)
     }
@@ -170,7 +180,7 @@ export function createDshEconomy(options: DshEconomyOptions): DshEconomy {
         ...s.byFilter.slice(0, 5).map(item => `  ${item.filter}: ${item.count}× −${formatTokens(item.savedTokens)} tokens`),
         ...negotiateFor(loaded).map(item => `${item.mechanism}: ${item.mode} (${item.reason})`),
         ...loaded.problems.map(problem => `config problem: ${problem}`),
-        `Originals are kept in ${store?.dataDir ?? options.dataDir ?? writableDataDir(env) ?? configDir}.`,
+        `Originals are kept in ${store?.dataDir ?? configDir}.`,
       ]
       return lines.join('\n')
     },

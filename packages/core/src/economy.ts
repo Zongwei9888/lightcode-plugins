@@ -40,6 +40,8 @@ export type EconomyPassReason =
   | 'filter-error'
   | 'stream-policy-rejected'
   | 'non-growth-rejected'
+  /** Even the projection is over what the host keeps inline; its own spill keeps the whole original instead. */
+  | 'over-host-inline-limit'
 
 export type EconomyMatchDetail =
   | 'unsupported-shell-syntax'

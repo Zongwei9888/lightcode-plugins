@@ -132,11 +132,22 @@ describe('DSH Token Economy', () => {
     expect(warnings.length).toBeGreaterThan(0)
     expect(new Set(warnings).size).toBe(warnings.length)
   })
-  it('touches nothing on disk while off', () => {
+  it('touches nothing on disk while off, /lightcode included', () => {
     const home = join(temp(), 'lightcode')
     const economy = createDshEconomy({ mode: () => 'off', dataDir: home, env: {} })
     expect(economy.postExecute(exec('pytest -v'), bashResult({ stdout: pytestOutput(60) }), accept)).toBe(accept)
+    expect(economy.report({ id: 'session-1' })).toContain('economy: off')
     expect(existsSync(home)).toBe(false)
+  })
+  it('passes the original when even the projection is over DSH\'s inline budget, so DSH spills the complete text', () => {
+    const dataDir = temp()
+    const economy = createDshEconomy({ mode: () => 'apply', inlineLimitChars: 200, dataDir, env: {} })
+    const result = bashResult({ stdout: pytestOutput(40, 2), exitCode: 1 })
+    expect(economy.postExecute(exec('pytest -v'), result, accept)).toBe(accept)
+    const roomy = createDshEconomy({ mode: () => 'apply', inlineLimitChars: 100_000, dataDir, env: {} })
+    expect(text(roomy.postExecute(exec('pytest -v'), result, accept))).toContain('2 failed')
+    const records = readdirSync(join(dataDir, 'journal', 'dsh')).flatMap(name => readFileSync(join(dataDir, 'journal', 'dsh', name), 'utf8').trim().split('\n').map(line => JSON.parse(line)))
+    expect(records.map(record => [record.outcome, record.reason])).toEqual([['passed', 'over-host-inline-limit'], ['projected', undefined]])
   })
   it('picks up a changed configuration file without a restart', async () => {
     const { economy, dataDir, journal } = setup('apply')

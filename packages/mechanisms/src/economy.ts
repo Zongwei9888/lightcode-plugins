@@ -13,6 +13,12 @@ export interface EconomyEngineOptions {
   readonly delivery: EconomyRecord['delivery']
   readonly streams: EconomyRecord['streams']
   readonly estimateTokens?: TokenEstimator
+  /**
+   * The most characters (UTF-16 code units) the host delivers inline. A larger
+   * projection passes the original instead, so the host's own spill keeps the
+   * complete text rather than a sample of it.
+   */
+  readonly maxProjectedChars?: number
   readonly now?: () => Date
   /** Diagnostics only. Errors never reach the host's tool result. */
   readonly onError?: (error: unknown) => void
@@ -85,6 +91,12 @@ export class EconomyEngine {
         return { record }
       }
       const identity = { filter: decision.filter, transformation: decision.transformation, stream: decision.stream }
+      if (options.maxProjectedChars !== undefined && decision.text.length > options.maxProjectedChars) {
+        const record: EconomyRecord = { ...base(), outcome: 'passed', reason: 'over-host-inline-limit', filter: decision.filter,
+          transformation: decision.transformation, raw: { ...measure(request.result.rendered), stored: false }, projected: measure(decision.text) }
+        this.append(record)
+        return { record }
+      }
       if (options.mode === 'observe') {
         const record: EconomyRecord = { ...base(), outcome: 'previewed', ...identity,
           raw: { ...measure(request.result.rendered), stored: false }, projected: measure(decision.text) }

@@ -113,9 +113,10 @@ lc gc [--days N]                              delete saved originals
 }
 ```
 
-A project may add `.lightcode/config.json` with `economy` settings only.
-`LIGHTCODE_ECONOMY=apply|observe|off` and `LIGHTCODE_DISABLE=1` override
-both. An invalid setting turns Economy off (and `lc doctor` says why).
+A project may add `.lightcode/config.json` with `economy` settings only; it
+can lower the mode or switch command normalization off, never turn back on
+what your own file turned off. `LIGHTCODE_ECONOMY=apply|observe|off` and
+`LIGHTCODE_DISABLE=1` override both. An invalid setting turns Economy off (and `lc doctor` says why).
 
 ## Privacy
 

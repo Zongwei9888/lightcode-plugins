@@ -46,7 +46,7 @@ lc show <sha256>            查看保存的原文
 lc gc [--days N]            清理过期原文
 ```
 
-关闭：`LIGHTCODE_DISABLE=1` 或 `LIGHTCODE_ECONOMY=off`；只记录不改动：`LIGHTCODE_ECONOMY=observe`。配置文件为 `~/.lightcode/config.json`，格式见英文 README。
+关闭：`LIGHTCODE_DISABLE=1` 或 `LIGHTCODE_ECONOMY=off`；只记录不改动：`LIGHTCODE_ECONOMY=observe`。配置文件为 `~/.lightcode/config.json`，格式见英文 README。项目里的 `.lightcode/config.json` 只能调低模式或关闭命令改写，不能重新打开你在自己配置里关掉的功能。
 
 ## 隐私
 

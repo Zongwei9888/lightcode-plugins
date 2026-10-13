@@ -39,12 +39,18 @@ function readJson(path: string): unknown {
   return JSON.parse(readFileSync(path, 'utf8')) as unknown
 }
 
-function mergeEconomy(base: EconomyConfig, input: unknown, where: string, problems: string[]): EconomyConfig {
+const RANK: Record<MechanismMode, number> = { off: 0, observe: 1, apply: 2 }
+
+/** `lowerOnly` (a project's file): the mode may only go down, and command rewriting may only be switched off. */
+function mergeEconomy(base: EconomyConfig, input: unknown, where: string, problems: string[], lowerOnly = false): EconomyConfig {
   if (input === undefined) return base
   if (!record(input)) { problems.push(`${where}: economy must be an object`); return base }
   let next = { ...base }
   for (const [key, value] of Object.entries(input)) {
-    if (key === 'mode' && typeof value === 'string' && MODES.has(value)) next = { ...next, mode: value as MechanismMode }
+    if (key === 'mode' && typeof value === 'string' && MODES.has(value)) {
+      const mode = value as MechanismMode
+      if (!lowerOnly || RANK[mode] <= RANK[next.mode]) next = { ...next, mode }
+    } else if (key === 'commandNormalization' && typeof value === 'boolean' && lowerOnly) next = { ...next, commandNormalization: next.commandNormalization && value }
     else if (key === 'minimumSavedTokens' && Number.isSafeInteger(value) && (value as number) >= 1 && (value as number) <= 1_000_000) next = { ...next, minimumSavedTokens: value as number }
     else if (key === 'filterOptions' && resolveFilterOptions(value) !== undefined) next = { ...next, filterOptions: value }
     else if (key === 'commandNormalization' && typeof value === 'boolean') next = { ...next, commandNormalization: value }
@@ -55,8 +61,10 @@ function mergeEconomy(base: EconomyConfig, input: unknown, where: string, proble
 
 /**
  * User file `<data>/config.json`, then project file `<cwd>/.lightcode/config.json`
- * (Economy settings only, so a cloned repository cannot change retention),
- * then `LIGHTCODE_ECONOMY=apply|observe|off` and `LIGHTCODE_DISABLE=1`.
+ * (Economy settings only, and it can only lower the mode or switch command
+ * rewriting off, so a cloned repository can neither change retention nor
+ * re-enable what the user turned off), then `LIGHTCODE_ECONOMY=apply|observe|off`
+ * and `LIGHTCODE_DISABLE=1`.
  */
 export function loadConfig(options: { dataDir: string; cwd?: string; env?: NodeJS.ProcessEnv }): LoadedConfig {
   const env = options.env ?? process.env
@@ -73,7 +81,7 @@ export function loadConfig(options: { dataDir: string; cwd?: string; env?: NodeJ
     sources.push(file.path)
     if (!record(value)) { problems.push(`${file.path}: expected a JSON object`); continue }
     for (const [key, section] of Object.entries(value)) {
-      if (key === 'economy') economy = mergeEconomy(economy, section, file.path, problems)
+      if (key === 'economy') economy = mergeEconomy(economy, section, file.path, problems, file.project)
       else if (key === 'artifacts' && !file.project && record(section) && Object.keys(section).every(item => item === 'retentionDays')
         && Number.isSafeInteger(section.retentionDays) && (section.retentionDays as number) >= 1 && (section.retentionDays as number) <= 3650) {
         retentionDays = section.retentionDays as number

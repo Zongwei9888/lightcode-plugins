@@ -77,8 +77,11 @@ this setting further but never raise it; see the
 - Output DSH already cut to its tail (64 KB per stream by default), and runs
   that timed out, were killed or hit the sandbox, pass through unchanged.
 - LightCode runs before DSH's spill policy: a large recognized output is
-  projected first, and DSH spills only what is still over its inline budget
-  (12,500 tokens by default).
+  projected first and the model reads the projection. If even the projection
+  would be over DSH's inline budget (12,500 tokens by default), LightCode
+  passes the original, so DSH's spill file keeps the complete text. If you
+  raise `spill-policy`'s `maxInlineTokens`, raise `inlineLimitChars` on the
+  `lightcode` entry to about four times that.
 - With `tools.mode: ptc` every `bash` call is a `run_code` sub-call whose
   value goes to the program, so LightCode leaves it alone.
 - The session log and the tool card show the text the model read. The
