@@ -6,7 +6,7 @@ LightCode 让编码 Agent 在工具输出上少花 Token，同时不向模型隐
 
 ## Token Economy 做什么
 
-Agent 运行 `pytest`、`cargo test`、`git diff`、`grep -rn`、`tsc`、`find`、依赖安装等约 80 类常见命令时，LightCode 把模型要读的输出替换成确定性的**投影**：通过的测试行只计数不逐条列出，进度条和重复行折叠，过大的搜索结果和 diff hunk 用预览加明确的省略计数表示。
+Agent 运行 `pytest`、`cargo test`、`git diff`、`grep -rn`、`tsc`、`find`、依赖安装等约 80 类常见命令时，LightCode 把模型要读的输出替换成确定性的**投影**：通过的测试行只计数不逐条列出，进度条和重复行折叠，过大的搜索结果和 diff hunk 用预览加明确的省略计数表示。宿主自带的搜索工具（pi 的 `grep`、`find`，DeepSeek Harness 的 `grep`、`glob`）的结果做无损排版：同一文件的匹配、同一目录的路径归到一起，每条匹配、行号和路径都保留。
 
 不变的规则：
 

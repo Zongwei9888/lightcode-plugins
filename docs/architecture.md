@@ -69,7 +69,8 @@ How the projection reaches the model differs by host:
 - **DeepSeek Harness** — a `tools/post-execute` listener registered without
   `prepend`, so it runs innermost: it reads the `bash` tool's canonical value
   and rendered text, replaces one verbatim stream region, and returns the
-  projection. DSH's spill policy (a `prepend` listener) then bounds the
+  projection. Its own `grep` and `glob` results qualify only as the complete
+  rendering of their structured value, before DSH caps or spills a search. DSH's spill policy (a `prepend` listener) then bounds the
   smaller text; the session log and tool card show what the model read.
 - **Any agent** — `lc run` directly.
 

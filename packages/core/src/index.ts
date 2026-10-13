@@ -16,10 +16,12 @@ export { rewriteCommand } from './command-rewrite.ts'
 export type { CommandRewriteRule } from './command-rewrite.ts'
 export { createPolicy } from './policy.ts'
 export type { EconomyPolicy } from './policy.ts'
-export { classifyMiss, decideShellProjection, embedProjection, exactDiagnosticDeduplication, mayProject } from './economy.ts'
+export { classifyMiss, decideNativeProjection, decideShellProjection, embedProjection, exactDiagnosticDeduplication, mayProject } from './economy.ts'
+export { nativeGrepRecords, nativeGrepSections, nativePathLines, nativePathList } from './native.ts'
+export type { NativeSearchMatch } from './native.ts'
 export type {
   EconomyDecision, EconomyDecisionOptions, EconomyMatchDetail, EconomyPass, EconomyPassReason,
-  EconomyProjection, EconomySizes, RenderedStream, ShellResult,
+  EconomyProjection, EconomySizes, NativeResult, RenderedStream, ShellResult,
 } from './economy.ts'
 export { estimateTokens } from './tokens.ts'
 export type { TokenEstimator } from './tokens.ts'

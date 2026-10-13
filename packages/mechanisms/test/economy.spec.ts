@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { sha256 } from '@lightcode/core'
-import type { ArtifactPort, ArtifactRef, JournalRecord } from '@lightcode/protocol'
+import { nativeGrepRecords, sha256 } from '@lightcode/core'
+import type { ArtifactPort, ArtifactRef, EconomyRecord, JournalRecord } from '@lightcode/protocol'
 import { DEFAULT_CONFIG } from '@lightcode/store'
 import { EconomyEngine, normalizeShellCommand, summarizeEconomy } from '../src/index.ts'
 import type { EconomyEngineOptions } from '../src/index.ts'
@@ -28,6 +28,21 @@ function setup(overrides: Partial<EconomyEngineOptions> = {}) {
 }
 
 describe('EconomyEngine', () => {
+  it('runs a host tool\'s own result through the same save, journal and admission', () => {
+    const { engine, records, artifacts } = setup()
+    const rendered = Array.from({ length: 40 }, (_, i) => `packages/app/src/module.ts:${i + 1}: const value${i} = ${i}`).join('\n')
+    const output = engine.process({ sessionId: 's', callId: 'c', tool: 'grep', command: 'grep {"pattern":"value"}', native: { rendered, projection: nativeGrepRecords(rendered) } })
+    expect(output.text).toContain('[matches in packages/app/src/module.ts; every match retained]')
+    expect(records).toMatchObject([{ outcome: 'projected', filter: 'native-grep', tool: 'grep', command: 'grep {"pattern":"value"}', exitCode: null }])
+    expect(artifacts.read((records[0] as EconomyRecord).raw!.sha256)).toBe(rendered)
+    const passed = engine.process({ sessionId: 's', callId: 'd', tool: 'grep', command: 'grep {}', native: { rendered: 'No matches found', projection: nativeGrepRecords('No matches found') } })
+    expect(passed.text).toBeUndefined()
+    expect(records[1]).toMatchObject({ outcome: 'passed', reason: 'no-filter-match', matchDetail: 'output-format-unrecognized' })
+    const observe = setup({ mode: 'observe' })
+    expect(observe.engine.process({ sessionId: 's', callId: 'e', tool: 'grep', command: 'grep {}', native: { rendered, projection: nativeGrepRecords(rendered) } }).text).toBeUndefined()
+    expect(observe.records).toMatchObject([{ outcome: 'previewed', filter: 'native-grep' }])
+  })
+
   it('stores the original and source map, journals, then releases the projection', () => {
     const { engine, records, artifacts } = setup()
     const raw = grep(200)

@@ -1,6 +1,6 @@
 /**
- * LightCode for DeepSeek Harness 0.2.x, Host half. Recognized `bash` output is
- * replaced by a deterministic projection in the `tools/post-execute`
+ * LightCode for DeepSeek Harness 0.2.x, Host half. Recognized `bash` output, and
+ * complete results of DSH's own `grep` and `glob`, are replaced by a deterministic projection in the `tools/post-execute`
  * waterfall, so the model and the session log receive the smaller text while
  * LightCode keeps the original (and a source map) in its private store.
  * `/lightcode` reports the savings; the `mode` setting is live.

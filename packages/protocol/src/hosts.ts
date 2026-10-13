@@ -19,6 +19,8 @@ export const HOST_PROFILES: Readonly<Record<string, HostProfile>> = Object.freez
     notes: [
       'turn_end context_edit replaces what the model sees; the session file keeps the original',
       'bash merges stdout and stderr; outputs pi already truncated (2000 lines / 50KB) pass through',
+      'its own grep and find results are laid out losslessly (rows by file, paths by directory)',
+      'subagent pi processes inherit LIGHTCODE_PARENT_SESSION, so a session reports what its subagents saved',
     ],
   },
   codex: {
@@ -38,6 +40,8 @@ export const HOST_PROFILES: Readonly<Record<string, HostProfile>> = Object.freez
       'tools/post-execute replaces the bash result the model and the session log receive; LightCode keeps the original',
       'stdout and stderr stay apart; output DSH already cut to its tail (64 KB per stream by default) passes through',
       'tool arguments cannot be rewritten before execution, so command normalization is off',
+      'complete results of its own grep and glob are laid out losslessly; searches DSH capped pass through',
+      'in-process subagents (subagent, subagent_fork) are filtered too and counted in their parent session',
     ],
   },
   shell: {

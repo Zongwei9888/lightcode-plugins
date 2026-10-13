@@ -71,6 +71,10 @@ this setting further but never raise it; see the
 
 ## What it changes, exactly
 
+- DSH's own `grep` and `glob` results, when the model called them directly and
+  DSH delivered them complete: each match row loses its `Line ` prefix and
+  consecutive paths are grouped under their directory; every match, line
+  number and path stays. A search DSH capped or saved to a file is left alone.
 - Only the model's own `bash` calls that finished in the foreground. Background
   jobs, `run_code` sub-calls, other tools, failed tool calls and results
   another plugin already rewrote are left alone.
@@ -120,7 +124,7 @@ LightCode 是 DeepSeek Harness（DSH）的插件，在模型读取之前精简�
 **安装**：侧边栏 **插件** → **添加插件** → 输入 `@lightcode/dsh` → **安装** →
 **立即启用**；或在终端执行 `dsh plugin --profile web add @lightcode/dsh`。
 
-**使用**：装好即生效。在会话里输入 `/lightcode` 查看本会话省下的 token。用内置 `subagent`、`subagent_fork` 工具启动的子 agent 同样生效，父会话的 `/lightcode` 会把子 agent 省下的一起算上。在
+**使用**：装好即生效。在会话里输入 `/lightcode` 查看本会话省下的 token。DSH 自带的 `grep`、`glob` 工具的完整结果做无损排版（去掉每行的 `Line ` 前缀、同一目录的路径归到一起）。用内置 `subagent`、`subagent_fork` 工具启动的子 agent 同样生效，父会话的 `/lightcode` 会把子 agent 省下的一起算上。在
 **插件** 页的 LightCode 详情里可以切换 **模式**：精简（默认）/ 只记录 / 关闭，
 保存后下一次工具调用即生效，无需重启。
 

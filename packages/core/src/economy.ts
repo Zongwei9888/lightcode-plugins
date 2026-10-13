@@ -214,6 +214,38 @@ export function decideShellProjection(result: ShellResult, options: EconomyDecis
   return { kind: 'project', ...identity, stream, text: composed.text, sourceMap: composed.sourceMap, ...sizes, policyHash: policy.policyHash }
 }
 
+/** A host tool's own result (no shell), with the layout its adapter verified against that exact text. */
+export interface NativeResult {
+  /** Complete text the model would receive without LightCode. */
+  readonly rendered: string
+  /** From the `native*` functions; undefined when the text is not the shape they accept. */
+  readonly projection: FilterCandidate | undefined
+}
+
+/** The admission rule of {@link decideShellProjection}, for a host tool's own result. */
+export function decideNativeProjection(result: NativeResult, options: EconomyDecisionOptions): EconomyDecision {
+  const { policy } = options
+  const minimumSavedTokens = Math.max(1, options.minimumSavedTokens ?? 1)
+  const estimate = options.estimateTokens ?? defaultEstimate
+  const pass = (reason: EconomyPassReason, extra: Omit<EconomyPass, 'kind' | 'reason' | 'policyHash'> = {}): EconomyPass =>
+    ({ kind: 'pass', reason, ...extra, policyHash: policy.policyHash })
+  if (typeof result.rendered !== 'string') return pass('unsupported-result-shape')
+  const projection = result.projection
+  if (projection === undefined) return pass('no-filter-match', { matchDetail: 'output-format-unrecognized' })
+  const identity = { filter: projection.filter, transformation: projection.transformation }
+  if (projection.text.trim() === '') return pass('unsupported-result-shape', identity)
+  const sizes: EconomySizes = {
+    rawBytes: Buffer.byteLength(result.rendered, 'utf8'),
+    projectedBytes: Buffer.byteLength(projection.text, 'utf8'),
+    rawTokens: estimate(result.rendered),
+    projectedTokens: estimate(projection.text),
+  }
+  if (sizes.projectedBytes >= sizes.rawBytes || sizes.rawTokens - sizes.projectedTokens < minimumSavedTokens) {
+    return pass('non-growth-rejected', { ...identity, ...sizes })
+  }
+  return { kind: 'project', ...identity, stream: 'stdout', text: projection.text, sourceMap: projection.sourceMap, ...sizes, policyHash: policy.policyHash }
+}
+
 const SEARCH_AND_LISTING_HEADS = new Set(['grep', 'rg', 'ripgrep', 'find', 'ls', 'fd', 'git'])
 
 /**

@@ -79,6 +79,27 @@ describe('pi adapter (real pi 1.1 session, faux model)', () => {
     expect(sessionEntries(off.sessionFile).some(entry => entry.type === 'context_edit')).toBe(false)
   })
 
+  it('lays out pi\'s own grep and find results losslessly, keeping the originals in the session', async () => {
+    const cwd = workspace(), dataDir = temp()
+    mkdirSync(join(cwd, 'src', 'deep', 'nested', 'modules'), { recursive: true })
+    for (let f = 0; f < 12; f++) writeFileSync(join(cwd, 'src', 'deep', 'nested', 'modules', `module${f}.ts`), 'export {}\n')
+    const run = await runPi({ cwd, extension: createLightCodeExtension({ dataDir, env: {} }),
+      commands: [{ tool: 'grep', args: { pattern: 'value', path: 'src' } }, { tool: 'find', args: { pattern: '*.ts', path: 'src/deep' } }] })
+    const grep = textOf(run.seen[0]![0]), find = textOf(run.seen[1]![1])
+    const entries = sessionEntries(run.sessionFile)
+    const originals = entries.filter(entry => entry.type === 'message' && entry.message.role === 'toolResult').map(entry => textOf(entry.message.content))
+    expect(originals[0]).toMatch(/^f\d\.ts:1: export const value0/)
+    expect(grep).toMatch(/^\[matches in f\d\.ts; every match retained\]\n {2}1: export const value0 = 0 \/\/ value line\n/)
+    // Every row is still there: putting the file back in front of each restores pi's own text.
+    expect(grep.replace(/\[matches in (.+?); every match retained\]\n((?: {2}.*(?:\n|$))+)/g,
+      (_: string, file: string, block: string) => block.replace(/^ {2}/gm, `${file}:`))).toBe(originals[0])
+    expect(find).toContain('[paths grouped by directory; original order retained]\nnested/modules/\n  module')
+    expect(find.split('\n').filter(line => /module\d+\.ts/.test(line))).toHaveLength(12)
+    const records = new FileJournal(dataDir).read({ host: 'pi', sessionId: run.sessionId }) as EconomyRecord[]
+    expect(records.map(record => [record.tool, record.outcome, record.filter])).toEqual([['grep', 'projected', 'native-grep'], ['find', 'projected', 'native-glob']])
+    expect(new FileArtifactStore(dataDir).read(records[0]!.raw!.sha256)).toBe(originals[0])
+  })
+
   it('links a subagent pi process to the session that started it', async () => {
     const cwd = workspace(), dataDir = temp()
     // The parent's environment is what the pi processes it starts inherit.

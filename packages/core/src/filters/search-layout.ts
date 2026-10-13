@@ -1,20 +1,18 @@
 import { inspectShell } from '../shell-inspection.ts'
 import { ProjectionBuilder, sourceLines } from '../projection-map.ts'
+import type { MappedProjection } from '../projection-map.ts'
 import type { EconomyFilter, FilterInput } from '../types.ts'
 
 const RECORD = /^([^:\r\n\0]+):([1-9]\d*):/
 
 /**
- * Group consecutive filename:line:text records, including those inside mixed
- * shell output. All matches, line numbers and non-record text remain in order.
- * No assumption that the last pipeline command owns the complete stdout.
+ * Group runs of at least three consecutive filename:line:text records of one
+ * file under a header naming it. Every record, line number and line of other
+ * text stays, in order; undefined when nothing was grouped.
  */
-function projectMapped(input: FilterInput) {
-  const shell = inspectShell(input.command)
-  if (!shell?.heads.some(head => ['grep', 'rg', 'ripgrep'].includes(head))
-    || ![0, 1].includes(input.exitCode) || /[\u001b\0]|\r(?!\n)/.test(input.stdout)) return undefined
-  const lines = sourceLines(input.stdout)
-  const builder = new ProjectionBuilder(input.stdout)
+export function layoutSearchRecords(text: string): MappedProjection | undefined {
+  const lines = sourceLines(text)
+  const builder = new ProjectionBuilder(text)
   let grouped = false
   for (let i = 0; i < lines.length;) {
     const first = lines[i]!
@@ -35,6 +33,18 @@ function projectMapped(input: FilterInput) {
     grouped = true
   }
   return grouped ? builder.finish() : undefined
+}
+
+/**
+ * Group consecutive filename:line:text records, including those inside mixed
+ * shell output. All matches, line numbers and non-record text remain in order.
+ * No assumption that the last pipeline command owns the complete stdout.
+ */
+function projectMapped(input: FilterInput) {
+  const shell = inspectShell(input.command)
+  if (!shell?.heads.some(head => ['grep', 'rg', 'ripgrep'].includes(head))
+    || ![0, 1].includes(input.exitCode) || /[\u001b\0]|\r(?!\n)/.test(input.stdout)) return undefined
+  return layoutSearchRecords(input.stdout)
 }
 
 export const searchLayoutFilter: EconomyFilter = {

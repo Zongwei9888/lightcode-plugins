@@ -1,18 +1,20 @@
 /**
- * LightCode for pi. Recognized bash output is replaced by a deterministic
- * projection through pi's `context_edit` boundary entries: pi's session file
+ * LightCode for pi. Recognized bash output, and the results of pi's own grep
+ * and find, are replaced by a deterministic projection through pi's
+ * `context_edit` boundary entries: pi's session file
  * keeps the original result, the model sees the projection from its first
  * read on, and LightCode's journal records the source map and a private copy.
  */
 import type { ExtensionAPI, ExtensionContext, ToolResultEvent, TurnEndEvent } from '@earendil-works/pi-coding-agent'
 import { sha256 } from '@lightcode/core'
-import { collectSubagents, formatTokens, isPrepared, EconomyEngine, normalizeShellCommand, recordSubagent, summarizeEconomy } from '@lightcode/mechanisms'
+import { collectSubagents, describeToolCall, formatTokens, isPrepared, EconomyEngine, normalizeShellCommand, recordSubagent, summarizeEconomy } from '@lightcode/mechanisms'
 import type { Prepared } from '@lightcode/mechanisms'
 import { HOST_PROFILES, V0_1_SPECS, negotiate } from '@lightcode/protocol'
 import type { MechanismMode, Negotiation } from '@lightcode/protocol'
 import { FileArtifactStore, FileJournal, collectDaily, dataDirs, loadConfig, readJournals, resolveDataDir, writableDataDir } from '@lightcode/store'
 import type { LoadedConfig } from '@lightcode/store'
 import { bashShellResult } from './bash.ts'
+import { NATIVE_TOOLS, nativeResult } from './native.ts'
 
 const HOST = 'pi'
 const STATUS_KEY = 'lightcode'
@@ -122,10 +124,18 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
 
     pi.on('tool_result', (event: ToolResultEvent, ctx) => {
       const session = current(ctx)
-      if (!session.engine || event.toolName !== 'bash' || event.parentToolCallId !== undefined) return
-      const result = bashShellResult(event)
-      if (!result) return
-      const prepared = session.engine.prepare({ sessionId: session.sessionId, callId: event.toolCallId, tool: 'bash', result })
+      if (!session.engine || event.parentToolCallId !== undefined) return
+      const call = { sessionId: session.sessionId, callId: event.toolCallId, tool: event.toolName }
+      let prepared
+      if (event.toolName === 'bash') {
+        const result = bashShellResult(event)
+        if (!result) return
+        prepared = session.engine.prepare({ ...call, result })
+      } else if (NATIVE_TOOLS.has(event.toolName)) {
+        const native = nativeResult(event)
+        if (!native) return
+        prepared = session.engine.prepare({ ...call, command: describeToolCall(event.toolName, event.input), native })
+      } else return
       if (isPrepared(prepared)) {
         session.pending.set(event.toolCallId, prepared)
         if (session.pending.size > 256) session.pending.delete(session.pending.keys().next().value!)

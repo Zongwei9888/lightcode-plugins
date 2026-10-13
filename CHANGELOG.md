@@ -26,6 +26,11 @@ First open-source release line: Token Economy on several hosts.
   Plugins page; `/lightcode`; display metadata and icon. Tested on
   0.2.0-rc.2 and 0.2.1-alpha.2 (CLI and Web UI on macOS and Linux, the
   Desktop app on macOS).
+- Native search tools: results of pi's `grep` / `find` and DeepSeek
+  Harness's `grep` / `glob` are laid out losslessly (`native-grep`,
+  `native-glob`): rows grouped by file, paths by directory, every match,
+  line number, path and notice kept. They go through the same admission,
+  original store and journal as shell output.
 - Subagents: both plugins filter the `bash` output of subagents (DSH's
   in-process `subagent` / `subagent_fork`; pi subagent extensions that start
   `pi` processes). A `session/subagent` journal record links each subagent

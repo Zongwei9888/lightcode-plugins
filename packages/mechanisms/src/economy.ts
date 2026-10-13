@@ -1,5 +1,5 @@
-import { createPolicy, decideShellProjection, ECONOMY_RUNTIME_VERSION, estimateTokens as defaultEstimate, rewriteCommand, sha256 } from '@lightcode/core'
-import type { EconomyPolicy, ShellResult, TokenEstimator } from '@lightcode/core'
+import { createPolicy, decideNativeProjection, decideShellProjection, ECONOMY_RUNTIME_VERSION, estimateTokens as defaultEstimate, rewriteCommand, sha256 } from '@lightcode/core'
+import type { EconomyPolicy, NativeResult, ShellResult, TokenEstimator } from '@lightcode/core'
 import type { ArtifactPort, EconomyFailure, EconomyRecord, JournalPort, TextMeasure } from '@lightcode/protocol'
 import type { EconomyConfig } from '@lightcode/store'
 
@@ -29,6 +29,16 @@ export interface EconomyRequest {
   readonly callId: string | null
   readonly tool: string
   readonly result: ShellResult
+}
+
+/** A host tool's own result (grep, glob, find): no shell and no exit code. */
+export interface NativeEconomyRequest {
+  readonly sessionId: string | null
+  readonly callId: string | null
+  readonly tool: string
+  /** How the call reads in the journal, such as `grep {"pattern":"x"}`. */
+  readonly command: string
+  readonly native: NativeResult
 }
 
 export interface EconomyOutput {
@@ -66,46 +76,50 @@ export class EconomyEngine {
    * map. Passes and previews are journaled here. A returned `Prepared` must be
    * committed (journaled) before its text reaches the model.
    */
-  prepare(request: EconomyRequest): Prepared | EconomyOutput {
+  prepare(request: EconomyRequest | NativeEconomyRequest): Prepared | EconomyOutput {
     const { options } = this
+    const native = 'native' in request ? request : undefined
+    const shell = 'result' in request ? request.result : undefined
+    const rendered = (native ? native.native.rendered : shell?.rendered) ?? ''
     const estimate = options.estimateTokens ?? defaultEstimate
     const measure = (text: string): TextMeasure => ({ sha256: sha256(text), bytes: Buffer.byteLength(text, 'utf8'), tokens: estimate(text) })
     let policyHash = 'unavailable'
     const base = () => ({
       schemaVersion: 1 as const, type: 'economy/decision' as const, time: (options.now?.() ?? new Date()).toISOString(),
       host: options.host, sessionId: request.sessionId, callId: request.callId, tool: request.tool,
-      command: request.result.command, exitCode: Number.isSafeInteger(request.result.exitCode) ? request.result.exitCode : null,
+      command: (native ? native.command : shell?.command) ?? '', exitCode: shell !== undefined && Number.isSafeInteger(shell.exitCode) ? shell.exitCode : null,
       delivery: options.delivery, streams: options.streams, mode: options.mode, runtimeVersion: ECONOMY_RUNTIME_VERSION, policyHash,
     })
     try {
       const policy = this.policyFor(request.sessionId)
       policyHash = policy.policyHash
-      const decision = decideShellProjection(request.result, { policy, minimumSavedTokens: options.config.minimumSavedTokens, estimateTokens: estimate })
+      const decisionOptions = { policy, minimumSavedTokens: options.config.minimumSavedTokens, estimateTokens: estimate }
+      const decision = native ? decideNativeProjection(native.native, decisionOptions) : decideShellProjection(shell!, decisionOptions)
       if (decision.kind === 'pass') {
         const record: EconomyRecord = { ...base(), outcome: 'passed', reason: decision.reason,
           ...decision.matchDetail === undefined ? {} : { matchDetail: decision.matchDetail },
           ...decision.filter === undefined ? {} : { filter: decision.filter },
           ...decision.transformation === undefined ? {} : { transformation: decision.transformation },
-          raw: { ...measure(request.result.rendered), stored: false } }
+          raw: { ...measure(rendered), stored: false } }
         this.append(record)
         return { record }
       }
       const identity = { filter: decision.filter, transformation: decision.transformation, stream: decision.stream }
       if (options.maxProjectedChars !== undefined && decision.text.length > options.maxProjectedChars) {
         const record: EconomyRecord = { ...base(), outcome: 'passed', reason: 'over-host-inline-limit', filter: decision.filter,
-          transformation: decision.transformation, raw: { ...measure(request.result.rendered), stored: false }, projected: measure(decision.text) }
+          transformation: decision.transformation, raw: { ...measure(rendered), stored: false }, projected: measure(decision.text) }
         this.append(record)
         return { record }
       }
       if (options.mode === 'observe') {
         const record: EconomyRecord = { ...base(), outcome: 'previewed', ...identity,
-          raw: { ...measure(request.result.rendered), stored: false }, projected: measure(decision.text) }
+          raw: { ...measure(rendered), stored: false }, projected: measure(decision.text) }
         this.append(record)
         return { record }
       }
       let raw, map
       try {
-        raw = options.artifacts.save(request.result.rendered)
+        raw = options.artifacts.save(rendered)
         map = options.artifacts.save(JSON.stringify(decision.sourceMap))
       } catch (error) { return this.failOpen(base(), 'artifact-save-failed', error) }
       const record: EconomyRecord = { ...base(), outcome: 'projected', ...identity,
@@ -126,7 +140,7 @@ export class EconomyEngine {
   }
 
   /** Decide, save and journal in one step (for wrappers that deliver immediately). */
-  process(request: EconomyRequest): EconomyOutput {
+  process(request: EconomyRequest | NativeEconomyRequest): EconomyOutput {
     const prepared = this.prepare(request)
     return isPrepared(prepared) ? this.commit(prepared) : prepared
   }
@@ -140,6 +154,13 @@ export class EconomyEngine {
     this.append({ ...base, outcome: 'failed-open', reason })
     return {}
   }
+}
+
+/** How a host tool's own call reads in the journal: its name and arguments, bounded. */
+export function describeToolCall(tool: string, args: unknown): string {
+  let text: string
+  try { text = JSON.stringify(args) ?? '' } catch { text = '' }
+  return `${tool} ${text.length > 1000 ? `${text.slice(0, 1000)}…` : text}`.trimEnd()
 }
 
 /** A projection whose original is saved but which is not yet journaled or delivered. */

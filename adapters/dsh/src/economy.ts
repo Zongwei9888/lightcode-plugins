@@ -4,13 +4,14 @@
  */
 import { statSync } from 'node:fs'
 import { join } from 'node:path'
-import { EconomyEngine, collectSubagents, formatTokens, recordSubagent, summarizeEconomy } from '@lightcode/mechanisms'
+import { EconomyEngine, collectSubagents, describeToolCall, formatTokens, recordSubagent, summarizeEconomy } from '@lightcode/mechanisms'
 import type { EconomySummary } from '@lightcode/mechanisms'
 import { HOST_PROFILES, V0_1_SPECS, negotiate } from '@lightcode/protocol'
 import type { MechanismMode, Negotiation } from '@lightcode/protocol'
 import { FileArtifactStore, FileJournal, collectDaily, dataDirs, loadConfig, readJournals, resolveDataDir, writableDataDir } from '@lightcode/store'
 import type { LoadedConfig } from '@lightcode/store'
 import { bashShellResult } from './bash.ts'
+import { NATIVE_TOOLS, nativeResult } from './native.ts'
 import type { PostToolDecision, ToolExecution, ToolExecutionResult } from './host.ts'
 
 export const HOST = 'dsh'
@@ -161,19 +162,30 @@ export function createDshEconomy(options: DshEconomyOptions): DshEconomy {
     try {
       const requested = requestedMode()
       if (requested === 'off') return decision
-      // Only the model's own bash calls: a run_code sub-dispatch hands its value to a program, not the model.
-      if (exec.name !== 'bash' || exec.parent !== undefined || result.isError) return decision
+      // Only the model's own calls: a run_code sub-dispatch hands its value to a program, not the model.
+      const native = exec.name !== 'bash' && NATIVE_TOOLS.has(exec.name)
+      if ((exec.name !== 'bash' && !native) || exec.parent !== undefined || result.isError) return decision
       // Keep blocks, value replacements and anything another listener already rewrote.
       if (decision.kind !== 'accept' || Object.hasOwn(decision, 'value')) return decision
+      // A search tool's own text only; a search DSH capped or spilled (it rewrites those itself) is left alone.
+      if (native && decision.content !== undefined) return decision
       const session = sessionOf(exec)
       const state = sessionState(session?.id ?? '', session?.cwd)
       const mode = negotiateFor(state.loaded, requested).find(item => item.mechanism === 'economy')!.mode
       if (mode === 'off') return decision
       linkSubagent(exec)
-      const content = decision.content ?? result.content
-      const shell = bashShellResult((exec.arguments as { command?: unknown } | undefined)?.command, result.value, content)
-      if (!shell) return decision
-      const output = engineFor(state, mode).process({ sessionId: session?.id ?? null, callId: String(exec.callId), tool: 'bash', result: shell })
+      const call = { sessionId: session?.id ?? null, callId: String(exec.callId), tool: exec.name }
+      let output
+      if (native) {
+        const found = nativeResult(exec.name, result.value, result.content)
+        if (!found) return decision
+        output = engineFor(state, mode).process({ ...call, command: describeToolCall(exec.name, exec.arguments), native: found })
+      } else {
+        const content = decision.content ?? result.content
+        const shell = bashShellResult((exec.arguments as { command?: unknown } | undefined)?.command, result.value, content)
+        if (!shell) return decision
+        output = engineFor(state, mode).process({ ...call, result: shell })
+      }
       housekeeping(state.loaded.config.artifacts.retentionDays)
       if (output.text === undefined) return decision
       return { kind: 'accept', content: [{ type: 'text', text: output.text }],

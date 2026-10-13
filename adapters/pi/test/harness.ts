@@ -13,7 +13,10 @@ export interface PiRun {
   readonly sessionId: string
 }
 
-export async function runPi(options: { cwd: string; extension: ExtensionFactory; commands: string[] }): Promise<PiRun> {
+/** A scripted tool call; a plain string is a bash command. */
+export type PiCall = string | { readonly tool: string; readonly args: Parameters<typeof fauxToolCall>[1] }
+
+export async function runPi(options: { cwd: string; extension: ExtensionFactory; commands: PiCall[] }): Promise<PiRun> {
   const dir = mkdtempSync(join(tmpdir(), 'lightcode-pi-'))
   const faux = registerFauxProvider()
   const model = faux.getModel()
@@ -27,7 +30,7 @@ export async function runPi(options: { cwd: string; extension: ExtensionFactory;
     const resourceLoader = new DefaultResourceLoader({ cwd: options.cwd, agentDir: dir, extensionFactories: [options.extension],
       noSkills: true, noPromptTemplates: true, noThemes: true, noContextFiles: true })
     await resourceLoader.reload()
-    const { session } = await createAgentSession({ cwd: options.cwd, agentDir: dir, model, modelRuntime, resourceLoader, tools: ['bash'],
+    const { session } = await createAgentSession({ cwd: options.cwd, agentDir: dir, model, modelRuntime, resourceLoader, tools: ['bash', 'grep', 'find'],
       sessionManager: SessionManager.create(options.cwd, join(dir, 'sessions')), settingsManager: SettingsManager.inMemory() })
     await session.bindExtensions({})
     const seen: unknown[][] = []
@@ -36,7 +39,8 @@ export async function runPi(options: { cwd: string; extension: ExtensionFactory;
     faux.setResponses([
       ...options.commands.map((command, index) => (context: { messages: { role: string; content: unknown }[] }) => {
         if (index > 0) capture(context)
-        return fauxAssistantMessage(fauxToolCall('bash', { command }), { stopReason: 'toolUse' })
+        const call = typeof command === 'string' ? { tool: 'bash', args: { command } } : command
+        return fauxAssistantMessage(fauxToolCall(call.tool, call.args), { stopReason: 'toolUse' })
       }),
       (context: { messages: { role: string; content: unknown }[] }) => { capture(context); return fauxAssistantMessage('done') },
     ])

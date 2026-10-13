@@ -17,7 +17,10 @@ When an agent runs `pytest`, `cargo test`, `git diff`, `grep -rn`, `tsc`,
 replaces the output the model would read with a deterministic **projection**:
 passing-test rows are counted instead of listed, progress bars and repeated
 rows are folded, oversized search results and diff hunks are previewed with
-explicit omission counts.
+explicit omission counts. Results of the hosts' own search tools (pi's `grep`
+and `find`, DeepSeek Harness's `grep` and `glob`) are laid out losslessly:
+a file's matches and a directory's paths are grouped under it, and every
+match, line number and path stays.
 
 The rules it never bends:
 
@@ -46,8 +49,8 @@ The rules it never bends:
 | **Any agent / terminal** | `npm install -g @lightcode/cli` | call `lc run -c '<command>'` | apply |
 
 The pi and DeepSeek Harness plugins are tested on macOS and Linux (the DSH
-Desktop app on macOS); Windows is not tested yet. Both also filter the `bash`
-output of subagents (DSH's built-in `subagent` / `subagent_fork`; on pi,
+Desktop app on macOS); Windows is not tested yet. Both also filter the output
+of subagents (DSH's built-in `subagent` / `subagent_fork`; on pi,
 subagent extensions that start `pi` processes), and a session's `/lightcode`
 includes what its subagents saved.
 

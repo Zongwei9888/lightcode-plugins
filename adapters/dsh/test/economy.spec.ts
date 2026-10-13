@@ -190,6 +190,35 @@ describe('DSH Token Economy', () => {
     expect(journal().filter(record => record.type === 'session/subagent')).toEqual([])
     expect(economy.report({ id: 'parent' })).not.toContain('subagents')
   })
+  it('shortens DeepSeek Harness\'s own grep result and groups its glob paths, only when complete and untouched', () => {
+    const { economy, journal } = setup()
+    const matches = Array.from({ length: 30 }, (_, i) => ({ path: i < 20 ? 'packages/core/src/economy.ts' : 'README.md', lineNumber: i + 1, line: `  value ${i}` }))
+    const rendered = 'Found 30 matches\n\n' + ['packages/core/src/economy.ts', 'README.md'].map(path =>
+      `${path}\n${matches.filter(m => m.path === path).map(m => `Line ${m.lineNumber}: ${m.line}`).join('\n')}`).join('\n\n')
+    const grep = (extra: Partial<ToolExecution> = {}) => ({ ...exec('', extra), name: 'grep', arguments: { pattern: 'value' } })
+    const result = { isError: false as const, value: { matches }, content: [{ type: 'text' as const, text: rendered }] }
+    const projected = text(economy.postExecute(grep(), result, accept))!
+    expect(projected).toContain('packages/core/src/economy.ts\n1:   value 0\n2:   value 1')
+    expect(projected.replace(/^(\d+): /gm, 'Line $1: ')).toBe(rendered)
+    expect(journal().at(-1)).toMatchObject({ outcome: 'projected', filter: 'native-grep', tool: 'grep', command: 'grep {"pattern":"value"}', exitCode: null })
+    // A capped result, one another listener rewrote, a nested call and an error stay exactly as they are.
+    const capped = { ...result, content: [{ type: 'text' as const, text: rendered.replace('Found 30 matches', 'Found 20 of 30 matches') }] }
+    expect(economy.postExecute(grep(), capped, accept)).toBe(accept)
+    const rewritten: PostToolDecision = { kind: 'accept', content: [{ type: 'text', text: rendered }] }
+    expect(economy.postExecute(grep(), result, rewritten)).toBe(rewritten)
+    expect(economy.postExecute(grep({ parent: Symbol('run_code') }), result, accept)).toBe(accept)
+    expect(economy.postExecute(grep(), { isError: true, content: result.content }, accept)).toBe(accept)
+    const glob = { ...exec(''), name: 'glob', arguments: { pattern: '**/*.ts' } }
+    const globbed = (paths: string[]) => text(economy.postExecute(glob, { isError: false, value: { paths }, content: [{ type: 'text', text: paths.join('\n') }] }, accept))
+    const deep = [...Array.from({ length: 12 }, (_, i) => `packages/compaction/compaction-basic/src/module${i}.ts`), 'README.md']
+    expect(globbed(deep)).toBe('[paths grouped by directory; original order retained]\npackages/compaction/compaction-basic/src/\n'
+      + Array.from({ length: 12 }, (_, i) => `  module${i}.ts\n`).join('') + 'README.md')
+    // Grouping a short list would not make it smaller.
+    expect(globbed(['src/a/one.ts', 'src/a/two.ts', 'src/b/four.ts'])).toBeUndefined()
+    // Other tools are not LightCode's.
+    const read = { ...exec(''), name: 'read', arguments: { path: 'x' } }
+    expect(economy.postExecute(read, { isError: false, value: {}, content: [{ type: 'text', text: rendered }] }, accept)).toBe(accept)
+  })
   it('reports savings and negotiation for /lightcode', () => {
     const { economy } = setup()
     expect(economy.report({ id: 'session-1' })).toContain('has not filtered any output')
