@@ -51,4 +51,4 @@ unprivileged user namespaces (on Ubuntu 24.04:
 | `LIGHTCODE_E2E_CACHE` | `e2e/.cache` |
 | `LIGHTCODE_E2E_TMP` | the OS temp directory |
 | `LIGHTCODE_E2E_KEEP=1` | keep the run directory (it is always kept on failure) |
-| `LIGHTCODE_E2E_DESKTOP_APP` | an unpacked `DeepSeek Harness.app` (macOS) or executable (Linux); Desktop is not on npm, so build one in a DeepSeek Harness checkout with `pnpm install && pnpm run build && pnpm run package:desktop:mac:arm64:dir`. The app runs with its own `DSH_HOME`, user data and Documents directory; its window appears while the scenario runs |
+| `LIGHTCODE_E2E_DESKTOP_APP` | an unpacked `DeepSeek Harness.app` (macOS only: Desktop is built for macOS and Windows, and the scenario drives the macOS app); Desktop is not on npm, so build one in a DeepSeek Harness checkout with `pnpm install && pnpm run build && pnpm run package:desktop:mac:arm64:dir`. The app runs with its own `DSH_HOME`, user data and Documents directory; its window appears while the scenario runs |

@@ -45,6 +45,9 @@ The rules it never bends:
 | **Codex** 0.162+ | `codex plugin marketplace add <checkout>` then `codex plugin add lightcode@lightcode` | plugin `PreToolUse` hook rewrites recognizable commands to `lc run -c '<command>'`; the model's history keeps the original command | apply |
 | **Any agent / terminal** | `npm install -g @lightcode/cli` | call `lc run -c '<command>'` | apply |
 
+The pi and DeepSeek Harness plugins are tested on macOS and Linux (the DSH
+Desktop app on macOS); Windows is not tested yet.
+
 `lc doctor` prints what each host supports and why (capability negotiation:
 a mechanism runs in `apply`, `observe` or `off` depending on what the host
 offers; configuration can only lower that).

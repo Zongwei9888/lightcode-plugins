@@ -4,8 +4,9 @@
  * bundled pnpm installing @lightcode/dsh into `$DSH_HOME/profiles/desktop`.
  *
  * Desktop is not distributed through npm, so this scenario needs an unpacked
- * application: set LIGHTCODE_E2E_DESKTOP_APP to `DeepSeek Harness.app` (macOS)
- * or the executable (Linux). A source build produces one with
+ * application: set LIGHTCODE_E2E_DESKTOP_APP to `DeepSeek Harness.app`.
+ * Desktop is built for macOS and Windows only, and this scenario drives the
+ * macOS app. A source build produces one with
  * `pnpm run build && pnpm run package:desktop:mac:arm64:dir` in a DeepSeek
  * Harness checkout. The app runs with its own DSH_HOME, LIGHTCODE_HOME,
  * Electron user data and Documents directory, so nothing outside the run
@@ -25,12 +26,13 @@ import { COMMAND_LIST, exercisePluginsPage, mockProfilePatch, until } from './li
 import { childEnv } from './lib/run.mjs'
 
 function executableOf(app) {
-  return app.endsWith('.app') ? join(app, 'Contents', 'MacOS', basename(app, '.app')) : app
+  return join(app, 'Contents', 'MacOS', basename(app, '.app'))
 }
 
 export async function runDesktop({ cache, root, registry, log }) {
   const app = process.env.LIGHTCODE_E2E_DESKTOP_APP
   if (!app) { log('desktop: skipped (set LIGHTCODE_E2E_DESKTOP_APP to an unpacked DeepSeek Harness app)'); return }
+  if (process.platform !== 'darwin') throw new Error('LIGHTCODE_E2E_DESKTOP_APP: the Desktop scenario drives the macOS app')
   const executable = executableOf(app)
   if (!existsSync(executable)) throw new Error(`LIGHTCODE_E2E_DESKTOP_APP: no executable at ${executable}`)
   const { chromium } = await import(pathToFileURL(join(ensureLibrary(cache, 'playwright-core', VERSIONS.playwright), 'index.mjs')).href)
@@ -44,9 +46,9 @@ export async function runDesktop({ cache, root, registry, log }) {
   // Desktop creates and owns profiles/desktop at first launch; the home layer applies to every profile.
   writeFileSync(join(dshHome, 'cordis.patch.yml'), mockProfilePatch(mock.url, documents))
   const env = childEnv({ ...registry.env, DSH_HOME: dshHome, LIGHTCODE_HOME: lightcodeHome, MOCK_LLM_API_KEY: 'e2e' })
-  // Electron's log folder ignores --user-data-dir (macOS: ~/Library/Logs/<product>).
-  const logs = process.platform === 'darwin' ? join(homedir(), 'Library', 'Logs', basename(app, '.app')) : undefined
-  const logsExisted = logs !== undefined && existsSync(logs)
+  // Electron's log folder ignores --user-data-dir: ~/Library/Logs/<product>.
+  const logs = join(homedir(), 'Library', 'Logs', basename(app, '.app'))
+  const logsExisted = existsSync(logs)
   const child = spawn(executable, [`--user-data-dir=${userData}`, '--remote-debugging-port=0'], { env, stdio: ['ignore', 'pipe', 'pipe'] })
   let output = ''
   child.stdout.on('data', chunk => { output += chunk })
@@ -80,6 +82,6 @@ export async function runDesktop({ cache, root, registry, log }) {
       if (!exited) child.kill('SIGKILL')
     }
     await mock.close()
-    if (logs !== undefined && !logsExisted && existsSync(logs) && readdirSync(logs).length === 0) rmdirSync(logs)
+    if (!logsExisted && existsSync(logs) && readdirSync(logs).length === 0) rmdirSync(logs)
   }
 }
