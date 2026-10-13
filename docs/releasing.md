@@ -12,7 +12,7 @@ for people who build their own adapters; the plugins do not depend on them.
 - Create the `@lightcode` organization on npm (or rename the packages) and
   enable two-factor publishing.
 - Create the GitHub repository the manifests point at
-  (`github.com/Zongwei9888/lightcode`), or update `repository`/`homepage` in
+  (`github.com/Zongwei9888/lightcode-plugins`), or update `repository`/`homepage` in
   every `package.json`.
 
 ## Every release

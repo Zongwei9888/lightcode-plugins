@@ -12,10 +12,10 @@
     "context",
     "tokens"
   ],
-  "homepage": "https://github.com/Zongwei9888/lightcode/tree/main/adapters/dsh#readme",
+  "homepage": "https://github.com/Zongwei9888/lightcode-plugins/tree/main/adapters/dsh#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Zongwei9888/lightcode.git",
+    "url": "git+https://github.com/Zongwei9888/lightcode-plugins.git",
     "directory": "adapters/dsh"
   },
   "engines": {

@@ -4,10 +4,10 @@
   "description": "Host-independent LightCode logic: deterministic tool-output filters, source maps and admission rules.",
   "license": "MIT",
   "type": "module",
-  "homepage": "https://github.com/Zongwei9888/lightcode#readme",
+  "homepage": "https://github.com/Zongwei9888/lightcode-plugins#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Zongwei9888/lightcode.git",
+    "url": "git+https://github.com/Zongwei9888/lightcode-plugins.git",
     "directory": "packages/core"
   },
   "engines": {

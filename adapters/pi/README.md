@@ -52,7 +52,7 @@ LightCode's journal records every rewrite.
 Configuration (`~/.lightcode/config.json`, a project's
 `.lightcode/config.json`, `LIGHTCODE_ECONOMY`, `LIGHTCODE_DISABLE=1`) is shared
 with the other LightCode hosts; see the
-[main README](https://github.com/Zongwei9888/lightcode#configuration).
+[main README](https://github.com/Zongwei9888/lightcode-plugins#configuration).
 
 ## What it changes, exactly
 

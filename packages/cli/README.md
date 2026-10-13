@@ -22,5 +22,5 @@ lc doctor [--json]              configuration and per-host capability negotiatio
 
 Requires Node.js 22 or newer. The package is a single self-contained file
 with no dependencies. See the
-[LightCode README](https://github.com/Zongwei9888/lightcode#readme) for
-configuration and the [Codex plugin](https://github.com/Zongwei9888/lightcode/tree/main/adapters/codex).
+[LightCode README](https://github.com/Zongwei9888/lightcode-plugins#readme) for
+configuration and the [Codex plugin](https://github.com/Zongwei9888/lightcode-plugins/tree/main/adapters/codex).

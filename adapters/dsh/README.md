@@ -68,7 +68,7 @@ be written in the profile's `cordis.patch.yml`:
 LightCode's own configuration (`~/.lightcode/config.json`, a project's
 `.lightcode/config.json`, `LIGHTCODE_ECONOMY`, `LIGHTCODE_DISABLE=1`) can lower
 this setting further but never raise it; see the
-[main README](https://github.com/Zongwei9888/lightcode#configuration).
+[main README](https://github.com/Zongwei9888/lightcode-plugins#configuration).
 
 ## What it changes, exactly
 

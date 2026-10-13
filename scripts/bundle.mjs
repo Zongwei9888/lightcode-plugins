@@ -68,7 +68,7 @@ function writeLegal(dir, name) {
   copyFileSync(at('third-party/rtk/LICENSE'), at(dir, 'LICENSE.rtk'))
   writeFileSync(at(dir, 'NOTICE.md'), `# Notices
 
-\`${name}\` is part of LightCode (https://github.com/Zongwei9888/lightcode), MIT
+\`${name}\` is part of LightCode (https://github.com/Zongwei9888/lightcode-plugins), MIT
 licensed (see \`LICENSE\`). Its JavaScript bundles include the LightCode packages
 it uses.
 
