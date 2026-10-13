@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "LightCode",
+    "description": "Shrinks test, build, diff and search output before the model reads it. Keeps the original and every failure."
+  }
+}

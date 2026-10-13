@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 import { DefaultResourceLoader } from '@earendil-works/pi-coding-agent'
 
 describe('pi package loading', () => {
-  it('loads from the package directory through pi\'s own loader (manifest + jiti, no build of this file)', async () => {
+  it('loads the published bundle through pi\'s own loader and package manifest', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'lightcode-pi-load-'))
     try {
       const packageDir = fileURLToPath(new URL('..', import.meta.url))
@@ -17,7 +17,7 @@ describe('pi package loading', () => {
       expect(errors).toEqual([])
       expect(extensions).toHaveLength(1)
       const extension = extensions[0]!
-      expect(extension.path).toContain('extension.ts')
+      expect(extension.path).toContain('dist/extension.js')
       expect([...extension.flags.keys()]).toContain('lightcode')
       expect([...extension.handlers.keys()].sort()).toEqual(['session_start', 'tool_call', 'tool_result', 'turn_end'])
     } finally {

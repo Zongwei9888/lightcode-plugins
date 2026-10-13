@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { chmodSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -128,6 +128,13 @@ describe('Codex PreToolUse hook', () => {
     const result = lc(['hook', 'codex'], { input: 'not json' })
     expect(result.status).toBe(0)
     expect(result.out).toBe('')
+  })
+})
+
+describe('lc --version', () => {
+  it('matches the published package version', () => {
+    const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
+    expect(lc(['--version']).out.trim()).toBe(manifest.version)
   })
 })
 

@@ -4,6 +4,12 @@
   "description": "Local LightCode data: private journal, original-output store and configuration.",
   "license": "MIT",
   "type": "module",
+  "homepage": "https://github.com/Zongwei9888/lightcode#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Zongwei9888/lightcode.git",
+    "directory": "packages/store"
+  },
   "engines": {
     "node": ">=22"
   },
@@ -16,7 +22,8 @@
   },
   "files": [
     "lib",
-    "src"
+    "src",
+    "!lib/.tsbuildinfo"
   ],
   "scripts": {
     "test": "vitest run"

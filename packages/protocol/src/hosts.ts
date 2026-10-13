@@ -32,8 +32,13 @@ export const HOST_PROFILES: Readonly<Record<string, HostProfile>> = Object.freez
   },
   dsh: {
     id: 'dsh', name: 'DeepSeek Harness (0.2.x)', integration: 'in-process',
-    capabilities: [...local, 'toolResults', 'toolCalls', 'compaction', 'tools', 'models', 'sessions', 'ui'],
-    notes: ['adapter for 0.2.x is not released yet'],
+    // 0.2 excludes argument rewriting from tools/pre-execute (arguments are logged before it runs).
+    capabilities: [...local, 'toolResults', 'compaction', 'tools', 'models', 'sessions', 'ui'],
+    notes: [
+      'tools/post-execute replaces the bash result the model and the session log receive; LightCode keeps the original',
+      'stdout and stderr stay apart; output DSH already cut to its tail (64 KB per stream by default) passes through',
+      'tool arguments cannot be rewritten before execution, so command normalization is off',
+    ],
   },
   shell: {
     id: 'shell', name: 'Any agent or terminal via `lc run`', integration: 'command',

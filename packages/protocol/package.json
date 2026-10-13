@@ -4,6 +4,12 @@
   "description": "LightCode host capability vocabulary, mechanism negotiation and journal record schemas.",
   "license": "MIT",
   "type": "module",
+  "homepage": "https://github.com/Zongwei9888/lightcode#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Zongwei9888/lightcode.git",
+    "directory": "packages/protocol"
+  },
   "engines": {
     "node": ">=22"
   },
@@ -14,7 +20,11 @@
       "default": "./lib/index.js"
     }
   },
-  "files": ["lib", "src"],
+  "files": [
+    "lib",
+    "src",
+    "!lib/.tsbuildinfo"
+  ],
   "scripts": {
     "test": "vitest run"
   },

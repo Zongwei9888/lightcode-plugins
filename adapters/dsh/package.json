@@ -1,0 +1,78 @@
+{
+  "name": "@lightcode/dsh",
+  "version": "0.1.0-dev.0",
+  "description": "LightCode for DeepSeek Harness: shrinks recognized bash output (tests, builds, diffs, searches) before the model reads it, keeping the original.",
+  "license": "MIT",
+  "type": "module",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "lightcode",
+    "context",
+    "tokens"
+  ],
+  "homepage": "https://github.com/Zongwei9888/lightcode/tree/main/adapters/dsh#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Zongwei9888/lightcode.git",
+    "directory": "adapters/dsh"
+  },
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "main": "./lib/index.js",
+  "icon": "./icon.svg",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "locale/*.json",
+    "icon.svg",
+    "cordis.patch.yml",
+    "README.md",
+    "NOTICE.md",
+    "LICENSE",
+    "LICENSE.rtk"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-plugin-manager"
+      ]
+    }
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-tools": ">=0.2.0-0 <0.3.0-0",
+    "@deepseek-ai/schemastery": "*"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-tools": {
+      "optional": true
+    },
+    "@deepseek-ai/schemastery": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@deepseek-ai/schemastery": "3.18.4",
+    "@lightcode/core": "workspace:*",
+    "@lightcode/mechanisms": "workspace:*",
+    "@lightcode/protocol": "workspace:*",
+    "@lightcode/store": "workspace:*"
+  }
+}

@@ -7,7 +7,7 @@ and sandbox; LightCode never re-implements them.
 ## Layers
 
 ```
-adapters      @lightcode/pi · adapters/codex · (DeepSeek Harness 0.2.x, planned)
+adapters      @lightcode/pi · @lightcode/dsh · adapters/codex
               translate host events into port calls; install, configure, show receipts
 mechanisms    @lightcode/mechanisms — Economy engine, command normalization, receipts
 protocol      @lightcode/protocol — capabilities, host profiles, negotiation, journal schema
@@ -32,7 +32,7 @@ patch.
 |---|---|---|---|
 | replace a tool result before the model sees it | `tool_result` | — | `tools/post-execute` |
 | …while the host session keeps the original | `turn_end` → `context_edit` | — | — |
-| rewrite tool arguments before execution | `tool_call` (mutate input) | `PreToolUse` `updatedInput` | `tools/pre-execute` |
+| rewrite tool arguments before execution | `tool_call` (mutate input) | `PreToolUse` `updatedInput` | — (0.2 excludes it: arguments are logged first) |
 | run shell commands through `lc run` | — | ✓ (via `PreToolUse`) | — |
 | supply the compaction summary | `session_before_compact` | — (shape only) | compaction provider |
 | register model-callable tools | `registerTool` | MCP server | `tools.register` |
@@ -66,11 +66,35 @@ How the projection reaches the model differs by host:
   executes it with the user's shell, keeps exit status and signals, and
   prints the projection. Codex's own output budget then applies to a smaller
   text.
+- **DeepSeek Harness** — a `tools/post-execute` listener registered without
+  `prepend`, so it runs innermost: it reads the `bash` tool's canonical value
+  and rendered text, replaces one verbatim stream region, and returns the
+  projection. DSH's spill policy (a `prepend` listener) then bounds the
+  smaller text; the session log and tool card show what the model read.
 - **Any agent** — `lc run` directly.
 
 pi and Codex merge stdout and stderr into one text; on those hosts filters
 see the merged stream, and the journal records `streams: "merged"`.
-`lc run` keeps the streams apart.
+DeepSeek Harness and `lc run` keep the streams apart.
+
+## Packaging
+
+`@lightcode/pi`, `@lightcode/dsh` and `@lightcode/cli` are single-file
+bundles built by `scripts/bundle.mjs` from the workspace sources, with no
+runtime dependencies: the host's own modules (`@earendil-works/*`,
+`@deepseek-ai/*`) stay external and resolve from the running host. Each
+carries `LICENSE`, `LICENSE.rtk` and `NOTICE.md`.
+
+- pi loads `dist/extension.js` named by the `pi.extensions` manifest; `pi
+  install npm:@lightcode/pi`, `pi config` and `pi remove` manage it.
+- DeepSeek Harness reads `dsh.bundle.patch` (`cordis.patch.yml` inserts the
+  `lightcode` row), the display metadata (`locale/*.json`, `icon.svg`) and
+  the browser half `lib/client.js` (`dsh.client`), which registers the Mode
+  form on the bundle's Plugins page. The `@deepseek-ai/dsh-tools` peer range
+  is the compatibility gate DSH checks before installing.
+
+`e2e/` installs the packed packages from a local registry into published
+host releases and drives real sessions, the DSH Web UI and pi's TUI.
 
 ## Journal and store
 
@@ -99,7 +123,7 @@ uncovered commands — the list of filters worth writing next.
 
 | Release | Scope |
 |---|---|
-| 0.1 | Economy on pi, Codex and `lc run`; DeepSeek Harness 0.2.x adapter |
+| 0.1 | Economy on pi, DeepSeek Harness 0.2.x, Codex and `lc run` |
 | 0.2 | LightShadow: recoverable compaction with a catalog of originals and a retrieval tool — complete on pi and DeepSeek Harness, catalog + MCP retrieval on Codex |
 | 0.3 | Delegation and a cross-host usage ledger (unified trace format) |
 | later | Rule packs (data-only rules, content-hashed) and the tooling to learn them |

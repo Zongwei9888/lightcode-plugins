@@ -1,0 +1,73 @@
+/**
+ * The part of DeepSeek Harness 0.2.x this plugin touches, declared locally so
+ * the package builds and tests without the harness's type graph. Each shape
+ * mirrors `@deepseek-ai/dsh-tools`, `@deepseek-ai/dsh-commands` and
+ * `@deepseek-ai/cordis` 0.2.0-rc.2 / 0.2.1-alpha.2; the end-to-end suite runs
+ * the published harness to keep them honest.
+ */
+
+export interface TextBlock { readonly type: 'text'; readonly text: string }
+export type ContentBlock = TextBlock | { readonly type: string; readonly [key: string]: unknown }
+
+/** `@deepseek-ai/dsh-session` Session, as far as LightCode reads it. */
+export interface HostSession {
+  readonly id: string
+  readonly header?: { readonly cwd?: string }
+}
+
+/** `@deepseek-ai/dsh-tools` ToolExecution. */
+export interface ToolExecution {
+  readonly callId: string
+  readonly name: string
+  readonly arguments: unknown
+  readonly agent?: { readonly session?: HostSession }
+  /** Set on `run_code` sub-dispatches; the program, not the model, receives their value. */
+  readonly parent?: unknown
+}
+
+export type ToolExecutionResult =
+  | { readonly isError: false; readonly value: unknown; readonly content: readonly ContentBlock[] }
+  | { readonly isError: true; readonly content: readonly ContentBlock[] }
+
+export type PostToolDecision =
+  | { readonly kind: 'accept'; readonly content?: readonly ContentBlock[]; readonly value?: never; readonly additionalContexts?: readonly unknown[] }
+  | { readonly kind: 'accept'; readonly value: unknown; readonly content?: never; readonly additionalContexts?: readonly unknown[] }
+  | { readonly kind: 'block'; readonly feedback: readonly ContentBlock[]; readonly additionalContexts?: readonly unknown[] }
+
+/** The canonical value of a finished foreground `bash` call. */
+export interface BashForegroundValue {
+  readonly kind: 'foreground'
+  readonly exitCode: number | null
+  readonly signal: string | null
+  readonly timedOut: boolean
+  readonly aborted: boolean
+  readonly stopped?: string
+  readonly stdout: { readonly text: string; readonly truncated: boolean }
+  readonly stderr: { readonly text: string; readonly truncated: boolean }
+  readonly sandbox?: { readonly denied: boolean; readonly runnerFailed?: boolean }
+}
+
+/** `@deepseek-ai/dsh-commands` CommandInvocation and CommandResult. */
+export interface CommandInvocation { readonly agent: { readonly session: HostSession }; readonly rawInput: string }
+export type CommandResult = { readonly kind: 'success' | 'error'; readonly text: string }
+
+export interface CommandRuntime {
+  register(definition: {
+    readonly definitionId?: string
+    readonly name: string
+    readonly description: string
+    readonly handler: (invocation: CommandInvocation) => CommandResult | Promise<CommandResult>
+  }): () => void
+}
+
+/** `@deepseek-ai/cordis` Volatile<T>: a live configuration value. */
+export interface Volatile<T> { get(): T }
+
+/** The slice of a cordis Context the plugin uses. */
+export interface HostContext {
+  on(name: 'tools/post-execute',
+    listener: (exec: ToolExecution, result: ToolExecutionResult, next: () => Promise<PostToolDecision>) => Promise<PostToolDecision>): () => void
+  inject(deps: readonly string[], callback: (ctx: HostContext & { readonly commands: CommandRuntime }) => void): void
+  effect(execute: () => () => void, label?: string): void
+  readonly logger: { warn(message: string): void; info(message: string): void }
+}

@@ -15,9 +15,6 @@
     },
     {
       "path": "packages/cli"
-    },
-    {
-      "path": "adapters/pi"
     }
   ]
 }

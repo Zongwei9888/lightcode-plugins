@@ -1,34 +1,45 @@
 {
   "name": "@lightcode/cli",
   "version": "0.1.0-dev.0",
-  "description": "The lc command: run commands with filtered output, Codex hooks, reports and diagnostics.",
+  "description": "The lc command: run any command with LightCode filtering, the Codex hook, savings reports and diagnostics.",
   "license": "MIT",
   "type": "module",
+  "keywords": [
+    "lightcode",
+    "codex",
+    "context",
+    "tokens",
+    "cli"
+  ],
+  "homepage": "https://github.com/Zongwei9888/lightcode#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Zongwei9888/lightcode.git",
+    "directory": "packages/cli"
+  },
   "engines": {
     "node": ">=22"
   },
+  "bin": {
+    "lc": "./dist/lc.js"
+  },
   "exports": {
-    ".": {
-      "source": "./src/hook.ts",
-      "types": "./lib/hook.d.ts",
-      "default": "./lib/hook.js"
-    }
+    "./package.json": "./package.json"
   },
   "files": [
-    "bin",
-    "lib",
-    "src"
+    "dist/lc.js",
+    "README.md",
+    "NOTICE.md",
+    "LICENSE",
+    "LICENSE.rtk"
   ],
   "scripts": {
     "test": "vitest run"
   },
-  "dependencies": {
+  "devDependencies": {
     "@lightcode/core": "workspace:*",
     "@lightcode/protocol": "workspace:*",
     "@lightcode/store": "workspace:*",
     "@lightcode/mechanisms": "workspace:*"
-  },
-  "bin": {
-    "lc": "./bin/lc.js"
   }
 }

@@ -1,5 +1,7 @@
 node_modules/
-lib/
+# Build output of the workspace packages (e2e/lib is source)
+/packages/*/lib/
+/adapters/*/lib/
 *.tsbuildinfo
 coverage/
 .DS_Store
@@ -8,3 +10,18 @@ coverage/
 *.log
 # Local LightCode data written by tests or manual runs
 .lightcode/
+/packages/*/dist/
+/adapters/*/dist/
+# Written by scripts/bundle.mjs into each distributable package
+adapters/*/LICENSE
+adapters/*/LICENSE.rtk
+adapters/*/NOTICE.md
+packages/cli/LICENSE
+packages/cli/LICENSE.rtk
+packages/cli/NOTICE.md
+e2e/.cache/
+packages/core/LICENSE
+packages/core/LICENSE.rtk
+packages/protocol/LICENSE
+packages/store/LICENSE
+packages/mechanisms/LICENSE

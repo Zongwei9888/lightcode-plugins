@@ -2,7 +2,7 @@
 
 LightCode 让编码 Agent 在工具输出上少花 Token，同时不向模型隐瞒证据。它以插件形式接入现有 Agent（pi、Codex、DeepSeek Harness），本身不是另一个 Agent。
 
-> **状态：0.1 开发中。** 这一版提供 pi 和 Codex 上的 **Token Economy**，以及适用于任何 Agent 的 `lc run`。可恢复压缩（LightShadow）和委派记账计划在 0.2、0.3。尚未发布到 npm。
+> **状态：0.1 开发中。** 这一版提供 **Token Economy**：pi 和 DeepSeek Harness 上可直接安装的插件、Codex 插件，以及适用于任何 Agent 的 `lc run`。可恢复压缩（LightShadow）和委派记账计划在 0.2、0.3。尚未发布到 npm。
 
 ## Token Economy 做什么
 
@@ -18,14 +18,22 @@ Agent 运行 `pytest`、`cargo test`、`git diff`、`grep -rn`、`tsc`、`find`�
 
 ## 宿主
 
-| 宿主 | 接入方式 | Economy |
-|---|---|---|
-| **pi** 1.x | 进程内扩展；通过 `context_edit` 交付投影，pi 会话保留原文 | 应用 |
-| **Codex** 0.162+ | 插件的 `PreToolUse` 钩子把可识别的命令改写为 `lc run -c '<命令>'`；模型历史里仍是原命令 | 应用 |
-| **任何 Agent / 终端** | 直接调用 `lc run -c '<命令>'` | 应用 |
-| DeepSeek Harness 0.2.x | 适配器尚未发布 | — |
+| 宿主 | 安装 | 接入方式 | Economy |
+|---|---|---|---|
+| **pi** 1.1+ | `pi install npm:@lightcode/pi` | 进程内扩展；通过 `context_edit` 交付投影，pi 会话保留原文 | 应用 |
+| **DeepSeek Harness** 0.2.x | 插件 → 添加插件 → `@lightcode/dsh`，或 `dsh plugin --profile web add @lightcode/dsh` | 进程内插件（`tools/post-execute`）；插件页可切换模式 | 应用 |
+| **Codex** 0.162+ | `codex plugin marketplace add <仓库>`，再 `codex plugin add lightcode@lightcode` | 插件的 `PreToolUse` 钩子把可识别的命令改写为 `lc run -c '<命令>'`；模型历史里仍是原命令 | 应用 |
+| **任何 Agent / 终端** | `npm install -g @lightcode/cli` | 直接调用 `lc run -c '<命令>'` | 应用 |
 
 `lc doctor` 会列出每个宿主支持什么以及原因（能力协商：每个机制按宿主能力以 `apply` / `observe` / `off` 运行，配置只能降级不能强开）。
+
+### pi
+
+`pi install npm:@lightcode/pi` 安装。状态栏显示本会话省下的 token，`/lightcode` 查看明细，`pi --lightcode observe` 本次只记录不改动，`pi config` 可关闭扩展。详见 [adapters/pi](../../adapters/pi/README.md)。
+
+### DeepSeek Harness
+
+Web 界面或桌面版：侧边栏 **插件** → **添加插件** → 输入 `@lightcode/dsh` → **安装** → **立即启用**；或终端执行 `dsh plugin --profile web add @lightcode/dsh`（`dsh plugin` 需要 pnpm 11 及以上）。会话里输入 `/lightcode` 查看省下的 token；插件详情页的 **模式**（精简 / 只记录 / 关闭）保存后对下一次工具调用生效，无需重启。详见 [adapters/dsh](../../adapters/dsh/README.md)。
 
 ## 常用命令
 

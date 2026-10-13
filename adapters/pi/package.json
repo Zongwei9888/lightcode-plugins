@@ -1,38 +1,53 @@
 {
   "name": "@lightcode/pi",
   "version": "0.1.0-dev.0",
-  "description": "LightCode for the pi coding agent: deterministic shell-output filtering with the original kept in the session.",
+  "description": "LightCode for the pi coding agent: shrinks recognized bash output (tests, builds, diffs, searches) before the model reads it, keeping the original in the session.",
   "license": "MIT",
   "type": "module",
-  "keywords": ["pi-package", "pi-extension", "lightcode", "context", "tokens"],
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "lightcode",
+    "context",
+    "tokens"
+  ],
+  "homepage": "https://github.com/Zongwei9888/lightcode/tree/main/adapters/pi#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Zongwei9888/lightcode.git",
+    "directory": "adapters/pi"
+  },
   "engines": {
     "node": ">=22"
   },
   "pi": {
-    "extensions": ["./src/extension.ts"]
+    "extensions": [
+      "./dist/extension.js"
+    ]
   },
   "exports": {
-    ".": {
-      "source": "./src/extension.ts",
-      "types": "./lib/extension.d.ts",
-      "default": "./lib/extension.js"
-    }
+    ".": "./dist/extension.js",
+    "./package.json": "./package.json"
   },
-  "files": ["lib", "src"],
+  "files": [
+    "dist/extension.js",
+    "README.md",
+    "NOTICE.md",
+    "LICENSE",
+    "LICENSE.rtk"
+  ],
   "scripts": {
     "test": "vitest run"
-  },
-  "dependencies": {
-    "@lightcode/core": "workspace:*",
-    "@lightcode/mechanisms": "workspace:*",
-    "@lightcode/protocol": "workspace:*",
-    "@lightcode/store": "workspace:*"
   },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*"
   },
   "devDependencies": {
     "@earendil-works/pi-ai": "^1.1.0",
-    "@earendil-works/pi-coding-agent": "1.1.0"
+    "@earendil-works/pi-coding-agent": "1.1.0",
+    "@lightcode/core": "workspace:*",
+    "@lightcode/mechanisms": "workspace:*",
+    "@lightcode/protocol": "workspace:*",
+    "@lightcode/store": "workspace:*"
   }
 }

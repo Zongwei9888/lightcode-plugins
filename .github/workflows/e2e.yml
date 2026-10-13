@@ -1,0 +1,60 @@
+name: e2e
+
+# Installs the packed plugins into published pi and DeepSeek Harness releases
+# through each host's own plugin commands and UI, and runs real sessions
+# against a scripted model. See e2e/README.md.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 4 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Linux prerequisites
+        if: runner.os == 'Linux'
+        # DeepSeek Harness runs bash only inside bubblewrap, which needs unprivileged user namespaces.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bubblewrap tmux zstd
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+      - name: macOS prerequisites
+        if: runner.os == 'macOS'
+        run: brew install tmux zstd
+      - uses: actions/cache@v4
+        with:
+          path: e2e/.cache
+          key: e2e-${{ runner.os }}-${{ hashFiles('e2e/lib/hosts.mjs') }}
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm e2e
+        env:
+          LIGHTCODE_E2E_TMP: ${{ runner.temp }}
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-${{ matrix.os }}
+          path: ${{ runner.temp }}/lightcode-e2e-*
+          if-no-files-found: ignore

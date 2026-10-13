@@ -6,9 +6,9 @@ hiding evidence from them. It plugs into existing agents — [pi](https://github
 being another agent.
 
 > **Status: 0.1 in development.** This release line ships **Token Economy**
-> for pi and Codex, plus `lc run` for any agent. Recoverable compaction
-> (LightShadow) and delegation accounting follow in 0.2 and 0.3. Nothing is
-> published to npm yet.
+> as installable plugins for pi and DeepSeek Harness, a Codex plugin, and
+> `lc run` for any agent. Recoverable compaction (LightShadow) and delegation
+> accounting follow in 0.2 and 0.3. Nothing is published to npm yet.
 
 ## What Token Economy does
 
@@ -38,12 +38,12 @@ The rules it never bends:
 
 ## Hosts
 
-| Host | How | Economy |
-|---|---|---|
-| **pi** 1.x | in-process extension; projection delivered through `context_edit`, so pi's session keeps the original | apply |
-| **Codex** 0.162+ | plugin `PreToolUse` hook rewrites recognizable commands to `lc run -c '<command>'`; the model's history keeps the original command | apply |
-| **Any agent / terminal** | call `lc run -c '<command>'` | apply |
-| DeepSeek Harness 0.2.x | adapter not released yet | — |
+| Host | Install | How | Economy |
+|---|---|---|---|
+| **pi** 1.1+ | `pi install npm:@lightcode/pi` | in-process extension; the projection reaches the model through `context_edit`, so pi's session keeps the original | apply |
+| **DeepSeek Harness** 0.2.x | Plugins → Add plugin → `@lightcode/dsh`, or `dsh plugin --profile web add @lightcode/dsh` | in-process plugin on `tools/post-execute`; Mode is editable on its Plugins page | apply |
+| **Codex** 0.162+ | `codex plugin marketplace add <checkout>` then `codex plugin add lightcode@lightcode` | plugin `PreToolUse` hook rewrites recognizable commands to `lc run -c '<command>'`; the model's history keeps the original command | apply |
+| **Any agent / terminal** | `npm install -g @lightcode/cli` | call `lc run -c '<command>'` | apply |
 
 `lc doctor` prints what each host supports and why (capability negotiation:
 a mechanism runs in `apply`, `observe` or `off` depending on what the host
@@ -52,12 +52,25 @@ offers; configuration can only lower that).
 ### pi
 
 ```sh
-pi -e /path/to/lightcode/adapters/pi        # one run, from a checkout (after pnpm install && pnpm build)
-pi install npm:@lightcode/pi                # once published
+pi install npm:@lightcode/pi
 ```
 
-Status bar shows tokens saved; `/lightcode` shows the session summary.
-`pi --lightcode observe` records what would change without changing anything.
+The status bar shows tokens saved; `/lightcode` shows the session summary;
+`pi --lightcode observe` records what would change without changing anything;
+`pi config` can switch the extension off. See [`adapters/pi`](adapters/pi/README.md).
+
+### DeepSeek Harness
+
+In the Web UI or Desktop app: **Plugins** → **Add plugin** → `@lightcode/dsh`
+→ **Install** → **Enable now**. Or from a terminal:
+
+```sh
+dsh plugin --profile web add @lightcode/dsh     # dsh plugin needs pnpm 11 or later
+```
+
+`/lightcode` in a session shows what it saved; **Mode** (Apply / Observe /
+Off) on the plugin's page applies to the next tool call. See
+[`adapters/dsh`](adapters/dsh/README.md).
 
 ### Codex
 
@@ -118,19 +131,26 @@ packages/core        filters, source maps, admission, command normalization — 
 packages/protocol    capability vocabulary, host profiles, negotiation, journal schema
 packages/store       private journal, original store, configuration
 packages/mechanisms  Economy engine and receipts over the ports
-packages/cli         the lc command
-adapters/pi          pi extension
+packages/cli         the lc command                      → @lightcode/cli
+adapters/pi          pi extension                        → @lightcode/pi
+adapters/dsh         DeepSeek Harness plugin             → @lightcode/dsh
 adapters/codex       Codex plugin (hooks)
 conformance/         corpus every implementation must reproduce byte-for-byte
+e2e/                 installs the packages into published hosts and runs real sessions
 ```
 
-Design: [docs/architecture.md](docs/architecture.md) · 中文：[docs/zh/README.md](docs/zh/README.md)
+The three published packages are single-file bundles (`scripts/bundle.mjs`)
+with no runtime dependencies; the host's own modules stay external.
+
+Design: [docs/architecture.md](docs/architecture.md) · Releasing:
+[docs/releasing.md](docs/releasing.md) · 中文：[docs/zh/README.md](docs/zh/README.md)
 
 ## Development
 
 ```sh
 pnpm install
-pnpm check        # typecheck, build, all tests (pi tests drive a real pi session with a fake model)
+pnpm check        # typecheck, build and bundle, all unit tests (pi tests drive a real pi session with a fake model)
+pnpm e2e          # install into published pi and DeepSeek Harness releases and run real sessions (see e2e/README.md)
 ```
 
 Changing a filter's output requires a new `ECONOMY_RUNTIME_VERSION` and a new

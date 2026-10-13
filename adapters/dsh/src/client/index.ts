@@ -1,0 +1,47 @@
+/**
+ * LightCode for DeepSeek Harness, browser half: the `mode` setting on the
+ * bundle's page in Plugins. It edits the live `mode` field of the `lightcode`
+ * profile entry through the Web client's shared configuration form, so a save
+ * applies to the next tool result without a restart. The page exists while
+ * the Host serves that entry, i.e. while the bundle is switched on.
+ */
+import { SettingsFormModel } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { SnapshotStore } from '@deepseek-ai/dsh-client-ui-primitives'
+import { en, zh } from './locales.ts'
+import type { Copy } from './locales.ts'
+import { MODE_FIELD } from './mode.ts'
+import { LightCodeConfig } from './page.ts'
+import type { ConfigState } from './page.ts'
+
+/** The package name: the key of its bundle page. */
+const PACKAGE = '@lightcode/dsh'
+/** The profile entry the bundle patch inserts; its id is the configuration namespace. */
+const ENTRY = 'lightcode'
+/** Dictionary namespace owned by this plugin. */
+const NS = 'lightcode.settings'
+
+/** What this page needs from the Web client: slots, the locale registry, and the shared configuration forms. */
+export const inject = ['slots', 'locale', 'configForms']
+
+interface ClientContext {
+  effect(execute: () => () => void, label?: string): void
+  readonly locale: { bind(ns: string): (key: string) => string; register(ns: string, dictionaries: Record<string, Copy>): () => void }
+  readonly configForms: { get(ns: string): unknown; whileServed(namespaces: readonly string[], register: (served: Set<string>) => () => void): () => void }
+  readonly slots: {
+    inject(name: string, register: () => () => void): () => void
+    register(options: Record<string, unknown>, component: unknown): () => void
+  }
+}
+
+export function apply(ctx: ClientContext): void {
+  ctx.effect(() => ctx.locale.register(NS, { en, zh }), 'lightcode: dictionaries')
+  const form = new SettingsFormModel<unknown>(ctx.configForms.get(ENTRY), [MODE_FIELD])
+  const store: SnapshotStore<ConfigState> = form.bind(() => ({ ...form.shell(), mode: form.field('mode') }))
+  ctx.effect(() => () => form.dispose(), 'lightcode: form subscription')
+  ctx.effect(() => ctx.configForms.whileServed([ENTRY], () => ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({
+    name: 'plugins.bundle.config',
+    key: PACKAGE,
+    locale: NS,
+    inject: () => ({ hooks: { lightcodeConfig: store }, ...form.actions() }),
+  }, LightCodeConfig))), 'lightcode: plugin page')
+}
