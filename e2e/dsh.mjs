@@ -80,7 +80,7 @@ export async function runDsh({ cache, root, registry, log }) {
       const profileDir = join(dshHome, 'profiles', 'headless')
       const manifest = JSON.parse(readFileSync(join(profileDir, 'package.json'), 'utf8'))
       assert.ok(manifest.dsh.profile.bundles.includes('@lightcode/dsh'), `bundle not selected:\n${install.stdout}${install.stderr}`)
-      assert.match(manifest.dependencies['@lightcode/dsh'], /^\d+\.\d+\.\d+/, 'not installed from the registry')
+      assert.match(manifest.dependencies['@lightcode/dsh'], /^[~^]?\d+\.\d+\.\d+/, 'not installed from the registry')
       const dump = run(dsh, ['--profile', 'headless', '--dump-config'], { cwd: base, env: envFor(join(base, 'lc-install')) }).stdout
       assert.match(dump, /# == @lightcode\/dsh\n- id: lightcode\n {2}name: '@lightcode\/dsh'/)
 

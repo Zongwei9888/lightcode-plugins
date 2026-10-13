@@ -24,9 +24,11 @@ First open-source release line: Token Economy on several hosts.
   Plugins page or `dsh plugin add`; filters the `bash` tool in
   `tools/post-execute` before DSH's spill policy; live Mode setting on its
   Plugins page; `/lightcode`; display metadata and icon. Tested on
-  0.2.0-rc.2 and 0.2.1-alpha.2, macOS and Linux.
+  0.2.0-rc.2 and 0.2.1-alpha.2 (CLI and Web UI on macOS and Linux, the
+  Desktop app on macOS).
 - `adapters/codex`: Codex plugin whose `PreToolUse` hook wraps recognizable
   shell commands in `lc run`; the repository doubles as a Codex marketplace.
 - The published packages are self-contained bundles with their licenses and
   notices; `e2e/` installs them into published host releases and runs real
-  sessions, the DSH Web UI and pi's TUI (CI on Ubuntu and macOS).
+  sessions, the DSH Web UI and Desktop app, and pi's TUI (CI on Ubuntu and
+  macOS).

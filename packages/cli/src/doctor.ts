@@ -2,7 +2,7 @@ import { economyCoverage, ECONOMY_RUNTIME_VERSION, RTK_REVISION } from '@lightco
 import { HOST_PROFILES, V0_1_SPECS, negotiate } from '@lightcode/protocol'
 import { cliContext, onPath } from './context.ts'
 
-export const VERSION = '0.1.0-dev.0'
+export const VERSION = '0.1.0'
 
 export function doctor(options: { json?: boolean } = {}): number {
   const context = cliContext()

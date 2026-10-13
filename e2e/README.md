@@ -7,7 +7,7 @@ releases, runs real sessions, and checks what the model received.
 ```sh
 pnpm install && pnpm build
 pnpm e2e                 # everything
-pnpm e2e dsh pi          # a subset: dsh, pi, pi-tui, web
+pnpm e2e dsh pi          # a subset: dsh, pi, pi-tui, web, desktop
 ```
 
 | Scenario | What it does |
@@ -15,7 +15,8 @@ pnpm e2e dsh pi          # a subset: dsh, pi, pi-tui, web
 | `dsh` | `dsh plugin add @lightcode/dsh`, headless sessions in apply and observe mode, the session log, `dsh plugin remove` — on every DSH version |
 | `pi` | `pi install npm:@lightcode/pi`, print-mode sessions, `--lightcode observe`, `pi remove`, and a checkout install — on every pi version |
 | `pi-tui` | pi's TUI through tmux: the status bar, `/lightcode`, and switching the extension off and on in `pi config` |
-| `web` | the DSH Web UI (the page the Desktop app embeds) in Chrome: Plugins → Add plugin → Enable, a chat and its tool cards, `/lightcode`, Mode on the plugin page (applied live), bundle off/on, uninstall |
+| `web` | the DSH Web UI in Chrome: Plugins → Add plugin → Enable, a chat and its tool cards, `/lightcode`, Mode on the plugin page (applied live), bundle off/on, uninstall |
+| `desktop` | the same Plugins-page flow inside the DSH Desktop app (Electron, its bundled pnpm, `profiles/desktop`); needs `LIGHTCODE_E2E_DESKTOP_APP`, skipped otherwise |
 
 How it works:
 
@@ -50,3 +51,4 @@ unprivileged user namespaces (on Ubuntu 24.04:
 | `LIGHTCODE_E2E_CACHE` | `e2e/.cache` |
 | `LIGHTCODE_E2E_TMP` | the OS temp directory |
 | `LIGHTCODE_E2E_KEEP=1` | keep the run directory (it is always kept on failure) |
+| `LIGHTCODE_E2E_DESKTOP_APP` | an unpacked `DeepSeek Harness.app` (macOS) or executable (Linux); Desktop is not on npm, so build one in a DeepSeek Harness checkout with `pnpm install && pnpm run build && pnpm run package:desktop:mac:arm64:dir`. The app runs with its own `DSH_HOME`, user data and Documents directory; its window appears while the scenario runs |

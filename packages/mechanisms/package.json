@@ -1,6 +1,6 @@
 {
   "name": "@lightcode/mechanisms",
-  "version": "0.1.0-dev.0",
+  "version": "0.1.0",
   "description": "LightCode mechanisms over host capability ports: Token Economy, command normalization and receipts.",
   "license": "MIT",
   "type": "module",

@@ -61,8 +61,8 @@ The status bar shows tokens saved; `/lightcode` shows the session summary;
 
 ### DeepSeek Harness
 
-In the Web UI or Desktop app: **Plugins** → **Add plugin** → `@lightcode/dsh`
-→ **Install** → **Enable now**. Or from a terminal:
+In the Web UI or the Desktop app: **Plugins** → **Add plugin** →
+`@lightcode/dsh` → **Install** → **Enable now**. Or from a terminal:
 
 ```sh
 dsh plugin --profile web add @lightcode/dsh     # dsh plugin needs pnpm 11 or later

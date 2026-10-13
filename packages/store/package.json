@@ -1,6 +1,6 @@
 {
   "name": "@lightcode/store",
-  "version": "0.1.0-dev.0",
+  "version": "0.1.0",
   "description": "Local LightCode data: private journal, original-output store and configuration.",
   "license": "MIT",
   "type": "module",

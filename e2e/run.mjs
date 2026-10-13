@@ -5,7 +5,7 @@
  * DeepSeek Harness releases through each host's own plugin commands, and run
  * real sessions against a scripted model.
  *
- *   pnpm build && node e2e/run.mjs [dsh] [pi] [pi-tui] [web]
+ *   pnpm build && node e2e/run.mjs [dsh] [pi] [pi-tui] [web] [desktop]
  *
  * Hosts are cached in $LIGHTCODE_E2E_CACHE (default: e2e/.cache); versions
  * come from LIGHTCODE_E2E_DSH / LIGHTCODE_E2E_PI (comma-separated). Nothing
@@ -15,6 +15,7 @@ import { mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { runDesktop } from './desktop.mjs'
 import { runDsh } from './dsh.mjs'
 import { ensureTool, VERSIONS } from './lib/hosts.mjs'
 import { startRegistry } from './lib/registry.mjs'
@@ -48,6 +49,7 @@ try {
   if (wants('pi')) await runPi({ cache, root, registry, log, checkout: join(repo, 'adapters', 'pi') })
   if (wants('pi-tui')) await runPiTui({ cache, root, registry, log })
   if (wants('web')) await runWeb({ cache, root, registry, log })
+  if (wants('desktop')) await runDesktop({ cache, root, registry, log })
   log('e2e: all scenarios passed')
 } catch (error) {
   failed = true
