@@ -3,9 +3,10 @@ import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { FileArtifactStore, FileJournal } from '@lightcode/store'
+import { FileArtifactStore, FileJournal, readJournals } from '@lightcode/store'
+import { collectSubagents, summarizeEconomy } from '@lightcode/mechanisms'
 import type { EconomyRecord, JournalRecord } from '@lightcode/protocol'
-import { createLightCodeExtension } from '../src/extension.ts'
+import { createLightCodeExtension, PARENT_SESSION_ENV } from '../src/extension.ts'
 import { runPi, textOf } from './harness.ts'
 
 const dirs: string[] = []
@@ -76,6 +77,26 @@ describe('pi adapter (real pi 1.1 session, faux model)', () => {
     const off = await runPi({ cwd, extension: createLightCodeExtension({ dataDir, env: { LIGHTCODE_DISABLE: '1' } }), commands: ['grep -rn value src'] })
     expect(textOf(off.seen[0]![0])).toBe(raw)
     expect(sessionEntries(off.sessionFile).some(entry => entry.type === 'context_edit')).toBe(false)
+  })
+
+  it('links a subagent pi process to the session that started it', async () => {
+    const cwd = workspace(), dataDir = temp()
+    // The parent's environment is what the pi processes it starts inherit.
+    const parentEnv: NodeJS.ProcessEnv = {}
+    const parent = await runPi({ cwd, extension: createLightCodeExtension({ dataDir, env: parentEnv }), commands: ['seq 1 3'] })
+    expect(parentEnv[PARENT_SESSION_ENV]).toBe(`pi:${parent.sessionId}`)
+    const childEnv = { ...parentEnv }
+    const child = await runPi({ cwd, extension: createLightCodeExtension({ dataDir, env: childEnv }), commands: ['grep -rn value src'] })
+    expect(childEnv[PARENT_SESSION_ENV]).toBe(`pi:${child.sessionId}`)
+    const read = (sessionId: string) => readJournals([dataDir], { host: 'pi', sessionId })
+    expect(read(parent.sessionId).filter(record => record.type === 'session/subagent')).toMatchObject([{ childSessionId: child.sessionId }])
+    const subagents = collectSubagents(read, parent.sessionId)
+    expect(subagents.sessions).toEqual([child.sessionId])
+    expect(summarizeEconomy(subagents.records)).toMatchObject({ projected: 1 })
+    // A session that LightCode does not run in hands nothing down.
+    const offEnv: NodeJS.ProcessEnv = { LIGHTCODE_DISABLE: '1' }
+    await runPi({ cwd, extension: createLightCodeExtension({ dataDir, env: offEnv }), commands: ['seq 1 3'] })
+    expect(offEnv[PARENT_SESSION_ENV]).toBeUndefined()
   })
 
   it('records previews without changing anything in observe mode', async () => {

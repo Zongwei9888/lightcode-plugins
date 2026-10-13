@@ -46,7 +46,10 @@ The rules it never bends:
 | **Any agent / terminal** | `npm install -g @lightcode/cli` | call `lc run -c '<command>'` | apply |
 
 The pi and DeepSeek Harness plugins are tested on macOS and Linux (the DSH
-Desktop app on macOS); Windows is not tested yet.
+Desktop app on macOS); Windows is not tested yet. Both also filter the `bash`
+output of subagents (DSH's built-in `subagent` / `subagent_fork`; on pi,
+subagent extensions that start `pi` processes), and a session's `/lightcode`
+includes what its subagents saved.
 
 `lc doctor` prints what each host supports and why (capability negotiation:
 a mechanism runs in `apply`, `observe` or `off` depending on what the host

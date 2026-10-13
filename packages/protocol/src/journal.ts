@@ -66,7 +66,17 @@ export interface CommandRewriteRecord extends JournalBase {
   readonly rewritten: string
 }
 
-export type JournalRecord = EconomyRecord | CommandRewriteRecord
+/**
+ * A subagent's session, recorded under the session that started it, so that
+ * session's report can include what its subagents saved.
+ */
+export interface SubagentRecord extends JournalBase {
+  readonly type: 'session/subagent'
+  readonly sessionId: string
+  readonly childSessionId: string
+}
+
+export type JournalRecord = EconomyRecord | CommandRewriteRecord | SubagentRecord
 
 /** Private, append-only. Writes are synchronous so a short-lived `lc run` never loses one. */
 export interface JournalPort {

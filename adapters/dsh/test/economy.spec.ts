@@ -166,6 +166,30 @@ describe('DSH Token Economy', () => {
     const throwingMode = createDshEconomy({ mode: () => { throw new Error('volatile gone') }, dataDir: temp(), env: {} })
     expect(throwingMode.postExecute(exec('pytest -v'), bashResult({ stdout: pytestOutput(60) }), accept)).toBe(accept)
   })
+  it('counts what in-process subagents saved in the parent\'s /lightcode, grandchildren included', () => {
+    const { economy, journal } = setup()
+    const sessionOf = (id: string, header: Record<string, unknown>) => ({ agent: { session: { id, header: { cwd: '/nowhere', ...header } } } })
+    const child = sessionOf('child-1', { parentSession: 'parent', origin: 'subagent', delegationDepth: 1 })
+    const grandchild = sessionOf('grandchild-1', { parentSession: 'child-1', origin: 'subagent', delegationDepth: 2 })
+    for (const extra of [child, child, grandchild]) economy.postExecute(exec('pytest -v', extra), bashResult({ stdout: pytestOutput(60) }), accept)
+    // One link per subagent session, kept under its parent.
+    expect(journal().filter(record => record.type === 'session/subagent').map(record => [record.sessionId, record.childSessionId]))
+      .toEqual([['child-1', 'grandchild-1'], ['parent', 'child-1']].sort())
+    const report = economy.report({ id: 'parent' })
+    expect(report).toContain('has not filtered any output in this session yet')
+    expect(report).toMatch(/Its subagents \(2 sessions\) saved ~\S+ tokens \(3 of 3 outputs filtered\)/)
+    expect(economy.report({ id: 'child-1' })).toMatch(/Its subagents \(1 session\) saved .* \(1 of 1 outputs filtered\)/)
+  })
+  it('does not count a conversation the user forked, and records no subagent while off', () => {
+    const { economy, journal, setMode } = setup()
+    const forked = { agent: { session: { id: 'forked', header: { cwd: '/nowhere', parentSession: 'parent' } } } }
+    economy.postExecute(exec('pytest -v', forked), bashResult({ stdout: pytestOutput(60) }), accept)
+    setMode('off')
+    const child = { agent: { session: { id: 'child-off', header: { cwd: '/nowhere', parentSession: 'parent', origin: 'subagent' } } } }
+    economy.postExecute(exec('pytest -v', child), bashResult({ stdout: pytestOutput(60) }), accept)
+    expect(journal().filter(record => record.type === 'session/subagent')).toEqual([])
+    expect(economy.report({ id: 'parent' })).not.toContain('subagents')
+  })
   it('reports savings and negotiation for /lightcode', () => {
     const { economy } = setup()
     expect(economy.report({ id: 'session-1' })).toContain('has not filtered any output')

@@ -4,7 +4,7 @@
  */
 import { statSync } from 'node:fs'
 import { join } from 'node:path'
-import { EconomyEngine, formatTokens, summarizeEconomy } from '@lightcode/mechanisms'
+import { EconomyEngine, collectSubagents, formatTokens, recordSubagent, summarizeEconomy } from '@lightcode/mechanisms'
 import type { EconomySummary } from '@lightcode/mechanisms'
 import { HOST_PROFILES, V0_1_SPECS, negotiate } from '@lightcode/protocol'
 import type { MechanismMode, Negotiation } from '@lightcode/protocol'
@@ -17,6 +17,7 @@ export const HOST = 'dsh'
 export const MODES: readonly MechanismMode[] = ['apply', 'observe', 'off']
 const RANK: Record<MechanismMode, number> = { off: 0, observe: 1, apply: 2 }
 const MAX_SESSIONS = 256
+const MAX_LINKED = 1024
 const MAX_WARNINGS = 32
 /**
  * DSH's spill policy keeps a result inline up to `maxInlineTokens` (12,500 by
@@ -137,6 +138,25 @@ export function createDshEconomy(options: DshEconomyOptions): DshEconomy {
     return session === undefined ? undefined : { id: String(session.id), cwd: session.header?.cwd }
   }
 
+  /** Subagent sessions already recorded under their parent. */
+  const linked = new Set<string>()
+  const linkSubagent = (exec: ToolExecution) => {
+    const session = exec.agent?.session
+    const header = session?.header
+    // In-process subagents (spawn and fork) record their parent; a conversation the user forked is no subagent.
+    if (!session || header?.origin !== 'subagent' || typeof header.parentSession !== 'string') return
+    const child = String(session.id)
+    if (linked.has(child)) return
+    try {
+      recordSubagent(storage().journal, HOST, header.parentSession, child)
+    } catch (error) {
+      // Only the parent's report loses this subagent; the tool result is still filtered.
+      warn(`LightCode: could not record subagent session ${child}: ${String(error)}`)
+    }
+    linked.add(child)
+    if (linked.size > MAX_LINKED) linked.delete(linked.values().next().value!)
+  }
+
   const postExecute = (exec: ToolExecution, result: ToolExecutionResult, decision: PostToolDecision): PostToolDecision => {
     try {
       const requested = requestedMode()
@@ -149,6 +169,7 @@ export function createDshEconomy(options: DshEconomyOptions): DshEconomy {
       const state = sessionState(session?.id ?? '', session?.cwd)
       const mode = negotiateFor(state.loaded, requested).find(item => item.mechanism === 'economy')!.mode
       if (mode === 'off') return decision
+      linkSubagent(exec)
       const content = decision.content ?? result.content
       const shell = bashShellResult((exec.arguments as { command?: unknown } | undefined)?.command, result.value, content)
       if (!shell) return decision
@@ -163,7 +184,8 @@ export function createDshEconomy(options: DshEconomyOptions): DshEconomy {
     }
   }
 
-  const summary = (sessionId: string) => summarizeEconomy(readJournals(readDirs, { host: HOST, sessionId }))
+  const read = (sessionId: string) => readJournals(readDirs, { host: HOST, sessionId })
+  const summary = (sessionId: string) => summarizeEconomy(read(sessionId))
 
   return {
     postExecute,
@@ -172,11 +194,16 @@ export function createDshEconomy(options: DshEconomyOptions): DshEconomy {
     report: session => {
       const loaded = sessionState(session.id, session.cwd).loaded
       const s = summary(session.id)
+      const subagents = collectSubagents(read, session.id)
+      const c = summarizeEconomy(subagents.records)
+      const n = subagents.sessions.length
       const lines = [
         s.projected > 0
           ? `LightCode saved ~${formatTokens(s.savedTokens)} tokens in this session (${s.projected} of ${s.projected + s.passed + s.previewed} outputs filtered).`
           : `LightCode has not filtered any output in this session yet (${s.passed + s.previewed} seen).`,
+        ...n > 0 ? [`Its subagents (${n} session${n === 1 ? '' : 's'}) saved ~${formatTokens(c.savedTokens)} tokens (${c.projected} of ${c.projected + c.passed + c.previewed} outputs filtered).`] : [],
         ...s.previewed > 0 ? [`Observe mode: ${s.previewed} outputs would have been filtered, saving ~${formatTokens(s.previewSavedTokens)} tokens.`] : [],
+        ...c.previewed > 0 ? [`Observe mode, subagents: ${c.previewed} outputs would have been filtered, saving ~${formatTokens(c.previewSavedTokens)} tokens.`] : [],
         ...s.byFilter.slice(0, 5).map(item => `  ${item.filter}: ${item.count}× −${formatTokens(item.savedTokens)} tokens`),
         ...negotiateFor(loaded).map(item => `${item.mechanism}: ${item.mode} (${item.reason})`),
         ...loaded.problems.map(problem => `config problem: ${problem}`),

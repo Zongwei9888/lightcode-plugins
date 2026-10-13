@@ -82,6 +82,17 @@ describe('lc run', () => {
     expect(lc(['run']).status).toBe(2)
     expect(lc(['run', '-c', 'true', '--', 'true']).status).toBe(2)
   })
+  it('counts a session\'s subagent sessions in its report', () => {
+    const cwd = project(), home = temp()
+    lc(['run', '--host', 'test', '--session', 'child', '-c', 'grep -rn value src'], { cwd, home })
+    lc(['run', '--host', 'test', '--session', 'parent', '-c', 'printf x'], { cwd, home })
+    expect(JSON.parse(lc(['report', '--host', 'test', '--session', 'parent', '--json'], { home }).out)).toMatchObject({ decisions: 1, projected: 0 })
+    writeFileSync(join(home, 'journal', 'test', 'parent.jsonl'), JSON.stringify({ schemaVersion: 1, type: 'session/subagent',
+      time: '2026-10-13T00:00:00.000Z', host: 'test', sessionId: 'parent', childSessionId: 'child' }) + '\n', { flag: 'a' })
+    expect(JSON.parse(lc(['report', '--host', 'test', '--session', 'parent', '--json'], { home }).out)).toMatchObject({ decisions: 2, projected: 1 })
+    expect(lc(['report', '--host', 'test', '--session', 'parent'], { home }).out).toContain('session parent and its 1 subagent session')
+    expect(JSON.parse(lc(['report', '--host', 'test', '--json'], { home }).out)).toMatchObject({ decisions: 2, projected: 1 })
+  })
 })
 
 describe('commandText and quoting', () => {

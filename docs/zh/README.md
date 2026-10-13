@@ -25,7 +25,7 @@ Agent 运行 `pytest`、`cargo test`、`git diff`、`grep -rn`、`tsc`、`find`�
 | **Codex** 0.162+ | `codex plugin marketplace add <仓库>`，再 `codex plugin add lightcode@lightcode` | 插件的 `PreToolUse` 钩子把可识别的命令改写为 `lc run -c '<命令>'`；模型历史里仍是原命令 | 应用 |
 | **任何 Agent / 终端** | `npm install -g @lightcode/cli` | 直接调用 `lc run -c '<命令>'` | 应用 |
 
-pi 和 DeepSeek Harness 插件已在 macOS 和 Linux 上测试（DSH 桌面版在 macOS 上测试）；Windows 尚未测试。
+pi 和 DeepSeek Harness 插件已在 macOS 和 Linux 上测试（DSH 桌面版在 macOS 上测试）；Windows 尚未测试。两个插件在子 agent 里同样生效（DSH 的内置 `subagent` / `subagent_fork`；pi 上每个子 agent 单独起 `pi` 进程的子 agent 扩展），会话的 `/lightcode` 会把子 agent 省下的一起算上。
 
 `lc doctor` 会列出每个宿主支持什么以及原因（能力协商：每个机制按宿主能力以 `apply` / `observe` / `off` 运行，配置只能降级不能强开）。
 

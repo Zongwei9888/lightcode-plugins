@@ -6,7 +6,7 @@
  */
 import type { ExtensionAPI, ExtensionContext, ToolResultEvent, TurnEndEvent } from '@earendil-works/pi-coding-agent'
 import { sha256 } from '@lightcode/core'
-import { formatTokens, isPrepared, EconomyEngine, normalizeShellCommand, summarizeEconomy } from '@lightcode/mechanisms'
+import { collectSubagents, formatTokens, isPrepared, EconomyEngine, normalizeShellCommand, recordSubagent, summarizeEconomy } from '@lightcode/mechanisms'
 import type { Prepared } from '@lightcode/mechanisms'
 import { HOST_PROFILES, V0_1_SPECS, negotiate } from '@lightcode/protocol'
 import type { MechanismMode, Negotiation } from '@lightcode/protocol'
@@ -16,6 +16,15 @@ import { bashShellResult } from './bash.ts'
 
 const HOST = 'pi'
 const STATUS_KEY = 'lightcode'
+/**
+ * Subagents run as `pi` processes started from this one (the subagent example
+ * extension and packages built on it), so the session that starts them hands
+ * its ID down through the environment they inherit.
+ */
+export const PARENT_SESSION_ENV = 'LIGHTCODE_PARENT_SESSION'
+const PARENT_PREFIX = `${HOST}:`
+/** pi's own tools; anything else (a subagent tool among them) may have started subagents. */
+const BUILT_IN_TOOLS = new Set(['bash', 'read', 'edit', 'write', 'grep', 'find', 'ls'])
 const MODES = new Set<MechanismMode>(['apply', 'observe', 'off'])
 
 export interface LightCodePiOptions {
@@ -34,6 +43,8 @@ interface SessionState {
   readonly pending: Map<string, Prepared>
   savedTokens: number
   projected: number
+  /** Saved in subagent sessions started from this one. */
+  subagentSavedTokens: number
 }
 
 export function createLightCodeExtension(options: LightCodePiOptions = {}) {
@@ -44,7 +55,13 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
     const readDirs = options.dataDir ? [options.dataDir] : dataDirs(env)
     const journal = new FileJournal(dataDir)
     const artifacts = new FileArtifactStore(dataDir)
+    // Read before this process's own session replaces it for the processes it starts.
+    const inherited = env[PARENT_SESSION_ENV]?.startsWith(PARENT_PREFIX) ? env[PARENT_SESSION_ENV].slice(PARENT_PREFIX.length) : undefined
+    const linked = new Set<string>()
     let state: SessionState | undefined
+    const read = (sessionId: string) => readJournals(readDirs, { host: HOST, sessionId })
+    const subagentSummary = (sessionId: string | null) =>
+      sessionId ? summarizeEconomy(collectSubagents(read, sessionId).records) : undefined
 
     pi.registerFlag('lightcode', { type: 'string', default: '', description: 'LightCode Economy ceiling: apply, observe or off' })
 
@@ -59,12 +76,20 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
       const sessionId = ctx.sessionManager.getSessionId() || null
       const engine = mode === 'off' ? undefined : new EconomyEngine({ host: HOST, journal, artifacts, config: loaded.config.economy,
         mode, delivery: 'in-process', streams: 'merged' })
-      const previous = sessionId ? summarizeEconomy(readJournals(readDirs, { host: HOST, sessionId })) : undefined
+      const previous = sessionId ? summarizeEconomy(read(sessionId)) : undefined
       try { collectDaily(dataDir, days => artifacts.prune(days), loaded.config.artifacts.retentionDays) } catch { /* Housekeeping only. */ }
+      if (engine && sessionId) {
+        if (inherited && inherited !== sessionId && !linked.has(sessionId)) {
+          linked.add(sessionId)
+          try { recordSubagent(journal, HOST, inherited, sessionId) } catch { /* Only the parent's report loses this session. */ }
+        }
+        env[PARENT_SESSION_ENV] = `${PARENT_PREFIX}${sessionId}`
+      }
       return {
         sessionId, loaded, negotiated, engine,
         normalize: negotiated.find(item => item.mechanism === 'command-normalization')!.mode === 'apply',
         pending: new Map(), savedTokens: previous?.savedTokens ?? 0, projected: previous?.projected ?? 0,
+        subagentSavedTokens: engine ? subagentSummary(sessionId)?.savedTokens ?? 0 : 0,
       }
     }
     const current = (ctx: ExtensionContext): SessionState => {
@@ -73,8 +98,9 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
       return state
     }
     const showStatus = (ctx: ExtensionContext, session: SessionState) => {
-      if (!ctx.hasUI || session.projected === 0) return
-      ctx.ui.setStatus(STATUS_KEY, `LightCode −${formatTokens(session.savedTokens)} tok`)
+      const saved = session.savedTokens + session.subagentSavedTokens
+      if (!ctx.hasUI || saved <= 0) return
+      ctx.ui.setStatus(STATUS_KEY, `LightCode −${formatTokens(saved)} tok`)
     }
 
     pi.on('session_start', (_event, ctx) => {
@@ -109,7 +135,14 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
 
     pi.on('turn_end', (event: TurnEndEvent, ctx) => {
       const session = current(ctx)
-      if (!session.engine || session.pending.size === 0) return
+      if (!session.engine) return
+      // A tool pi does not ship may have run subagents; their savings are in the journal by now.
+      if (event.toolResults.some(message => !BUILT_IN_TOOLS.has(message.toolName))) {
+        const before = session.subagentSavedTokens
+        try { session.subagentSavedTokens = subagentSummary(session.sessionId)?.savedTokens ?? 0 } catch { /* Status only. */ }
+        if (session.subagentSavedTokens !== before) showStatus(ctx, session)
+      }
+      if (session.pending.size === 0) return
       const drafts = []
       // Entry IDs are only trustworthy when pi resolved one for every tool result.
       const aligned = event.toolResultEntryIds.length === event.toolResults.length
@@ -135,9 +168,13 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
       description: 'LightCode: savings in this session and what this host supports',
       handler: async (_args, ctx) => {
         const session = current(ctx)
-        const summary = summarizeEconomy(session.sessionId ? readJournals(readDirs, { host: HOST, sessionId: session.sessionId }) : [])
+        const summary = summarizeEconomy(session.sessionId ? read(session.sessionId) : [])
+        const subagents = session.sessionId ? collectSubagents(read, session.sessionId) : undefined
+        const children = subagents ? summarizeEconomy(subagents.records) : undefined
+        const n = subagents?.sessions.length ?? 0
         const lines = [
           `LightCode Economy: ${summary.projected} outputs filtered, ~${formatTokens(summary.savedTokens)} tokens saved, ${summary.passed} passed unchanged`,
+          ...n > 0 && children ? [`Subagents (${n} session${n === 1 ? '' : 's'}): ${children.projected} outputs filtered, ~${formatTokens(children.savedTokens)} tokens saved, ${children.passed} passed unchanged`] : [],
           ...session.negotiated.map(item => `${item.mechanism}: ${item.mode} (${item.reason})`),
           ...session.loaded.problems.map(problem => `config problem: ${problem}`),
           `data: ${dataDir}`,

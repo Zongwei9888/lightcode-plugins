@@ -87,6 +87,11 @@ this setting further but never raise it; see the
   `lightcode` entry to about four times that.
 - With `tools.mode: ptc` every `bash` call is a `run_code` sub-call whose
   value goes to the program, so LightCode leaves it alone.
+- Subagents started with the built-in `subagent` and `subagent_fork` tools run
+  in the same process, and their `bash` output is filtered the same way.
+  `/lightcode` in the parent session adds what its subagents saved.
+  Out-of-process subagents (Codex, Claude Code, ACP, a separate Harness)
+  run their own tools outside this plugin.
 - The session log and the tool card show the text the model read. The
   original is kept in `$LIGHTCODE_HOME` (default `~/.lightcode`; when that is
   not writable, `$TMPDIR/lightcode-<uid>`); with the
@@ -115,7 +120,7 @@ LightCode 是 DeepSeek Harness（DSH）的插件，在模型读取之前精简�
 **安装**：侧边栏 **插件** → **添加插件** → 输入 `@lightcode/dsh` → **安装** →
 **立即启用**；或在终端执行 `dsh plugin --profile web add @lightcode/dsh`。
 
-**使用**：装好即生效。在会话里输入 `/lightcode` 查看本会话省下的 token。在
+**使用**：装好即生效。在会话里输入 `/lightcode` 查看本会话省下的 token。用内置 `subagent`、`subagent_fork` 工具启动的子 agent 同样生效，父会话的 `/lightcode` 会把子 agent 省下的一起算上。在
 **插件** 页的 LightCode 详情里可以切换 **模式**：精简（默认）/ 只记录 / 关闭，
 保存后下一次工具调用即生效，无需重启。
 

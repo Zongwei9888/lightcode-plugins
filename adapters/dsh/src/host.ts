@@ -12,7 +12,12 @@ export type ContentBlock = TextBlock | { readonly type: string; readonly [key: s
 /** `@deepseek-ai/dsh-session` Session, as far as LightCode reads it. */
 export interface HostSession {
   readonly id: string
-  readonly header?: { readonly cwd?: string }
+  readonly header?: {
+    readonly cwd?: string
+    /** The session that started this one; with `origin: 'subagent'` it is the delegating parent. */
+    readonly parentSession?: string
+    readonly origin?: string
+  }
 }
 
 /** `@deepseek-ai/dsh-tools` ToolExecution. */

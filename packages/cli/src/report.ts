@@ -1,4 +1,4 @@
-import { formatTokens, summarizeEconomy } from '@lightcode/mechanisms'
+import { collectSubagents, formatTokens, summarizeEconomy } from '@lightcode/mechanisms'
 import type { EconomySummary } from '@lightcode/mechanisms'
 import { cliContext } from './context.ts'
 
@@ -26,10 +26,14 @@ export function formatSummary(summary: EconomySummary, scope: string): string {
 
 export function report(options: { host?: string; session?: string; json?: boolean }): number {
   const context = cliContext()
-  const records = context.readJournal({ ...options.host === undefined ? {} : { host: options.host },
-    ...options.session === undefined ? {} : { sessionId: options.session } })
-  const summary = summarizeEconomy(records)
-  const scope = [options.host ?? 'all hosts', options.session ? `session ${options.session}` : 'all sessions'].join(', ')
+  const host = options.host === undefined ? {} : { host: options.host }
+  const records = context.readJournal({ ...host, ...options.session === undefined ? {} : { sessionId: options.session } })
+  // A session includes the subagent sessions it started.
+  const subagents = options.session === undefined ? undefined : collectSubagents(sessionId => context.readJournal({ ...host, sessionId }), options.session)
+  const summary = summarizeEconomy(subagents ? [...records, ...subagents.records] : records)
+  const n = subagents?.sessions.length ?? 0
+  const session = options.session ? `session ${options.session}${n > 0 ? ` and its ${n} subagent session${n === 1 ? '' : 's'}` : ''}` : 'all sessions'
+  const scope = [options.host ?? 'all hosts', session].join(', ')
   process.stdout.write(options.json ? JSON.stringify(summary, null, 2) + '\n' : formatSummary(summary, scope))
   return 0
 }
