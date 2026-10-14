@@ -4,10 +4,10 @@
  */
 import { statSync } from 'node:fs'
 import { join } from 'node:path'
-import { EconomyEngine, collectSubagents, describeToolCall, formatTokens, recordSubagent, summarizeEconomy } from '@lightcode/mechanisms'
+import { EconomyEngine, collectSubagents, describeToolCall, formatTokens, recordSubagent, summarizeEconomy, summarizeShadow } from '@lightcode/mechanisms'
 import type { EconomySummary } from '@lightcode/mechanisms'
-import { HOST_PROFILES, V0_1_SPECS, negotiate } from '@lightcode/protocol'
-import type { MechanismMode, Negotiation } from '@lightcode/protocol'
+import { HOST_PROFILES, V0_2_SPECS, negotiate } from '@lightcode/protocol'
+import type { ArtifactPort, JournalPort, JournalRecord, MechanismMode, Negotiation } from '@lightcode/protocol'
 import { FileArtifactStore, FileJournal, collectDaily, dataDirs, loadConfig, readJournals, resolveDataDir, writableDataDir } from '@lightcode/store'
 import type { LoadedConfig } from '@lightcode/store'
 import { bashShellResult } from './bash.ts'
@@ -56,6 +56,13 @@ export interface DshEconomy {
   report(session: { id: string; cwd?: string | undefined }): string
   /** Where originals and the journal are written (resolved on first use). */
   readonly dataDir: string
+  /** Negotiated LightShadow mode for a session. */
+  shadowMode(session: { id: string; cwd?: string | undefined }): MechanismMode
+  journal(): JournalPort
+  artifacts(): ArtifactPort
+  read(sessionId: string): readonly JournalRecord[]
+  /** Extra lines for `/lightcode`, such as LightShadow's state. */
+  extraReport?: (sessionId: string) => readonly string[]
 }
 
 const fileStamp = (path: string) => {
@@ -105,10 +112,11 @@ export function createDshEconomy(options: DshEconomyOptions): DshEconomy {
   }
 
   const negotiateFor = (loaded: LoadedConfig, requested = requestedMode()): readonly Negotiation[] => {
-    const own = loaded.config.economy.mode
-    const ceiling = RANK[requested] < RANK[own] ? requested : own
+    const lower = (own: MechanismMode) => RANK[requested] < RANK[own] ? requested : own
     // DSH 0.2 cannot rewrite tool arguments, so command normalization negotiates off.
-    return negotiate(V0_1_SPECS, HOST_PROFILES[HOST]!.capabilities, { economy: ceiling, 'command-normalization': 'off' })
+    return negotiate(V0_2_SPECS, HOST_PROFILES[HOST]!.capabilities, {
+      economy: lower(loaded.config.economy.mode), 'command-normalization': 'off', lightshadow: lower(loaded.config.lightshadow.mode),
+    })
   }
 
   const engineFor = (state: SessionState, mode: 'apply' | 'observe'): EconomyEngine => {
@@ -199,13 +207,14 @@ export function createDshEconomy(options: DshEconomyOptions): DshEconomy {
   const read = (sessionId: string) => readJournals(readDirs, { host: HOST, sessionId })
   const summary = (sessionId: string) => summarizeEconomy(read(sessionId))
 
-  return {
+  const api: DshEconomy = {
     postExecute,
     negotiated: session => negotiateFor(session ? sessionState(session.id, session.cwd).loaded : loadConfig({ dataDir: configDir, env })),
     summary,
     report: session => {
       const loaded = sessionState(session.id, session.cwd).loaded
       const s = summary(session.id)
+      const shadow = summarizeShadow(read(session.id))
       const subagents = collectSubagents(read, session.id)
       const c = summarizeEconomy(subagents.records)
       const n = subagents.sessions.length
@@ -217,12 +226,20 @@ export function createDshEconomy(options: DshEconomyOptions): DshEconomy {
         ...s.previewed > 0 ? [`Observe mode: ${s.previewed} outputs would have been filtered, saving ~${formatTokens(s.previewSavedTokens)} tokens.`] : [],
         ...c.previewed > 0 ? [`Observe mode, subagents: ${c.previewed} outputs would have been filtered, saving ~${formatTokens(c.previewSavedTokens)} tokens.`] : [],
         ...s.byFilter.slice(0, 5).map(item => `  ${item.filter}: ${item.count}× −${formatTokens(item.savedTokens)} tokens`),
+        ...shadow.checkpoints + shadow.standard + shadow.cuts > 0 ? [`LightShadow: ${shadow.checkpoints} compaction${shadow.checkpoints === 1 ? '' : 's'}, ${shadow.cuts} long result${shadow.cuts === 1 ? '' : 's'} cut, `
+          + `${shadow.references} tool results kept recallable (~${formatTokens(shadow.referencedTokens)} tokens), ${shadow.recalls} recalled${shadow.standard ? `; ${shadow.standard} compaction${shadow.standard === 1 ? '' : 's'} left to DSH` : ''}.`] : [],
         ...negotiateFor(loaded).map(item => `${item.mechanism}: ${item.mode} (${item.reason})`),
         ...loaded.problems.map(problem => `config problem: ${problem}`),
+        ...api.extraReport?.(session.id) ?? [],
         `Originals are kept in ${store?.dataDir ?? configDir}.`,
       ]
       return lines.join('\n')
     },
     get dataDir() { return storage().dataDir },
+    shadowMode: session => negotiateFor(sessionState(session.id, session.cwd).loaded).find(item => item.mechanism === 'lightshadow')!.mode,
+    journal: () => storage().journal,
+    artifacts: () => storage().artifacts,
+    read,
   }
+  return api
 }

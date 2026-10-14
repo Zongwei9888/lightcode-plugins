@@ -71,3 +71,37 @@ export function summarizeEconomy(records: Iterable<JournalRecord>): EconomySumma
 export function formatTokens(value: number): string {
   return value >= 1_000_000 ? `${(value / 1_000_000).toFixed(1)}M` : value >= 1000 ? `${(value / 1000).toFixed(1)}k` : String(value)
 }
+
+export interface ShadowSummary {
+  /** Compactions LightShadow wrote. */
+  readonly checkpoints: number
+  /** Compactions left to the host (observe mode, a checkpoint that was not smaller, or an error). */
+  readonly standard: number
+  /** Long results the host cut to a head and tail whose complete text LightShadow kept. */
+  readonly cuts: number
+  /** Distinct tool results kept recallable. */
+  readonly references: number
+  /** Estimated tokens of those results: what the summarizer no longer had to read or the model to re-read. */
+  readonly referencedTokens: number
+  readonly recalls: number
+  readonly failedRecalls: number
+}
+
+export function summarizeShadow(records: Iterable<JournalRecord>): ShadowSummary {
+  let checkpoints = 0, standard = 0, cuts = 0, recalls = 0, failedRecalls = 0
+  const references = new Map<string, number>()
+  for (const record of records) {
+    if (record.type === 'shadow/recall') {
+      recalls++
+      if (record.outcome === 'failed') failedRecalls++
+      continue
+    }
+    if (record.type !== 'shadow/checkpoint') continue
+    if (record.kind === 'lightshadow') checkpoints++
+    else if (record.kind === 'cut') cuts++
+    else standard++
+    for (const reference of record.references) references.set(reference.id, Math.ceil(reference.bytes / 4))
+  }
+  return { checkpoints, standard, cuts, references: references.size,
+    referencedTokens: [...references.values()].reduce((sum, value) => sum + value, 0), recalls, failedRecalls }
+}

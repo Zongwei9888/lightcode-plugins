@@ -10,6 +10,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { COMMANDS } from './fixture.mjs'
+import { SHADOW_PROMPT, checkpointRequest, readBack, seqCommands, shadowScript } from './shadow-script.mjs'
 import { delivered, journal, verifyDeliveries } from './verify.mjs'
 
 export const COMMAND_LIST = [COMMANDS.search, COMMANDS.tests, COMMANDS.diff, COMMANDS.plain]
@@ -25,7 +26,10 @@ export function mockProfilePatch(mockUrl, documentsDirectory) {
         api: openai-completions
         baseURL: ${mockUrl}
         models:
+          # Agent presets compact at window − output − 64k headroom: about 40k tokens here.
           - id: mock-model
+            contextWindow: 110000
+            maxTokens: 4000
 - id: agent-default-model
   config:
     provider: mock
@@ -79,14 +83,14 @@ export async function exercisePluginsPage({ page, label, profileDir, lightcodeHo
     await list.waitFor()
   }
   const openLightCode = async () => { await openPlugins(); await page.getByRole('button', { name: 'View LightCode' }).click(); await page.getByText('@lightcode/dsh', { exact: true }).first().waitFor() }
-  const chat = async (name) => {
+  const chat = async (name, prompt = 'Run the fixture commands.') => {
     const before = mock.requests.length
     await page.getByRole('button', { name: 'New session' }).first().click()
     const box = composer()
     await box.click()
-    await box.fill('Run the fixture commands.')
+    await box.fill(prompt)
     await page.keyboard.press('Enter')
-    await page.getByText('done', { exact: true }).waitFor({ timeout: 120_000 })
+    await page.getByText('done', { exact: true }).waitFor({ timeout: 240_000 })
     await shot(name)
     return mock.requests.slice(before)
   }
@@ -131,6 +135,25 @@ export async function exercisePluginsPage({ page, label, profileDir, lightcodeHo
   await page.getByText(/LightCode saved ~\S+ tokens in this session \(3 of 4 outputs filtered\)/).first().waitFor()
   await shot('05-lightcode-command')
   log(`${label}: chat ✓ ${summary.map(item => `${item.filter ?? item.outcome} ${item.rawTokens}→${item.projectedTokens ?? item.rawTokens}`).join(', ')}; tool card ✓; /lightcode ✓`)
+
+  // 2b. LightShadow inside the agent preset: a chat long enough to compact, then a recall.
+  const shadow = shadowScript(seqCommands(26))
+  const fixture = mock.script
+  mock.setScript(shadow.script)
+  let compacted
+  try { compacted = await chat('05b-chat-lightshadow', SHADOW_PROMPT) } finally { mock.setScript(fixture) }
+  assert.ok(shadow.state.summaries > 0, 'the preset never compacted')
+  assert.ok(shadow.state.recalledId, 'the model found no catalog or no recall tool after compaction')
+  checkpointRequest(compacted)
+  const { checkpoints } = readBack(compacted, shadow.state.recalledId, lightcodeHome, 'dsh')
+  const box2 = composer()
+  await box2.click()
+  await box2.fill('/lightcode')
+  await page.getByRole('option', { name: /lightcode/ }).or(page.getByText('LightCode: tokens saved in this session and the current mode')).first().waitFor()
+  await page.keyboard.press('Enter')
+  await page.getByText(/LightShadow: \d+ compactions?, \d+ long results? cut, \d+ tool results kept recallable/).first().waitFor()
+  await shot('05c-lightcode-lightshadow')
+  log(`${label}: LightShadow in the agent preset ✓ (${checkpoints.map(record => record.kind).join(', ')}); recall ✓; /lightcode ✓`)
 
   // 3. Mode on the plugin's page, applied to the next tool call without a restart.
   await saveMode('Observe')

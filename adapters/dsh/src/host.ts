@@ -68,10 +68,26 @@ export interface CommandRuntime {
 /** `@deepseek-ai/cordis` Volatile<T>: a live configuration value. */
 export interface Volatile<T> { get(): T }
 
+/** `@deepseek-ai/dsh-tools` ToolDefinition, as LightCode registers one. */
+export interface HostToolDefinition {
+  readonly name: string
+  readonly description: string
+  readonly parameters: Record<string, unknown>
+  readonly output: { readonly schema: Record<string, unknown>; render(args: unknown, value: unknown): ContentBlock[] }
+  execute(args: unknown, exec: { readonly callId: string; readonly agent?: { readonly session?: HostSession }; readonly signal?: AbortSignal }): Promise<unknown>
+}
+
+export interface ToolRuntime { register(definition: HostToolDefinition): () => void }
+
 /** The slice of a cordis Context the plugin uses. */
 export interface HostContext {
   on(name: 'tools/post-execute',
     listener: (exec: ToolExecution, result: ToolExecutionResult, next: () => Promise<PostToolDecision>) => Promise<PostToolDecision>): () => void
+  on(name: 'agent/created', listener: (payload: unknown) => undefined, options: { global: true }): () => void
+  on(name: 'agent/pre-step', listener: (payload: unknown, next: () => Promise<unknown>) => Promise<unknown>, options: { global: true; prepend: true }): () => void
+  /** The event bus; LightShadow reads its listener list to find DSH's compaction engines. */
+  readonly events?: unknown
+  readonly tools?: ToolRuntime
   inject(deps: readonly string[], callback: (ctx: HostContext & { readonly commands: CommandRuntime }) => void): void
   effect(execute: () => () => void, label?: string): void
   readonly logger: { warn(message: string): void; info(message: string): void }

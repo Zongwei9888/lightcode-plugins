@@ -1,5 +1,5 @@
-import { collectSubagents, formatTokens, summarizeEconomy } from '@lightcode/mechanisms'
-import type { EconomySummary } from '@lightcode/mechanisms'
+import { collectSubagents, formatTokens, summarizeEconomy, summarizeShadow } from '@lightcode/mechanisms'
+import type { EconomySummary, ShadowSummary } from '@lightcode/mechanisms'
 import type { JournalRecord } from '@lightcode/protocol'
 import { cliContext } from './context.ts'
 
@@ -25,6 +25,16 @@ export function formatSummary(summary: EconomySummary, scope: string): string {
   return lines.join('\n') + '\n'
 }
 
+export function formatShadow(summary: ShadowSummary): string {
+  if (summary.checkpoints + summary.standard + summary.cuts === 0) return ''
+  const lines = ['', 'LightShadow']
+  lines.push(`  compactions           ${summary.checkpoints}${summary.standard ? ` (${summary.standard} left to the host)` : ''}`)
+  if (summary.cuts) lines.push(`  long results cut      ${summary.cuts} (complete text kept)`)
+  lines.push(`  results recallable    ${summary.references} (~${formatTokens(summary.referencedTokens)} tokens)`)
+  lines.push(`  recalls               ${summary.recalls}${summary.failedRecalls ? ` (${summary.failedRecalls} failed)` : ''}`)
+  return lines.join('\n') + '\n'
+}
+
 export function report(options: { host?: string; session?: string; json?: boolean }): number {
   const context = cliContext()
   const host = options.host === undefined ? {} : { host: options.host }
@@ -42,10 +52,12 @@ export function report(options: { host?: string; session?: string; json?: boolea
   }
   const records = options.session === undefined ? context.readJournal(host) : read(options.session)
   const subagents = options.session === undefined ? undefined : collectSubagents(read, options.session)
-  const summary = summarizeEconomy(subagents ? [...records, ...subagents.records] : records)
+  const all = subagents ? [...records, ...subagents.records] : records
+  const summary = summarizeEconomy(all)
+  const shadow = summarizeShadow(all)
   const n = subagents?.sessions.length ?? 0
   const session = options.session ? `session ${options.session}${n > 0 ? ` and its ${n} subagent session${n === 1 ? '' : 's'}` : ''}` : 'all sessions'
   const scope = [options.host ?? 'all hosts', session].join(', ')
-  process.stdout.write(options.json ? JSON.stringify(summary, null, 2) + '\n' : formatSummary(summary, scope))
+  process.stdout.write(options.json ? JSON.stringify({ ...summary, lightshadow: shadow }, null, 2) + '\n' : formatSummary(summary, scope) + formatShadow(shadow))
   return 0
 }

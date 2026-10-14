@@ -5,7 +5,7 @@
  * DeepSeek Harness releases through each host's own plugin commands, and run
  * real sessions against a scripted model.
  *
- *   pnpm build && node e2e/run.mjs [dsh] [pi] [pi-tui] [web] [desktop]
+ *   pnpm build && node e2e/run.mjs [dsh] [pi] [shadow] [pi-tui] [web] [desktop]
  *
  * Hosts are cached in $LIGHTCODE_E2E_CACHE (default: e2e/.cache); versions
  * come from LIGHTCODE_E2E_DSH / LIGHTCODE_E2E_PI (comma-separated). Nothing
@@ -22,6 +22,7 @@ import { startRegistry } from './lib/registry.mjs'
 import { run } from './lib/run.mjs'
 import { runPi } from './pi.mjs'
 import { runPiTui } from './pi-tui.mjs'
+import { runShadow } from './shadow.mjs'
 import { runWeb } from './web.mjs'
 
 const repo = fileURLToPath(new URL('..', import.meta.url))
@@ -47,6 +48,7 @@ try {
   log(`registry ${registry.url} serves ${readdirSync(packs).join(', ')}`)
   if (wants('dsh')) await runDsh({ cache, root, registry, log })
   if (wants('pi')) await runPi({ cache, root, registry, log, checkout: join(repo, 'adapters', 'pi') })
+  if (wants('shadow')) await runShadow({ cache, root, registry, log, hosts: ['dsh', 'pi'] })
   if (wants('pi-tui')) await runPiTui({ cache, root, registry, log })
   if (wants('web')) await runWeb({ cache, root, registry, log })
   if (wants('desktop')) await runDesktop({ cache, root, registry, log })

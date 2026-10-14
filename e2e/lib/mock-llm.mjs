@@ -11,7 +11,8 @@
 import { createServer } from 'node:http'
 
 /**
- * @param {{ commands: string[], toolArguments?: (command: string) => Record<string, unknown> }} script
+ * `respond`, when given, answers first; returning undefined falls back to the script.
+ * @param {{ commands: string[], toolArguments?: (command: string) => Record<string, unknown>, respond?: (request: any) => any }} script
  * @returns {Promise<{ url: string, requests: any[], close: () => Promise<void>, setScript: (s: typeof script) => void }>}
  */
 export async function startMockLlm(script) {
@@ -29,7 +30,7 @@ export async function startMockLlm(script) {
       try { request = JSON.parse(body) } catch { res.writeHead(400).end(); return }
       requests.push(request)
       const message = reply(request, current)
-      if (request.stream) stream(res, message)
+      if (request.stream) stream(res, message, request)
       else json(res, { id: `cmpl-${requests.length}`, object: 'chat.completion', created: now(), model: request.model,
         choices: [{ index: 0, message: { role: 'assistant', ...message }, finish_reason: message.tool_calls ? 'tool_calls' : 'stop' }],
         usage: usage(request) })
@@ -41,6 +42,7 @@ export async function startMockLlm(script) {
     url: `http://127.0.0.1:${port}/v1`,
     requests,
     setScript: next => { current = next },
+    get script() { return current },
     close: () => new Promise(resolve => { server.closeAllConnections?.(); server.close(() => resolve()) }),
   }
 }
@@ -54,6 +56,8 @@ export function toolResults(request) {
 }
 
 function reply(request, script) {
+  const own = script.respond?.(request)
+  if (own !== undefined) return own
   // Auxiliary requests (titles, summaries) carry no tools: answer briefly.
   if (!Array.isArray(request.tools) || request.tools.length === 0) return { content: 'LightCode e2e' }
   const step = request.messages.filter(message => message.role === 'tool').length
@@ -63,7 +67,7 @@ function reply(request, script) {
   return { content: null, tool_calls: [{ id: `call_${step + 1}`, type: 'function', function: { name: 'bash', arguments: JSON.stringify(args) } }] }
 }
 
-function stream(res, message) {
+function stream(res, message, request) {
   res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' })
   const id = `chunk-${Date.now()}`
   const send = (delta, finish = null, extra = {}) => res.write(`data: ${JSON.stringify({ id, object: 'chat.completion.chunk', created: now(), model: 'mock-model',
@@ -75,10 +79,14 @@ function stream(res, message) {
     send({ role: 'assistant', content: message.content })
     send({}, 'stop')
   }
-  res.write(`data: ${JSON.stringify({ id, object: 'chat.completion.chunk', created: now(), model: 'mock-model', choices: [], usage: { prompt_tokens: 100, completion_tokens: 10, total_tokens: 110 } })}\n\n`)
+  res.write(`data: ${JSON.stringify({ id, object: 'chat.completion.chunk', created: now(), model: 'mock-model', choices: [], usage: usage(request) })}\n\n`)
   res.end('data: [DONE]\n\n')
 }
 
 const json = (res, value) => { res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify(value)) }
 const now = () => Math.floor(Date.now() / 1000)
-const usage = () => ({ prompt_tokens: 100, completion_tokens: 10, total_tokens: 110 })
+// Hosts that decide when to compact from reported usage need a realistic prompt size.
+const usage = request => {
+  const prompt = Math.ceil(JSON.stringify(request?.messages ?? []).length / 4)
+  return { prompt_tokens: prompt, completion_tokens: 10, total_tokens: prompt + 10 }
+}

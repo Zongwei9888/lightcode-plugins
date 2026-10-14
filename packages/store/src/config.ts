@@ -13,13 +13,20 @@ export interface EconomyConfig {
   readonly commandNormalization: boolean
 }
 
+export interface LightShadowConfig {
+  /** Ceiling for negotiation, like Economy's. */
+  readonly mode: MechanismMode
+}
+
 export interface LightCodeConfig {
   readonly economy: EconomyConfig
+  readonly lightshadow: LightShadowConfig
   readonly artifacts: { readonly retentionDays: number }
 }
 
 export const DEFAULT_CONFIG: LightCodeConfig = Object.freeze({
   economy: Object.freeze({ mode: 'apply' as const, minimumSavedTokens: 16, commandNormalization: true }),
+  lightshadow: Object.freeze({ mode: 'apply' as const }),
   artifacts: Object.freeze({ retentionDays: 14 }),
 })
 
@@ -27,7 +34,7 @@ export interface LoadedConfig {
   readonly config: LightCodeConfig
   /** Files and variables that contributed, in precedence order. */
   readonly sources: readonly string[]
-  /** Any problem turns Economy off: a broken configuration must not silently filter. */
+  /** Any problem turns Economy and LightShadow off: a broken configuration must not silently filter. */
   readonly problems: readonly string[]
 }
 
@@ -59,18 +66,32 @@ function mergeEconomy(base: EconomyConfig, input: unknown, where: string, proble
   return next
 }
 
+function mergeShadow(base: LightShadowConfig, input: unknown, where: string, problems: string[], lowerOnly = false): LightShadowConfig {
+  if (input === undefined) return base
+  if (!record(input)) { problems.push(`${where}: lightshadow must be an object`); return base }
+  let next = { ...base }
+  for (const [key, value] of Object.entries(input)) {
+    if (key === 'mode' && typeof value === 'string' && MODES.has(value)) {
+      const mode = value as MechanismMode
+      if (!lowerOnly || RANK[mode] <= RANK[next.mode]) next = { ...next, mode }
+    } else problems.push(`${where}: invalid lightshadow.${key}`)
+  }
+  return next
+}
+
 /**
  * User file `<data>/config.json`, then project file `<cwd>/.lightcode/config.json`
  * (Economy settings only, and it can only lower the mode or switch command
  * rewriting off, so a cloned repository can neither change retention nor
- * re-enable what the user turned off), then `LIGHTCODE_ECONOMY=apply|observe|off`
- * and `LIGHTCODE_DISABLE=1`.
+ * re-enable what the user turned off), then `LIGHTCODE_ECONOMY=apply|observe|off`,
+ * `LIGHTCODE_LIGHTSHADOW=apply|observe|off` and `LIGHTCODE_DISABLE=1`.
  */
 export function loadConfig(options: { dataDir: string; cwd?: string; env?: NodeJS.ProcessEnv }): LoadedConfig {
   const env = options.env ?? process.env
   const problems: string[] = []
   const sources: string[] = []
   let economy: EconomyConfig = DEFAULT_CONFIG.economy
+  let lightshadow: LightShadowConfig = DEFAULT_CONFIG.lightshadow
   let retentionDays = DEFAULT_CONFIG.artifacts.retentionDays
   const files = [{ path: join(options.dataDir, 'config.json'), project: false },
     ...options.cwd === undefined ? [] : [{ path: join(options.cwd, '.lightcode', 'config.json'), project: true }]]
@@ -82,6 +103,7 @@ export function loadConfig(options: { dataDir: string; cwd?: string; env?: NodeJ
     if (!record(value)) { problems.push(`${file.path}: expected a JSON object`); continue }
     for (const [key, section] of Object.entries(value)) {
       if (key === 'economy') economy = mergeEconomy(economy, section, file.path, problems, file.project)
+      else if (key === 'lightshadow') lightshadow = mergeShadow(lightshadow, section, file.path, problems, file.project)
       else if (key === 'artifacts' && !file.project && record(section) && Object.keys(section).every(item => item === 'retentionDays')
         && Number.isSafeInteger(section.retentionDays) && (section.retentionDays as number) >= 1 && (section.retentionDays as number) <= 3650) {
         retentionDays = section.retentionDays as number
@@ -94,9 +116,22 @@ export function loadConfig(options: { dataDir: string; cwd?: string; env?: NodeJ
     if (MODES.has(forced)) economy = { ...economy, mode: forced as MechanismMode }
     else problems.push(`LIGHTCODE_ECONOMY: expected apply, observe or off`)
   }
-  if (env.LIGHTCODE_DISABLE === '1') { sources.push('LIGHTCODE_DISABLE'); economy = { ...economy, mode: 'off' } }
-  if (problems.length) economy = { ...economy, mode: 'off' }
-  return { config: { economy, artifacts: { retentionDays } }, sources, problems }
+  const shadowForced = env.LIGHTCODE_LIGHTSHADOW?.trim()
+  if (shadowForced) {
+    sources.push('LIGHTCODE_LIGHTSHADOW')
+    if (MODES.has(shadowForced)) lightshadow = { mode: shadowForced as MechanismMode }
+    else problems.push(`LIGHTCODE_LIGHTSHADOW: expected apply, observe or off`)
+  }
+  if (env.LIGHTCODE_DISABLE === '1') {
+    sources.push('LIGHTCODE_DISABLE')
+    economy = { ...economy, mode: 'off' }
+    lightshadow = { mode: 'off' }
+  }
+  if (problems.length) {
+    economy = { ...economy, mode: 'off' }
+    lightshadow = { mode: 'off' }
+  }
+  return { config: { economy, lightshadow, artifacts: { retentionDays } }, sources, problems }
 }
 
 /** Prune at most once a day; returns the number of removed originals, or undefined when skipped. */

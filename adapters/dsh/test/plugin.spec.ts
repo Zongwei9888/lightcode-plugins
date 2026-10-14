@@ -19,11 +19,18 @@ type Listener = (exec: ToolExecution, result: ToolExecutionResult, next: () => P
 
 function fakeContext() {
   const listeners: { listener: Listener }[] = []
+  const others: { event: string; listener: (...args: any[]) => unknown; options?: unknown }[] = []
+  const tools: Parameters<NonNullable<HostContext['tools']>['register']>[0][] = []
   const commands: Parameters<CommandRuntime['register']>[0][] = []
   const disposers: (() => void)[] = []
   const warnings: string[] = []
   const ctx: HostContext = {
-    on: (_event, listener) => { listeners.push({ listener }); return () => {} },
+    on: ((event: string, listener: (...args: any[]) => unknown, options?: unknown) => {
+      if (event === 'tools/post-execute') listeners.push({ listener: listener as Listener })
+      else others.push({ event, listener, options })
+      return () => {}
+    }) as HostContext['on'],
+    tools: { register: definition => { tools.push(definition); return () => {} } },
     inject: (deps, callback) => {
       expect(deps).toEqual(['commands'])
       callback({ ...ctx, commands: { register: definition => { commands.push(definition); return () => {} } } })
@@ -31,7 +38,7 @@ function fakeContext() {
     effect: execute => { disposers.push(execute()) },
     logger: { warn: message => warnings.push(message), info: () => {} },
   }
-  return { ctx, listeners, commands, disposers, warnings }
+  return { ctx, listeners, others, tools, commands, disposers, warnings }
 }
 
 const live = <T>(value: T) => ({ get: () => value })
@@ -54,6 +61,17 @@ describe('DSH plugin entry', () => {
     const result = bashResult({ stdout: pytestOutput(60) })
     const decision = await listeners[0]!.listener(call, result, async () => ({ kind: 'accept' }))
     expect((decision as { content: { text: string }[] }).content[0]!.text).toContain('60 passed')
+  })
+  it('registers lightcode_recall and looks for DSH\'s compaction engines whenever an agent starts or steps', async () => {
+    const { ctx, others, tools } = fakeContext()
+    apply(ctx, { mode: live('apply'), inlineLimitChars: 48_000 })
+    expect(tools.map(tool => tool.name)).toEqual(['lightcode_recall'])
+    expect(others.map(item => [item.event, item.options])).toEqual([['agent/created', { global: true }], ['agent/pre-step', { global: true, prepend: true }]])
+    // The pre-step listener only looks; it always hands on to DSH.
+    await expect(others[1]!.listener({}, async () => 'continued')).resolves.toBe('continued')
+    const output = await tools[0]!.execute({ observation_id: 'o-000000000000' }, { callId: 'c', agent: { session: { id: 's1' } } })
+    expect(output).toEqual({ text: expect.stringMatching(/^recall failed: unknown observation_id/), ok: false })
+    expect(tools[0]!.output.render({}, output)).toEqual([{ type: 'text', text: (output as { text: string }).text }])
   })
   it('never swallows a downstream failure', async () => {
     const { ctx, listeners } = fakeContext()

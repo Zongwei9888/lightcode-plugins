@@ -76,7 +76,48 @@ export interface SubagentRecord extends JournalBase {
   readonly childSessionId: string
 }
 
-export type JournalRecord = EconomyRecord | CommandRewriteRecord | SubagentRecord
+/** A tool result LightShadow saved and replaced by a reference when the host compacted its history. */
+export interface ShadowReference {
+  /** `o-` and the first 12 hex digits of `sha256`: the ID the model passes to `recall`. */
+  readonly id: string
+  /** The text the model read, in the artifact store. */
+  readonly sha256: string
+  readonly bytes: number
+  readonly tool: string
+  readonly callId: string | null
+  /** At most 320 bytes: the first two and last two non-empty lines. */
+  readonly excerpt: string
+  /** The complete output, when Economy delivered a shortened projection of it. */
+  readonly original?: ArtifactRef
+}
+
+/**
+ * One compaction. `lightshadow`: the checkpoint (summary, exact user
+ * messages, catalog) replaced the segment. `standard`: the host's own
+ * compaction ran instead, for `reason`. `cut`: the host cut long results to a
+ * head and tail, and LightShadow kept each complete text recallable.
+ */
+export interface ShadowCheckpointRecord extends JournalBase {
+  readonly type: 'shadow/checkpoint'
+  readonly kind: 'lightshadow' | 'standard' | 'cut'
+  readonly references: readonly ShadowReference[]
+  readonly userMessages: number
+  readonly segmentTokens: number
+  readonly checkpointTokens: number
+  readonly reason?: 'checkpoint-not-smaller' | 'observe' | 'error'
+}
+
+/** A `recall` call: which reference, and whether it was found. */
+export interface ShadowRecallRecord extends JournalBase {
+  readonly type: 'shadow/recall'
+  readonly callId: string | null
+  readonly id: string
+  readonly original: boolean
+  readonly outcome: 'returned' | 'window' | 'failed'
+  readonly bytes: number
+}
+
+export type JournalRecord = EconomyRecord | CommandRewriteRecord | SubagentRecord | ShadowCheckpointRecord | ShadowRecallRecord
 
 /** Private, append-only. Writes are synchronous so a short-lived `lc run` never loses one. */
 export interface JournalPort {

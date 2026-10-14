@@ -1,21 +1,25 @@
 /**
- * LightCode for pi. Recognized bash output, and the results of pi's own grep
- * and find, are replaced by a deterministic projection through pi's
- * `context_edit` boundary entries: pi's session file
- * keeps the original result, the model sees the projection from its first
- * read on, and LightCode's journal records the source map and a private copy.
+ * LightCode for pi. Economy: recognized bash output, and the results of pi's
+ * own grep and find, are replaced by a deterministic projection through pi's
+ * `context_edit` boundary entries: pi's session file keeps the original
+ * result, the model sees the projection from its first read on, and
+ * LightCode's journal records the source map and a private copy. LightShadow
+ * (./shadow.ts): when pi compacts, tool results become references the model
+ * can read again with `lightcode_recall`.
  */
 import { statSync } from 'node:fs'
 import type { ExtensionAPI, ExtensionContext, ToolResultEvent, TurnEndEvent } from '@earendil-works/pi-coding-agent'
 import { sha256 } from '@lightcode/core'
-import { collectSubagents, describeToolCall, formatTokens, isPrepared, EconomyEngine, normalizeShellCommand, recordSubagent, summarizeEconomy } from '@lightcode/mechanisms'
+import { collectSubagents, describeToolCall, formatTokens, isPrepared, EconomyEngine, normalizeShellCommand, recordSubagent, summarizeEconomy, summarizeShadow } from '@lightcode/mechanisms'
 import type { Prepared } from '@lightcode/mechanisms'
-import { HOST_PROFILES, V0_1_SPECS, negotiate } from '@lightcode/protocol'
+import { HOST_PROFILES, V0_2_SPECS, negotiate } from '@lightcode/protocol'
 import type { MechanismMode, Negotiation } from '@lightcode/protocol'
 import { FileArtifactStore, FileJournal, collectDaily, dataDirs, loadConfig, readJournals, resolveDataDir, writableDataDir } from '@lightcode/store'
 import type { LoadedConfig } from '@lightcode/store'
 import { bashShellResult } from './bash.ts'
 import { NATIVE_TOOLS, nativeResult } from './native.ts'
+import { registerLightShadow } from './shadow.ts'
+import type { PiShadowOptions } from './shadow.ts'
 
 const HOST = 'pi'
 const STATUS_KEY = 'lightcode'
@@ -40,6 +44,8 @@ export interface LightCodePiOptions {
   /** This process and its parent; tests stand in for separate processes. */
   readonly pid?: number
   readonly ppid?: number
+  /** Tests replace pi's compaction summarizer. */
+  readonly summarize?: PiShadowOptions['summarize']
 }
 
 interface SessionState {
@@ -48,6 +54,7 @@ interface SessionState {
   readonly negotiated: readonly Negotiation[]
   readonly engine: EconomyEngine | undefined
   readonly normalize: boolean
+  readonly shadow: 'apply' | 'observe' | 'off'
   /** Prepared projections by tool call ID, waiting for their turn to end. */
   readonly pending: Map<string, Prepared>
   savedTokens: number
@@ -87,14 +94,16 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
       return saved
     }
 
-    pi.registerFlag('lightcode', { type: 'string', default: '', description: 'LightCode Economy ceiling: apply, observe or off' })
+    pi.registerFlag('lightcode', { type: 'string', default: '', description: 'LightCode ceiling for Economy and LightShadow: apply, observe or off' })
 
     const start = (ctx: ExtensionContext): SessionState => {
       const loaded = loadConfig({ dataDir: configDir, cwd: ctx.cwd, env })
       const flag = String(pi.getFlag('lightcode') ?? '').trim() as MechanismMode
-      const economyCeiling = MODES.has(flag) && rank(flag) < rank(loaded.config.economy.mode) ? flag : loaded.config.economy.mode
-      const negotiated = negotiate(V0_1_SPECS, HOST_PROFILES[HOST]!.capabilities, {
+      const lower = (own: MechanismMode) => MODES.has(flag) && rank(flag) < rank(own) ? flag : own
+      const economyCeiling = lower(loaded.config.economy.mode)
+      const negotiated = negotiate(V0_2_SPECS, HOST_PROFILES[HOST]!.capabilities, {
         economy: economyCeiling, 'command-normalization': loaded.config.economy.commandNormalization && economyCeiling === 'apply' ? 'apply' : 'off',
+        lightshadow: lower(loaded.config.lightshadow.mode),
       })
       const mode = negotiated.find(item => item.mechanism === 'economy')!.mode
       const sessionId = ctx.sessionManager.getSessionId() || null
@@ -112,6 +121,7 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
       return {
         sessionId, loaded, negotiated, engine,
         normalize: negotiated.find(item => item.mechanism === 'command-normalization')!.mode === 'apply',
+        shadow: negotiated.find(item => item.mechanism === 'lightshadow')!.mode,
         pending: new Map(), savedTokens: previous?.savedTokens ?? 0, projected: previous?.projected ?? 0,
         subagentSavedTokens: engine ? subagentSaved(sessionId) : 0,
       }
@@ -130,6 +140,14 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
     pi.on('session_start', (_event, ctx) => {
       state = start(ctx)
       showStatus(ctx, state)
+    })
+
+    registerLightShadow(pi, {
+      host: HOST, journal, artifacts,
+      mode: ctx => current(ctx).shadow,
+      sessionId: ctx => current(ctx).sessionId,
+      read,
+      ...options.summarize ? { summarize: options.summarize } : {},
     })
 
     pi.on('tool_call', (event, ctx) => {
@@ -204,8 +222,11 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
         const subagents = session.sessionId ? collectSubagents(read, session.sessionId) : undefined
         const children = subagents ? summarizeEconomy(subagents.records) : undefined
         const n = subagents?.sessions.length ?? 0
+        const shadow = summarizeShadow(session.sessionId ? read(session.sessionId) : [])
         const lines = [
           `LightCode Economy: ${summary.projected} outputs filtered, ~${formatTokens(summary.savedTokens)} tokens saved, ${summary.passed} passed unchanged`,
+          ...shadow.checkpoints + shadow.standard > 0 ? [`LightShadow: ${shadow.checkpoints} compaction${shadow.checkpoints === 1 ? '' : 's'} with ${shadow.references} tool results kept recallable (~${formatTokens(shadow.referencedTokens)} tokens), ${shadow.recalls} recalled`
+            + `${shadow.standard ? `; ${shadow.standard} left to pi` : ''}`] : [],
           ...n > 0 && children ? [`Subagents (${n} session${n === 1 ? '' : 's'}): ${children.projected} outputs filtered, ~${formatTokens(children.savedTokens)} tokens saved, ${children.passed} passed unchanged`] : [],
           ...session.negotiated.map(item => `${item.mechanism}: ${item.mode} (${item.reason})`),
           ...session.loaded.problems.map(problem => `config problem: ${problem}`),

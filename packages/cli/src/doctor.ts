@@ -1,5 +1,5 @@
 import { economyCoverage, ECONOMY_RUNTIME_VERSION, RTK_REVISION } from '@lightcode/core'
-import { HOST_PROFILES, V0_1_SPECS, negotiate } from '@lightcode/protocol'
+import { HOST_PROFILES, V0_2_SPECS, negotiate } from '@lightcode/protocol'
 import { cliContext, onPath } from './context.ts'
 
 export const VERSION = '0.1.0'
@@ -7,10 +7,11 @@ export const VERSION = '0.1.0'
 export function doctor(options: { json?: boolean } = {}): number {
   const context = cliContext()
   const { config, sources, problems } = context.loaded
-  const requested = { economy: config.economy.mode, 'command-normalization': config.economy.commandNormalization ? 'apply' as const : 'off' as const }
+  const requested = { economy: config.economy.mode, 'command-normalization': config.economy.commandNormalization ? 'apply' as const : 'off' as const,
+    lightshadow: config.lightshadow.mode }
   const hosts = Object.values(HOST_PROFILES).map(profile => ({
     host: profile.id, name: profile.name, integration: profile.integration,
-    mechanisms: negotiate(V0_1_SPECS, profile.capabilities, requested), notes: profile.notes,
+    mechanisms: negotiate(V0_2_SPECS, profile.capabilities, requested), notes: profile.notes,
   }))
   const writable = context.writable()
   const result = {
@@ -26,8 +27,9 @@ export function doctor(options: { json?: boolean } = {}): number {
     `  lc on PATH  ${result.lcOnPath ?? 'no — Codex hooks need `lc` on PATH'}`,
     `  config      ${sources.length ? sources.join(', ') : 'defaults'}`,
     `  economy     mode=${config.economy.mode} minimumSavedTokens=${config.economy.minimumSavedTokens} retention=${config.artifacts.retentionDays}d`,
+    `  lightshadow mode=${config.lightshadow.mode}`,
   ]
-  for (const problem of problems) lines.push(`  ! ${problem} (Economy is off until this is fixed)`)
+  for (const problem of problems) lines.push(`  ! ${problem} (Economy and LightShadow are off until this is fixed)`)
   for (const host of hosts) {
     lines.push('', `${host.name} [${host.integration}]`)
     for (const item of host.mechanisms) lines.push(`  ${item.mechanism.padEnd(22)} ${item.mode.padEnd(8)} ${item.reason}`)

@@ -55,3 +55,57 @@ export async function runPi(options: { cwd: string; extension: ExtensionFactory;
 
 export const textOf = (content: unknown): string =>
   (content as { type: string; text?: string }[]).map(block => block.text ?? '').join('')
+
+type FauxContext = { messages: { role: string; content: unknown }[] }
+export type FauxStep = (context: FauxContext) => ReturnType<typeof fauxAssistantMessage>
+
+/**
+ * Two prompts with a manual `/compact` between them. Each step answers one
+ * provider request; `requests` records every request's messages.
+ */
+export async function runPiWithCompaction(options: {
+  cwd: string; extension: ExtensionFactory; before: PiCall[]; after: FauxStep[]; tools?: string[]
+}): Promise<PiRun & { requests: FauxContext['messages'][]; compaction: unknown; activeTools: string[] }> {
+  const dir = mkdtempSync(join(tmpdir(), 'lightcode-pi-'))
+  const faux = registerFauxProvider()
+  const model = faux.getModel()
+  try {
+    const modelRuntime = await ModelRuntime.create({ modelsPath: null, authPath: join(dir, 'auth.json'), allowModelNetwork: false })
+    modelRuntime.registerProvider(model.provider, {
+      baseUrl: model.baseUrl, apiKey: 'faux-key', api: faux.api,
+      models: [{ id: model.id, name: model.name, api: model.api, reasoning: model.reasoning, input: model.input,
+        cost: model.cost, contextWindow: model.contextWindow, maxTokens: model.maxTokens, baseUrl: model.baseUrl }],
+    })
+    const resourceLoader = new DefaultResourceLoader({ cwd: options.cwd, agentDir: dir, extensionFactories: [options.extension],
+      noSkills: true, noPromptTemplates: true, noThemes: true, noContextFiles: true })
+    await resourceLoader.reload()
+    const { session } = await createAgentSession({ cwd: options.cwd, agentDir: dir, model, modelRuntime, resourceLoader, ...options.tools ? { tools: options.tools } : {},
+      sessionManager: SessionManager.create(options.cwd, join(dir, 'sessions')),
+      settingsManager: SettingsManager.inMemory({ compaction: { enabled: false, reserveTokens: 16384, keepRecentTokens: 1 } }) })
+    await session.bindExtensions({})
+    const requests: FauxContext['messages'][] = []
+    const record = (context: FauxContext) => { requests.push(structuredClone(context.messages)) }
+    faux.setResponses([
+      ...options.before.map(command => (context: FauxContext) => {
+        record(context)
+        const call = typeof command === 'string' ? { tool: 'bash', args: { command } } : command
+        return fauxAssistantMessage(fauxToolCall(call.tool, call.args), { stopReason: 'toolUse' })
+      }),
+      (context: FauxContext) => { record(context); return fauxAssistantMessage('first part done') },
+    ])
+    await session.prompt('Fix the KeyError in retry_backoff. Do not change the public API.')
+    // pi's own summarizer answers from the faux model when LightShadow leaves the compaction to pi.
+    faux.setResponses([fauxAssistantMessage('pi summary of the history'), fauxAssistantMessage('pi summary of the turn prefix')])
+    const compaction = await session.compact()
+    faux.setResponses(options.after.map(step => (context: FauxContext) => { record(context); return step(context) }))
+    await session.prompt('continue')
+    const result = { seen: [], sessionFile: session.sessionManager.getSessionFile()!, sessionId: session.sessionManager.getSessionId(),
+      requests, compaction, activeTools: session.getActiveToolNames() }
+    session.dispose()
+    return result
+  } finally {
+    faux.unregister()
+  }
+}
+
+export { fauxAssistantMessage, fauxToolCall }

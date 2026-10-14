@@ -97,3 +97,21 @@ export const COMMAND_NORMALIZATION_SPEC: MechanismSpec = {
 }
 
 export const V0_1_SPECS: readonly MechanismSpec[] = [ECONOMY_SPEC, COMMAND_NORMALIZATION_SPEC]
+
+/**
+ * LightShadow: recoverable compaction. Tool results in the compacted segment
+ * become references the model can read again with `recall`; the user's
+ * messages are kept word for word. `observe` records what a checkpoint would
+ * have saved and leaves the host's compaction alone.
+ */
+export const LIGHTSHADOW_SPEC: MechanismSpec = {
+  id: 'lightshadow',
+  summary: 'replace tool results in compacted history with recallable references',
+  requires: ['journal', 'artifacts', 'tokens'],
+  modes: [
+    { mode: 'apply', anyOf: [['compaction', 'tools']] },
+    { mode: 'observe', anyOf: [['compaction'], ['sessions']] },
+  ],
+}
+
+export const V0_2_SPECS: readonly MechanismSpec[] = [ECONOMY_SPEC, COMMAND_NORMALIZATION_SPEC, LIGHTSHADOW_SPEC]
