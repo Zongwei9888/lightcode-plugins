@@ -4,5 +4,5 @@ export { HOST_PROFILES } from './hosts.ts'
 export type { HostProfile } from './hosts.ts'
 export type {
   ArtifactPort, ArtifactRef, CommandRewriteRecord, EconomyFailure, EconomyOutcome, EconomyRecord,
-  JournalBase, JournalPort, JournalRecord, ShadowCheckpointRecord, ShadowRecallRecord, ShadowReference, SubagentRecord, TextMeasure,
+  JournalBase, JournalPort, JournalRecord, ShadowCheckpointRecord, ShadowRecallRecord, ShadowReference, StreamSpan, SubagentRecord, TextMeasure,
 } from './journal.ts'

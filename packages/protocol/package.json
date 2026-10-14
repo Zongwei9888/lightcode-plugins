@@ -1,6 +1,6 @@
 {
   "name": "@lightcode/protocol",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "LightCode host capability vocabulary, mechanism negotiation and journal record schemas.",
   "license": "MIT",
   "type": "module",

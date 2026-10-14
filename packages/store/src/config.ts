@@ -11,6 +11,10 @@ export interface EconomyConfig {
   /** Bounded filter parameters; see `resolveFilterOptions`. */
   readonly filterOptions?: unknown
   readonly commandNormalization: boolean
+  /** Keep the original of every shell output (not only projected ones) as evidence for `lc evolve`. */
+  readonly evidence: boolean
+  /** Try the learned rules `lc evolve` adopted before the built-in filters. */
+  readonly learnedRules: boolean
 }
 
 export interface LightShadowConfig {
@@ -25,7 +29,7 @@ export interface LightCodeConfig {
 }
 
 export const DEFAULT_CONFIG: LightCodeConfig = Object.freeze({
-  economy: Object.freeze({ mode: 'apply' as const, minimumSavedTokens: 16, commandNormalization: true }),
+  economy: Object.freeze({ mode: 'apply' as const, minimumSavedTokens: 16, commandNormalization: true, evidence: true, learnedRules: true }),
   lightshadow: Object.freeze({ mode: 'apply' as const }),
   artifacts: Object.freeze({ retentionDays: 14 }),
 })
@@ -48,7 +52,10 @@ function readJson(path: string): unknown {
 
 const RANK: Record<MechanismMode, number> = { off: 0, observe: 1, apply: 2 }
 
-/** `lowerOnly` (a project's file): the mode may only go down, and command rewriting may only be switched off. */
+/**
+ * `lowerOnly` (a project's file): the mode may only go down, and command
+ * rewriting, evidence and learned rules may only be switched off.
+ */
 function mergeEconomy(base: EconomyConfig, input: unknown, where: string, problems: string[], lowerOnly = false): EconomyConfig {
   if (input === undefined) return base
   if (!record(input)) { problems.push(`${where}: economy must be an object`); return base }
@@ -58,6 +65,7 @@ function mergeEconomy(base: EconomyConfig, input: unknown, where: string, proble
       const mode = value as MechanismMode
       if (!lowerOnly || RANK[mode] <= RANK[next.mode]) next = { ...next, mode }
     } else if (key === 'commandNormalization' && typeof value === 'boolean' && lowerOnly) next = { ...next, commandNormalization: next.commandNormalization && value }
+    else if ((key === 'evidence' || key === 'learnedRules') && typeof value === 'boolean') next = { ...next, [key]: lowerOnly ? next[key] && value : value }
     else if (key === 'minimumSavedTokens' && Number.isSafeInteger(value) && (value as number) >= 1 && (value as number) <= 1_000_000) next = { ...next, minimumSavedTokens: value as number }
     else if (key === 'filterOptions' && resolveFilterOptions(value) !== undefined) next = { ...next, filterOptions: value }
     else if (key === 'commandNormalization' && typeof value === 'boolean') next = { ...next, commandNormalization: value }

@@ -98,7 +98,7 @@ describe('loadConfig', () => {
     writeFileSync(join(cwd, '.lightcode', 'config.json'), JSON.stringify({ economy: { mode: 'observe', filterOptions: { grep: { maxPerFile: 10 } } } }))
     const loaded = loadConfig({ dataDir: data, cwd, env: {} })
     expect(loaded.problems).toEqual([])
-    expect(loaded.config).toEqual({ economy: { mode: 'observe', minimumSavedTokens: 32, commandNormalization: true, filterOptions: { grep: { maxPerFile: 10 } } }, lightshadow: { mode: 'apply' }, artifacts: { retentionDays: 3 } })
+    expect(loaded.config).toEqual({ economy: { mode: 'observe', minimumSavedTokens: 32, commandNormalization: true, evidence: true, learnedRules: true, filterOptions: { grep: { maxPerFile: 10 } } }, lightshadow: { mode: 'apply' }, artifacts: { retentionDays: 3 } })
     expect(loadConfig({ dataDir: data, cwd, env: { LIGHTCODE_ECONOMY: 'apply' } }).config.economy.mode).toBe('apply')
     expect(loadConfig({ dataDir: data, cwd, env: { LIGHTCODE_DISABLE: '1' } }).config).toMatchObject({ economy: { mode: 'off' }, lightshadow: { mode: 'off' } })
   })

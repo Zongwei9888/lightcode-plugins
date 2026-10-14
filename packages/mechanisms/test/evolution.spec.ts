@@ -1,0 +1,57 @@
+import { describe, expect, it } from 'vitest'
+import { compileLearnedRules, createPolicy, sha256 } from '@lightcode/core'
+import type { ArtifactPort, EconomyRecord } from '@lightcode/protocol'
+import { checkRequirements, collectEvidence, defaultRequirements, verifyRules } from '../src/index.ts'
+
+const artifacts = (texts: string[]): ArtifactPort => {
+  const map = new Map(texts.map(text => [sha256(text), text]))
+  return { save: () => { throw new Error('read-only') }, read: hash => map.get(hash) }
+}
+const record = (command: string, rendered: string, extra: Partial<EconomyRecord> = {}): EconomyRecord => ({
+  schemaVersion: 1, type: 'economy/decision', time: '2026-10-14T00:00:00.000Z', host: 'pi', sessionId: 's', callId: 'c', tool: 'bash', command, exitCode: 0,
+  delivery: 'in-process', streams: 'merged', mode: 'apply', outcome: 'passed', reason: 'no-filter-match', runtimeVersion: 'v', policyHash: 'p',
+  raw: { sha256: sha256(rendered), bytes: rendered.length, tokens: Math.ceil(rendered.length / 4), stored: true },
+  layout: { stdout: { start: 0, length: rendered.length } }, ...extra,
+})
+const progress = Array.from({ length: 50 }, (_, i) => `[${i + 1}/50] step ${i}`).join('\n') + '\nok\n'
+const rule = (body: string) => compileLearnedRules([
+  { path: 'index.json', text: JSON.stringify({ schemaVersion: 1, rules: [{ id: 'r', file: 'rules/r.js' }] }) },
+  { path: 'rules/r.js', text: `defineRule({ project(input, lc) { ${body} } })` },
+])
+
+describe('evolution', () => {
+  it('the built-in filters meet every preservation requirement', () => {
+    const result = checkRequirements(createPolicy(), defaultRequirements())
+    expect(result.results.filter(item => !item.passed)).toEqual([])
+  })
+
+  it('rebuilds evidence from the journal: stored, complete shell output only, identical observations once', () => {
+    const records = [
+      record('./steps', progress), record('./steps', progress),
+      record('./steps', progress, { layout: { stdout: { start: 0, length: progress.length }, truncated: true } }),
+      record('./other', 'gone\n'.repeat(50)),
+      record('./unstored', progress, { raw: { sha256: sha256(progress), bytes: 1, tokens: 1, stored: false } }),
+      (({ layout: _layout, ...rest }) => ({ ...rest, exitCode: null }))(record('grep {}', 'x')),
+    ]
+    const cases = collectEvidence(records, artifacts([progress]))
+    expect(cases).toHaveLength(1)
+    expect(cases[0]).toMatchObject({ occurrences: 2, result: { command: './steps', rendered: progress, stdout: { start: 0, text: progress } } })
+    expect(collectEvidence(records, artifacts([progress]), { since: new Date('2026-10-15') })).toEqual([])
+  })
+
+  it('accepts a gain without regressions, and names why it rejects', () => {
+    const cases = collectEvidence([record('./steps', progress)], artifacts([progress]))
+    const good = rule("return input.argv && input.argv[0] === './steps' ? lc.keepLines(input.raw, line => !/^\\[\\d+\\/\\d+\\]/.test(line.text)) : null")
+    expect(verifyRules({ parent: undefined, candidate: good, cases })).toMatchObject({ accepted: true, improved: 1, reasons: [] })
+    expect(verifyRules({ parent: good, candidate: good, cases })).toMatchObject({ accepted: false, reasons: ['unchanged', 'no-incremental-token-gain'] })
+    const regression = verifyRules({ parent: good, candidate: undefined, cases })
+    expect(regression).toMatchObject({ accepted: false, reasons: ['no-incremental-token-gain', 'replay-token-regression'] })
+    const lossy = rule("return input.argv && input.argv[0] === 'cat' ? lc.keepLines(input.raw, line => line.text !== '') : null")
+    expect(verifyRules({ parent: undefined, candidate: lossy, cases })).toMatchObject({ accepted: false,
+      reasons: expect.arrayContaining(['preservation-requirement-failed']) })
+    // Removing a rule that broke a requirement is a repair, even without a gain.
+    expect(verifyRules({ parent: lossy, candidate: undefined, cases })).toMatchObject({ accepted: true, changeKind: 'safety-repair' })
+    const throws = rule("throw new Error('x')")
+    expect(verifyRules({ parent: undefined, candidate: throws, cases })).toMatchObject({ accepted: false, reasons: expect.arrayContaining(['rule-error']), ruleFailures: { r: expect.any(Number) } })
+  })
+})

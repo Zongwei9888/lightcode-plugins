@@ -61,6 +61,8 @@ export interface EconomySizes {
 export interface EconomyProjection extends EconomySizes {
   readonly kind: 'project'
   readonly filter: EconomyFilterName
+  /** The learned rule, when `filter` is `learned-rule`. */
+  readonly rule?: string
   readonly transformation: EconomyTransformation
   readonly stream: 'stdout' | 'stderr'
   /** Replacement for the whole rendered result. */
@@ -75,6 +77,7 @@ export interface EconomyPass extends Partial<EconomySizes> {
   readonly reason: EconomyPassReason
   readonly matchDetail?: EconomyMatchDetail
   readonly filter?: EconomyFilterName
+  readonly rule?: string
   readonly transformation?: EconomyTransformation
   readonly policyHash: string
 }
@@ -173,7 +176,9 @@ export function decideShellProjection(result: ShellResult, options: EconomyDecis
   let composed: MappedProjection | undefined
   let stream: 'stdout' | 'stderr' = 'stdout'
   try {
-    projection = projectStaticFilter({ command: result.command, stdout: result.stdout.text, exitCode: result.exitCode, options: filterOptions })
+    const stdoutInput = { command: result.command, stdout: result.stdout.text, exitCode: result.exitCode, options: filterOptions }
+    // Learned rules first (they never throw), then the built-in filters.
+    projection = policy.learned?.project(stdoutInput) ?? projectStaticFilter(stdoutInput)
     if (projection !== undefined) composed = embedProjection(result.rendered, result.stdout, projection)
     // Cargo emits its build report on stderr. Only the diagnostic-preserving
     // Cargo parser or an exact duplicate-row fold may touch that stream; never
@@ -200,7 +205,8 @@ export function decideShellProjection(result: ShellResult, options: EconomyDecis
   if (projection === undefined || composed === undefined) {
     return pass('no-filter-match', { matchDetail: classifyMiss(result.command) })
   }
-  const identity = { filter: projection.filter, transformation: projection.transformation }
+  const rule = (projection as { rule?: unknown }).rule
+  const identity = { filter: projection.filter, transformation: projection.transformation, ...typeof rule === 'string' ? { rule } : {} }
   if (projection.text.trim() === '') return pass('unsupported-result-shape', identity)
   const sizes: EconomySizes = {
     rawBytes: Buffer.byteLength(result.rendered, 'utf8'),

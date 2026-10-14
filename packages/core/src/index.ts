@@ -15,6 +15,11 @@ export type { ShellInspection } from './shell-inspection.ts'
 export { rewriteCommand } from './command-rewrite.ts'
 export type { CommandRewriteRule } from './command-rewrite.ts'
 export { createPolicy } from './policy.ts'
+export {
+  LEARNED_SCHEMA_VERSION, MAX_LEARNED_RULES, RuleDirectoryError, compileLearnedRules, keepsDiagnostics, parseRuleIndex, ruleDirectoryHash,
+  validMappedProjection,
+} from './learned.ts'
+export type { LearnedCandidate, LearnedRuleEntry, LearnedRuleInput, LearnedRuleSet, RuleFile } from './learned.ts'
 export type { EconomyPolicy } from './policy.ts'
 export { classifyMiss, decideNativeProjection, decideShellProjection, embedProjection, exactDiagnosticDeduplication, mayProject } from './economy.ts'
 export { nativeGrepRecords, nativeGrepSections, nativePathLines, nativePathList } from './native.ts'

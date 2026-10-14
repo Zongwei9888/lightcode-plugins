@@ -21,6 +21,11 @@ export interface ArtifactRef {
   readonly bytes: number
 }
 
+export interface StreamSpan {
+  readonly start: number
+  readonly length: number
+}
+
 export interface TextMeasure {
   readonly sha256: string
   readonly bytes: number
@@ -46,12 +51,22 @@ export interface EconomyRecord extends JournalBase {
   readonly reason?: EconomyPassReason | EconomyFailure
   readonly matchDetail?: EconomyMatchDetail
   readonly filter?: EconomyFilterName
+  /** The learned rule, when `filter` is `learned-rule`. */
+  readonly rule?: string
   readonly transformation?: EconomyTransformation
   readonly stream?: 'stdout' | 'stderr'
   readonly runtimeVersion: string
   readonly policyHash: string
-  /** The original as the model would have seen it; `stored` means it is in the artifact store. */
+  /** Content hash of the learned rules the policy tried first, when there were any. */
+  readonly learnedRulesHash?: string
+  /**
+   * The original as the model would have seen it; `stored` means it is in the
+   * artifact store (always for a projection; for other outcomes when evidence
+   * for `lc evolve` is kept).
+   */
   readonly raw?: TextMeasure & { readonly stored: boolean }
+  /** Where stdout (and stderr, when the host keeps it apart) sit in the original, in UTF-16 units. */
+  readonly layout?: { readonly stdout: StreamSpan; readonly stderr?: StreamSpan; readonly truncated?: true; readonly interrupted?: true }
   readonly projected?: TextMeasure
   /** Source map from projection to original, saved as a JSON artifact. */
   readonly sourceMap?: ArtifactRef

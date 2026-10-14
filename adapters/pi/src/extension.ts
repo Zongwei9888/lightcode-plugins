@@ -14,7 +14,7 @@ import { collectSubagents, describeToolCall, formatTokens, isPrepared, EconomyEn
 import type { Prepared } from '@lightcode/mechanisms'
 import { HOST_PROFILES, V0_2_SPECS, negotiate } from '@lightcode/protocol'
 import type { MechanismMode, Negotiation } from '@lightcode/protocol'
-import { FileArtifactStore, FileJournal, collectDaily, dataDirs, loadConfig, readJournals, resolveDataDir, writableDataDir } from '@lightcode/store'
+import { FileArtifactStore, FileJournal, RuleStore, collectDaily, dataDirs, loadConfig, readJournals, resolveDataDir, writableDataDir } from '@lightcode/store'
 import type { LoadedConfig } from '@lightcode/store'
 import { bashShellResult } from './bash.ts'
 import { NATIVE_TOOLS, nativeResult } from './native.ts'
@@ -71,6 +71,8 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
     const readDirs = options.dataDir ? [options.dataDir] : dataDirs(env)
     const journal = new FileJournal(dataDir)
     const artifacts = new FileArtifactStore(dataDir)
+    // Learned rules live with the configuration; a session pins the set active when it starts.
+    const ruleStore = new RuleStore(configDir)
     const pid = options.pid ?? process.pid
     const handedDown = PARENT_VALUE.exec(env[PARENT_SESSION_ENV] ?? '')
     const inherited = handedDown && Number(handedDown[1]) === (options.ppid ?? process.ppid) ? handedDown[2] : undefined
@@ -108,7 +110,7 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
       const mode = negotiated.find(item => item.mechanism === 'economy')!.mode
       const sessionId = ctx.sessionManager.getSessionId() || null
       const engine = mode === 'off' ? undefined : new EconomyEngine({ host: HOST, journal, artifacts, config: loaded.config.economy,
-        mode, delivery: 'in-process', streams: 'merged' })
+        mode, delivery: 'in-process', streams: 'merged', learned: () => ruleStore.load() })
       const previous = sessionId ? summarizeEconomy(read(sessionId)) : undefined
       try { collectDaily(dataDir, days => artifacts.prune(days), loaded.config.artifacts.retentionDays) } catch { /* Housekeeping only. */ }
       if (engine && sessionId) {
@@ -228,6 +230,7 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
           ...shadow.checkpoints + shadow.standard > 0 ? [`LightShadow: ${shadow.checkpoints} compaction${shadow.checkpoints === 1 ? '' : 's'} with ${shadow.references} tool results kept recallable (~${formatTokens(shadow.referencedTokens)} tokens), ${shadow.recalls} recalled`
             + `${shadow.standard ? `; ${shadow.standard} left to pi` : ''}`] : [],
           ...n > 0 && children ? [`Subagents (${n} session${n === 1 ? '' : 's'}): ${children.projected} outputs filtered, ~${formatTokens(children.savedTokens)} tokens saved, ${children.passed} passed unchanged`] : [],
+          learnedRulesLine(ruleStore, session.loaded.config.economy.learnedRules),
           ...session.negotiated.map(item => `${item.mechanism}: ${item.mode} (${item.reason})`),
           ...session.loaded.problems.map(problem => `config problem: ${problem}`),
           `data: ${dataDir}`,
@@ -242,6 +245,14 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
 function sameText(content: readonly { type: string; text?: string }[], prepared: Prepared): boolean {
   return content.length === 1 && content[0]!.type === 'text' && prepared.record.raw !== undefined
     && sha256(content[0]!.text ?? '') === prepared.record.raw.sha256
+}
+
+/** The learned rules new sessions use, for `/lightcode`. */
+export function learnedRulesLine(store: RuleStore, enabled: boolean): string {
+  const active = store.state().active
+  if (!active) return 'Learned rules: none (lc evolve learns them from your sessions)'
+  const set = store.load()
+  return `Learned rules: ${active.slice(0, 12)}, ${set ? `${set.rules.length} rule${set.rules.length === 1 ? '' : 's'}` : 'not loadable'}${enabled ? '' : ' (off: economy.learnedRules is false)'}`
 }
 
 function rank(mode: MechanismMode): number {

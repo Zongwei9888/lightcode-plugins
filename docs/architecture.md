@@ -9,11 +9,12 @@ and sandbox; LightCode never re-implements them.
 ```
 adapters      @lightcode/pi · @lightcode/dsh · adapters/codex
               translate host events into port calls; install, configure, show receipts
-mechanisms    @lightcode/mechanisms — Economy engine, command normalization, receipts
+mechanisms    @lightcode/mechanisms — Economy engine, LightShadow, evolution (evidence, replay,
+              verification), command normalization, receipts
 protocol      @lightcode/protocol — capabilities, host profiles, negotiation, journal schema
-core          @lightcode/core — filters, source maps, admission, normalization (pure)
-store         @lightcode/store — journal, original store, configuration (local files)
-cli           @lightcode/cli — lc run / hook / report / doctor / filters / show / gc
+core          @lightcode/core — filters, learned-rule sandbox, source maps, admission, normalization (pure)
+store         @lightcode/store — journal, original store, adopted rules, configuration (local files)
+cli           @lightcode/cli — lc run / hook / report / doctor / filters / show / gc / evolve / rules
 ```
 
 `core` has no host dependency and no I/O. The same input produces the same
@@ -34,7 +35,7 @@ patch.
 | …while the host session keeps the original | `turn_end` → `context_edit` | — | — |
 | rewrite tool arguments before execution | `tool_call` (mutate input) | `PreToolUse` `updatedInput` | — (0.2 excludes it: arguments are logged first) |
 | run shell commands through `lc run` | — | ✓ (via `PreToolUse`) | — |
-| supply the compaction summary | `session_before_compact` | — (shape only) | compaction provider |
+| supply the compaction summary | `session_before_compact` | — (shape only) | each preset's `compaction-basic` engine (`summarize`) |
 | register model-callable tools | `registerTool` | MCP server | `tools.register` |
 | read sessions and per-request usage | session JSONL `usage` | rollout `token_count` | session log |
 
@@ -78,6 +79,78 @@ pi and Codex merge stdout and stderr into one text; on those hosts filters
 see the merged stream, and the journal records `streams: "merged"`.
 DeepSeek Harness and `lc run` keep the streams apart.
 
+## LightShadow
+
+Recoverable compaction. The host decides when to compact and which span;
+LightShadow changes what the span becomes:
+
+1. **Externalize.** Each tool result in the span is saved to the artifact
+   store, read back to verify, and replaced by a reference: `o-` plus 12 hex
+   digits of the text's sha256, the tool, the size and an excerpt (first two
+   and last two non-empty lines, at most 320 bytes), when that saves tokens.
+   A result Economy shortened also names its complete original.
+2. **Summarize the residual** with the host's own summarizer and model (pi's
+   `compact()`, DSH's `BasicCompactionEngine.summarize`), plus a note that
+   references are recoverable.
+3. **Checkpoint** = the summary, the user's messages verbatim (the first one
+   and as many of the latest as fit in 32 KB), and the catalog. An earlier
+   checkpoint in the span contributes its user messages and references; its
+   summary goes to the summarizer without them.
+4. **Fallback.** A checkpoint not smaller than the span (or any error) is
+   discarded and the host compacts as it would without LightCode.
+
+`lightcode_recall {observation_id, query?, original?}` returns the stored
+text exactly when it is at most 8 KB, otherwise the lines around the first
+literal match of `query`, within 8 KB. Only references in the session's own
+checkpoints resolve (pi reads them from its compaction entries' `details`,
+so forks and resumes keep them; DSH from the journal).
+
+- **pi** — `session_before_compact` returns the checkpoint as the
+  compaction's summary; pi's file tracking in `details` is kept. The tool is
+  declared only once a checkpoint lists something (`setActiveTools`).
+- **DeepSeek Harness** — its compaction engine is a cordis service mounted
+  per agent preset (the Web app isolates it inside each preset), with no
+  hook. LightShadow finds every engine through the context of its
+  `agent/pre-step` listener (looked up when an agent is created or steps) and
+  wraps `summarize` on that instance; range selection, the transaction, the
+  size check and the session log stay DSH's. It also wraps the
+  tool-result pruner's `pruneContent`: the complete text of a result cut to
+  head and tail is saved and the cut marker names its observation.
+
+## Self-evolution
+
+`lc evolve` performs one step pi_{k+1} = Verify(Propose(pi_k, E_k)) over the
+learned rules, which run in front of the fixed built-in filters.
+
+- **Evidence.** With `economy.evidence` on (default), the engine saves the
+  original of every complete shell output, not only projected ones, and the
+  journal records where stdout and stderr sit in it (`layout`), so an
+  observation can be replayed exactly. Identical command and output count
+  once, weighted by occurrences.
+- **Rule directories.** `index.json` lists `rules/<id>.js` scripts that each
+  call `defineRule({ project(input, lc) })`. They are compiled into one V8
+  context per set with a null-prototype global, no string compilation or
+  wasm, and microtasks drained within the call; only strings cross the
+  boundary, and each call has 100 ms. A result needs a valid source map
+  whose copied spans equal the input, must keep every diagnostic line and be
+  smaller; otherwise the rule abstains. Learned rules see stdout only, and
+  their projections go through the same stream policy and admission as the
+  built-ins.
+- **Propose.** A workspace under `~/.lightcode/evolve/<run>/` holds the
+  learner's instructions, the cases with the most tokens left to save (a few
+  per command), `RULES.md`, a copy of the active rules (`rules-work/`), and
+  `./check` / `./try`. The learner command runs there with
+  `LIGHTCODE_DISABLE=1`.
+- **Verify.** Every observation of the run is replayed through the full
+  decision with the parent and the candidate set, and the preservation
+  requirements are checked. Accept iff the rules changed, every requirement
+  holds, no rule failed, and either a violated requirement is repaired or
+  the total saving grows with no observation saving less.
+- **Adopt.** Accepted directories are installed read-only under
+  `~/.lightcode/rules/<sha256>` and named in `rules/active.json` with their
+  parent; a session pins the set active when its policy is captured, and
+  the set's hash is part of the policy hash and every decision record.
+
 ## Packaging
 
 `@lightcode/pi`, `@lightcode/dsh` and `@lightcode/cli` are single-file
@@ -100,12 +173,16 @@ host releases and drives real sessions, the DSH Web UI and pi's TUI.
 ## Journal and store
 
 - `~/.lightcode/journal/<host>/<session>.jsonl` — one record per decision
-  (`economy/decision`) or rewrite (`economy/command-rewrite`), anchored to
-  the host's session and tool-call IDs. Outcomes: `projected`, `previewed`,
-  `passed` (with the reason and, for misses, why no filter applied) and
-  `failed-open`.
-- `~/.lightcode/artifacts/` — content-addressed originals and source maps,
-  mode 0600, pruned after `retentionDays`.
+  (`economy/decision`), rewrite (`economy/command-rewrite`), compaction
+  (`shadow/checkpoint`), recall (`shadow/recall`) or subagent link
+  (`session/subagent`), anchored to the host's session and tool-call IDs.
+  Economy outcomes: `projected`, `previewed`, `passed` (with the reason and,
+  for misses, why no filter applied) and `failed-open`.
+- `~/.lightcode/artifacts/` — content-addressed originals, evidence, recall
+  references and source maps, mode 0600, pruned after `retentionDays`.
+- `~/.lightcode/rules/` — adopted rule directories and `active.json`.
+- `~/.lightcode/evolve/` — each `lc evolve` run: workspace, learner log,
+  verdict.
 - LightCode never writes into host session formats it does not own, so no
   host needs a patch and host upgrades cannot break old sessions.
 
@@ -119,12 +196,16 @@ uncovered commands — the list of filters worth writing next.
 - A projection is never larger than the original in bytes or tokens.
 - Copied spans of every source map match the original exactly.
 - Disabled, observe and failure paths deliver the original byte-for-byte.
+- A recall returns exactly the text the model read (or its saved original).
+- A LightShadow checkpoint is smaller than the span it replaces, or unused.
+- A learned rule cannot reach the host process, and its results keep every
+  diagnostic line; a proposal that makes any recorded observation cost more
+  is never adopted.
 
 ## Roadmap
 
 | Release | Scope |
 |---|---|
 | 0.1 | Economy on pi, DeepSeek Harness 0.2.x, Codex and `lc run` |
-| 0.2 | LightShadow: recoverable compaction with a catalog of originals and a retrieval tool — complete on pi and DeepSeek Harness, catalog + MCP retrieval on Codex |
-| 0.3 | Delegation and a cross-host usage ledger (unified trace format) |
-| later | Rule packs (data-only rules, content-hashed) and the tooling to learn them |
+| 0.2 | LightShadow on pi and DeepSeek Harness; self-evolving filters (`lc evolve`, learned rules on every host) |
+| 0.3 | Delegation and a cross-host usage ledger (unified trace format); LightShadow catalog + MCP retrieval on Codex |

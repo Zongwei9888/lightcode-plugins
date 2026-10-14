@@ -18,6 +18,13 @@ and the exit status are always kept.
 - **Fail-open**: any LightCode error delivers the original output.
 - **No network access.**
 
+It also makes DSH's **compaction recoverable** (LightShadow): when DSH
+compacts a long conversation, tool results in the compacted part become
+references the model can read again with the `lightcode_recall` tool, your
+messages are kept word for word in the checkpoint, and results DSH cuts to a
+head and tail keep their complete text. Rules learned from your own sessions
+with `lc evolve` apply here too.
+
 Requires DeepSeek Harness **0.2.x** (tested with 0.2.0-rc.2 and
 0.2.1-alpha.2 — the Web UI and CLI on macOS and Linux, and the Desktop app on
 macOS, both the signed 0.2.0-rc.2 release and a 0.2.1-alpha.2 build; Windows
@@ -39,7 +46,7 @@ Use the profile you run (`web` for `dsh web`, `headless` for
 `dsh headless`, …). The Desktop app manages its own profile: install from its
 **Plugins** page (it brings its own pnpm), or quit it and run its bundled
 `dsh plugin --profile desktop add @lightcode/dsh`. A downloaded tarball or a checkout works the same way:
-`dsh plugin --profile web add ./lightcode-dsh-0.1.0.tgz` or
+`dsh plugin --profile web add ./lightcode-dsh-0.2.0.tgz` or
 `dsh plugin --profile web add /absolute/path/to/lightcode/adapters/dsh`
 (after `pnpm install && pnpm build` in the checkout).
 
@@ -52,11 +59,11 @@ On the plugin's page in **Plugins**, **Mode** switches between:
 
 | Mode | Effect |
 |---|---|
-| **Apply** (default) | the model reads the projection |
-| **Observe** | the model reads the original; LightCode records what it would have saved |
+| **Apply** (default) | the model reads the projection; compaction keeps tool results recallable |
+| **Observe** | the model reads the original and DSH compacts as usual; LightCode records what it would have saved |
 | **Off** | LightCode does nothing |
 
-The change applies to the next tool result; no restart. The same setting can
+The change applies to the next tool result and compaction; no restart. The same setting can
 be written in the profile's `cordis.patch.yml`:
 
 ```yaml
@@ -66,7 +73,8 @@ be written in the profile's `cordis.patch.yml`:
 ```
 
 LightCode's own configuration (`~/.lightcode/config.json`, a project's
-`.lightcode/config.json`, `LIGHTCODE_ECONOMY`, `LIGHTCODE_DISABLE=1`) can lower
+`.lightcode/config.json`, `LIGHTCODE_ECONOMY`, `LIGHTCODE_LIGHTSHADOW`,
+`LIGHTCODE_DISABLE=1`) can lower
 this setting further but never raise it; see the
 [main README](https://github.com/Zongwei9888/lightcode-plugins#configuration).
 
@@ -105,6 +113,39 @@ this setting further but never raise it; see the
   original.
 - Edits to LightCode's own configuration files apply to the next tool call.
 
+## Compaction (LightShadow)
+
+DSH compacts with its own compaction engine, which the Web app and Desktop
+mount separately inside each agent preset; DSH offers plugins no hook for it.
+LightCode finds each engine when an agent starts (through the engine's own
+`agent/pre-step` listener) and takes over one step of it, the summary:
+
+- tool results in the compacted part are saved and replaced by short
+  references before DSH's summarizer (the same call and model DSH would use)
+  condenses the rest;
+- the checkpoint is that summary, your messages verbatim, and a catalog of
+  the references; DSH still selects the range, checks the size and writes
+  the session log;
+- `lightcode_recall` returns a result exactly as the model read it, a window
+  of up to 8 KB around a string, or the complete original when Economy had
+  shortened it;
+- DSH's tool-result pruner, which cuts results over 8,192 characters to their
+  head and tail, now leaves a note naming the observation, and the complete
+  text is kept.
+
+If the checkpoint would not be smaller, or anything fails, DSH compacts the
+original way. `/lightcode` shows how many engines LightCode attached to,
+compactions, cut results and recalls.
+
+## Learned rules
+
+`lc evolve --learner dsh` (from `@lightcode/cli`; it runs
+`dsh --profile headless`, choose another with `--profile`) uses DSH as a
+learner over the evidence LightCode recorded, and adopts new filter rules
+only if they verify. New sessions use them automatically; `/lightcode` names
+the active set. See the
+[main README](https://github.com/Zongwei9888/lightcode-plugins#self-evolving-filters).
+
 ## Remove
 
 **Plugins** → LightCode → uninstall, or
@@ -125,7 +166,13 @@ LightCode 是 DeepSeek Harness（DSH）的插件，在模型读取之前精简�
 **安装**：侧边栏 **插件** → **添加插件** → 输入 `@lightcode/dsh` → **安装** →
 **立即启用**；或在终端执行 `dsh plugin --profile web add @lightcode/dsh`。
 
-**使用**：装好即生效。在会话里输入 `/lightcode` 查看本会话省下的 token。DSH 自带的 `grep`、`glob` 工具的完整结果做无损排版（去掉每行的 `Line ` 前缀、同一目录的路径归到一起）。用内置 `subagent`、`subagent_fork` 工具启动的子 agent 同样生效，父会话的 `/lightcode` 会把子 agent 省下的一起算上。在
+**使用**：装好即生效。在会话里输入 `/lightcode` 查看本会话省下的 token、压缩和找回情况，以及正在用的学到的规则。
+
+**可找回的压缩（LightShadow）**：DSH 压缩长对话时，被压缩部分的工具结果换成引用，模型可以用 `lightcode_recall` 原样读回；你的原话逐字保留在检查点里；DSH 把超过 8192 字符的结果截成首尾两段时，完整内容也会保存并在截断处注明编号。检查点没有变小或出错时，DSH 按原方式压缩。网页版和桌面版里每个 agent 预设各有一个压缩模块，LightCode 在 agent 启动时自动接上。
+
+**学到的规则**：`lc evolve --learner dsh`（来自 `@lightcode/cli`）让 DSH 当学习者，从你的会话证据里学新规则，验证通过才采用，新会话自动使用。
+
+DSH 自带的 `grep`、`glob` 工具的完整结果做无损排版（去掉每行的 `Line ` 前缀、同一目录的路径归到一起）。用内置 `subagent`、`subagent_fork` 工具启动的子 agent 同样生效，父会话的 `/lightcode` 会把子 agent 省下的一起算上。在
 **插件** 页的 LightCode 详情里可以切换 **模式**：精简（默认）/ 只记录 / 关闭，
 保存后下一次工具调用即生效，无需重启。
 

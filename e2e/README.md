@@ -7,15 +7,17 @@ releases, runs real sessions, and checks what the model received.
 ```sh
 pnpm install && pnpm build
 pnpm e2e                 # everything
-pnpm e2e dsh pi          # a subset: dsh, pi, pi-tui, web, desktop
+pnpm e2e dsh pi          # a subset: dsh, pi, shadow, evolve, pi-tui, web, desktop
 ```
 
 | Scenario | What it does |
 |---|---|
 | `dsh` | `dsh plugin add @lightcode/dsh`, headless sessions in apply and observe mode, the session log, `dsh plugin remove` — on every DSH version |
 | `pi` | `pi install npm:@lightcode/pi`, print-mode sessions, `--lightcode observe`, `pi remove`, and a checkout install — on every pi version |
+| `shadow` | LightShadow on every DSH and pi version: a headless session long enough to compact, then the model recalls a compacted result; checks the checkpoint (summary, the user's words, the catalog), that the recall is exactly what the model first read, and the journal |
+| `evolve` | self-evolution across hosts: the plugins in DSH and pi record evidence, `lc evolve` from the registry's `@lightcode/cli` runs a scripted learner, verifies and adopts its rule, new DSH and pi sessions apply it, and `lc rules rollback` undoes it |
 | `pi-tui` | pi's TUI through tmux: the status bar, `/lightcode`, and switching the extension off and on in `pi config` |
-| `web` | the DSH Web UI in Chrome: Plugins → Add plugin → Enable, a chat and its tool cards, `/lightcode`, Mode on the plugin page (applied live), bundle off/on, uninstall |
+| `web` | the DSH Web UI in Chrome: Plugins → Add plugin → Enable, a chat and its tool cards, `/lightcode`, a long chat that compacts inside the agent preset and recalls a result, Mode on the plugin page (applied live), bundle off/on, uninstall |
 | `desktop` | the same Plugins-page flow inside the DSH Desktop app (Electron, its bundled pnpm, `profiles/desktop`); needs `LIGHTCODE_E2E_DESKTOP_APP`, skipped otherwise |
 
 How it works:

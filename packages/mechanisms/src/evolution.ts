@@ -1,0 +1,236 @@
+import { createPolicy, decideShellProjection, estimateTokens as defaultEstimate, sha256 } from '@lightcode/core'
+import type { EconomyPolicy, LearnedRuleSet, ShellResult, TokenEstimator } from '@lightcode/core'
+import type { ArtifactPort, EconomyRecord, JournalRecord } from '@lightcode/protocol'
+
+/**
+ * Evidence-guided self-evolution of the filter policy: pi_{k+1} = Verify(Propose(pi_k, E_k)).
+ *
+ * - Evidence: the shell outputs LightCode saw (originals kept in the artifact
+ *   store, decisions in the journal), rebuilt exactly as the engine saw them.
+ * - Propose: a coding agent (the learner) edits a copy of the learned rules in
+ *   a workspace, given the evidence (`lc evolve`).
+ * - Verify (this module): replay every observation with the current and the
+ *   proposed policy, and check the preservation requirements. A proposal is
+ *   accepted iff it changes the rules, meets every requirement, no rule fails
+ *   on the evidence, and either repairs a policy that violated a requirement
+ *   or saves more tokens in total with no observation saving less.
+ */
+
+export interface EvidenceCase {
+  /** Stable: the original's hash and the command. */
+  readonly id: string
+  readonly host: string
+  readonly sessionId: string | null
+  readonly time: string
+  /** How many recorded observations had exactly this command and output. */
+  readonly occurrences: number
+  readonly result: ShellResult
+  /** What the policy at the time decided. */
+  readonly recorded: { readonly outcome: string; readonly reason?: string; readonly filter?: string; readonly rule?: string }
+}
+
+/**
+ * Rebuild observations from the journal and the artifact store. Only shell
+ * outputs whose original is still stored, complete (not cut or interrupted)
+ * and laid out as recorded count; identical command and output count once.
+ */
+export function collectEvidence(records: Iterable<JournalRecord>, artifacts: ArtifactPort, options: { since?: Date; maxCases?: number } = {}): EvidenceCase[] {
+  const since = options.since?.toISOString()
+  const byId = new Map<string, { case: EvidenceCase; occurrences: number }>()
+  for (const item of records) {
+    if (item.type !== 'economy/decision') continue
+    const record = item as EconomyRecord
+    if (!record.raw?.stored || !record.layout || record.layout.truncated || record.layout.interrupted || record.exitCode === null) continue
+    if (since && record.time < since) continue
+    const id = `${record.raw.sha256.slice(0, 16)}-${sha256(record.command).slice(0, 8)}`
+    const known = byId.get(id)
+    if (known) { known.occurrences++; continue }
+    const rendered = artifacts.read(record.raw.sha256)
+    if (rendered === undefined) continue
+    const { stdout, stderr } = record.layout
+    const span = (part: { start: number; length: number }) => ({ start: part.start, text: rendered.slice(part.start, part.start + part.length) })
+    if (stdout.start + stdout.length > rendered.length || (stderr && stderr.start + stderr.length > rendered.length)) continue
+    const result: ShellResult = { command: record.command, exitCode: record.exitCode, rendered, stdout: span(stdout), ...stderr ? { stderr: span(stderr) } : {} }
+    byId.set(id, { occurrences: 1, case: { id, host: record.host, sessionId: record.sessionId, time: record.time, occurrences: 1, result,
+      recorded: { outcome: record.outcome, ...record.reason ? { reason: record.reason } : {}, ...record.filter ? { filter: record.filter } : {},
+        ...record.rule ? { rule: record.rule } : {} } } })
+  }
+  const cases = [...byId.values()].map(item => ({ ...item.case, occurrences: item.occurrences }))
+  // Newest first, so a cap keeps recent evidence.
+  cases.sort((a, b) => a.time < b.time ? 1 : a.time > b.time ? -1 : 0)
+  return options.maxCases === undefined ? cases : cases.slice(0, options.maxCases)
+}
+
+export interface ReplayRow {
+  readonly id: string
+  readonly reason: string
+  readonly filter?: string
+  readonly rule?: string
+  readonly rawTokens: number
+  /** Tokens saved on this observation (0 when it passes). */
+  readonly saving: number
+  /** What the model would read. */
+  readonly delivered: string
+}
+
+/** s_pi(e): replay one observation through the full decision (filters, stream policy, admission). */
+export function replayCase(policy: EconomyPolicy, item: { id: string; result: ShellResult }, options: { minimumSavedTokens?: number; estimateTokens?: TokenEstimator } = {}): ReplayRow {
+  const estimate = options.estimateTokens ?? defaultEstimate
+  const decision = decideShellProjection(item.result, { policy, minimumSavedTokens: options.minimumSavedTokens ?? 16, estimateTokens: estimate })
+  const rawTokens = estimate(item.result.rendered)
+  if (decision.kind === 'pass') {
+    return { id: item.id, reason: decision.reason, ...decision.filter ? { filter: decision.filter } : {}, ...decision.rule ? { rule: decision.rule } : {},
+      rawTokens, saving: 0, delivered: item.result.rendered }
+  }
+  return { id: item.id, reason: 'projected', filter: decision.filter, ...decision.rule ? { rule: decision.rule } : {}, rawTokens,
+    saving: decision.rawTokens - decision.projectedTokens, delivered: decision.text }
+}
+
+/** A preservation requirement: for this output, whatever a policy delivers must contain every fragment. */
+export interface PreservationRequirement {
+  readonly id: string
+  readonly result: ShellResult
+  readonly requiredFragments: readonly string[]
+}
+
+const stdoutResult = (command: string, stdout: string, exitCode = 0): ShellResult => ({ command, exitCode, rendered: stdout, stdout: { start: 0, text: stdout } })
+
+/**
+ * The default requirements (after the paper's set, Appendix A.3): literal
+ * data that looks like layout, application output that looks like test
+ * progress, partial source windows, and failure evidence.
+ */
+export function defaultRequirements(): PreservationRequirement[] {
+  const items: PreservationRequirement[] = []
+  const add = (id: string, command: string, raw: string, requiredFragments: readonly string[], exitCode = 0) =>
+    items.push({ id, result: stdoutResult(command, raw, exitCode), requiredFragments })
+
+  // A source dump must not treat blank or repeated lines inside literals as disposable layout.
+  for (const [id, command, raw] of [
+    ['cat-python-string-blanks', 'cat module.py', 'payload = """first\n' + '\n'.repeat(128) + 'last"""\nprint(payload)\n'],
+    ['sed-partial-string-repeats', "sed -n '20,90p' module.py",
+      'def embedded_example():\n' + '    important literal payload, not executable source\n'.repeat(10) + '\n'.repeat(128) + '"""\nprint(payload)\n'],
+    ['cat-template-string', 'cat module.js', 'const data = `first\n' + '\n'.repeat(128)
+      + 'important literal payload, not executable source\n'.repeat(10) + 'last`;\nconsole.log(data);\n'],
+    ['sed-hash-lines-in-open-string', "sed -n '1,100p' module.py", '# data in an already-open string\n'.repeat(5) + '\n\n"""\ndef get():\n    return 1\n'.repeat(4)],
+    ['sed-significant-blank-lines', "sed -n '1,100p' module.py", 'payload = """first\n\n\n\nlast"""\n' + 'x = 1\n'.repeat(12)],
+    ['sed-js-comment-in-template', "sed -n '1,100p' module.js", 'const payload = `\n' + '// literal data\n'.repeat(5) + '\n\n`;\n' + 'console.log(payload);\n'.repeat(12)],
+  ] as const) add(id, command, raw, [raw])
+
+  // Progress-looking text can be application stdout: a tail window may have cut the capture header,
+  // and -s / --capture=no expose the program's own output.
+  const dots = '.'.repeat(100) + '\n'
+  add('pytest-captured-stdout-colored', 'pytest -rP -q tests/test_cli.py | tail -3',
+    '\u001b[32m' + dots.trimEnd() + '\u001b[0m\nimportant application output\n1 passed in 0.03s\n', [dots.trimEnd(), 'important application output', '1 passed in 0.03s'])
+  for (const [id, command, prefix] of [
+    ['pytest-window-captured-stdout', 'pytest -rP -q tests/test_cli.py | tail -10',
+      '==================== PASSES ====================\n---------------- Captured stdout call ----------------\n'],
+    ['pytest-window-cut-capture-header', 'pytest -rP -q tests/test_cli.py | tail -2', ''],
+    ['pytest-window-uncaptured-stdout', 'python -m pytest -s -q tests/test_cli.py 2>&1 | tail -10', ''],
+    ['pytest-window-capture-no', 'pytest --capture=no -q tests/test_cli.py | head -10', ''],
+  ] as const) add(id, command, prefix + dots + '1 passed in 0.03s\n', [dots, '1 passed in 0.03s'])
+
+  // Failure evidence: the failing test, its assertion and the summary survive.
+  add('pytest-failure', 'pytest -q', '..F.\n' + '='.repeat(20) + ' FAILURES ' + '='.repeat(20) + '\n____ test_retry ____\n\n    def test_retry():\n>       assert backoff(2) == 4\nE       assert 3 == 4\n\ntests/test_retry.py:7: AssertionError\n1 failed, 3 passed in 0.05s\n',
+    ['test_retry', 'E       assert 3 == 4', 'tests/test_retry.py:7: AssertionError', '1 failed, 3 passed'], 1)
+  add('node-test-failure', 'node --test', 'TAP version 13\n# Subtest: adds\nok 1 - adds\n# Subtest: retries\nnot ok 2 - retries\n  ---\n  error: \'expected 4, got 3\'\n  ...\n1..2\n# pass 1\n# fail 1\n',
+    ['not ok 2 - retries', "error: 'expected 4, got 3'", '# fail 1'], 1)
+  add('compiler-error', 'make', 'cc -c a.c\ncc -c b.c\nb.c:12:5: error: use of undeclared identifier \'retry\'\n    retry(3);\n    ^\n1 error generated.\nmake: *** [b.o] Error 1\n',
+    ["b.c:12:5: error: use of undeclared identifier 'retry'", 'make: *** [b.o] Error 1'], 2)
+  add('git-conflict', 'git status', 'On branch main\nYou have unmerged paths.\n\nUnmerged paths:\n\tboth modified:   src/retry.py\n',
+    ['You have unmerged paths.', 'both modified:   src/retry.py'])
+  return items
+}
+
+export interface RequirementResult { readonly id: string; readonly passed: boolean; readonly missing: readonly string[] }
+
+/** P(pi): each requirement's delivered text (the projection, or the original when the policy passes) keeps every fragment. */
+export function checkRequirements(policy: EconomyPolicy, requirements: readonly PreservationRequirement[], options: { minimumSavedTokens?: number } = {}): { passed: boolean; results: RequirementResult[] } {
+  const results = requirements.map(item => {
+    if (item.requiredFragments.length === 0 || item.requiredFragments.some(fragment => !item.result.rendered.includes(fragment))) {
+      throw new Error(`requirement ${item.id}: every fragment must occur in its output`)
+    }
+    const delivered = replayCase(policy, item, { minimumSavedTokens: options.minimumSavedTokens ?? 1 }).delivered
+    const missing = item.requiredFragments.filter(fragment => !delivered.includes(fragment))
+    return { id: item.id, passed: missing.length === 0, missing }
+  })
+  return { passed: results.every(result => result.passed), results }
+}
+
+export interface VerificationReport {
+  readonly accepted: boolean
+  readonly changeKind: 'safety-repair' | 'compression-improvement'
+  readonly parentHash: string | null
+  readonly candidateHash: string | null
+  readonly cases: number
+  /** Total tokens saved on the evidence, by the parent and by the candidate (weighted by occurrences). */
+  readonly parentSaving: number
+  readonly candidateSaving: number
+  readonly gainTokens: number
+  /** Observations the candidate saves less on. */
+  readonly regressions: readonly { id: string; command: string; parentSaving: number; saving: number }[]
+  /** Observations the candidate saves more on. */
+  readonly improved: number
+  readonly requirementFailures: readonly RequirementResult[]
+  /** Calls of learned rules that failed during replay, by rule. */
+  readonly ruleFailures: Readonly<Record<string, number>>
+  readonly reasons: readonly string[]
+}
+
+/**
+ * The acceptance rule. `parent` and `candidate` are learned rule sets
+ * (undefined: none); both run in front of the same built-in filters.
+ */
+export function verifyRules(options: {
+  parent: LearnedRuleSet | undefined
+  candidate: LearnedRuleSet | undefined
+  cases: readonly EvidenceCase[]
+  requirements?: readonly PreservationRequirement[]
+  filterOptions?: unknown
+  minimumSavedTokens?: number
+}): VerificationReport {
+  const requirements = options.requirements ?? defaultRequirements()
+  const parentPolicy = createPolicy(options.filterOptions, options.parent)
+  const candidatePolicy = createPolicy(options.filterOptions, options.candidate)
+  const replayOptions = { minimumSavedTokens: options.minimumSavedTokens ?? 16 }
+  const before = new Map(options.candidate?.failures ?? [])
+  let parentSaving = 0, candidateSaving = 0, improved = 0
+  const regressions: { id: string; command: string; parentSaving: number; saving: number }[] = []
+  for (const item of options.cases) {
+    const parentRow = replayCase(parentPolicy, item, replayOptions)
+    const row = replayCase(candidatePolicy, item, replayOptions)
+    parentSaving += parentRow.saving * item.occurrences
+    candidateSaving += row.saving * item.occurrences
+    if (row.saving < parentRow.saving) regressions.push({ id: item.id, command: item.result.command, parentSaving: parentRow.saving, saving: row.saving })
+    else if (row.saving > parentRow.saving) improved++
+  }
+  const parentSafety = checkRequirements(parentPolicy, requirements)
+  const safety = checkRequirements(candidatePolicy, requirements)
+  const ruleFailures: Record<string, number> = {}
+  for (const [rule, count] of options.candidate?.failures ?? []) {
+    const added = count - (before.get(rule) ?? 0)
+    if (added > 0) ruleFailures[rule] = added
+  }
+  const failed = Object.keys(ruleFailures).length > 0
+  const changed = (options.candidate?.hash ?? null) !== (options.parent?.hash ?? null)
+  const gain = candidateSaving - parentSaving
+  const repair = !parentSafety.passed && safety.passed
+  const accepted = changed && safety.passed && !failed && (repair || (gain > 0 && regressions.length === 0))
+  return {
+    accepted,
+    changeKind: repair ? 'safety-repair' : 'compression-improvement',
+    parentHash: options.parent?.hash ?? null,
+    candidateHash: options.candidate?.hash ?? null,
+    cases: options.cases.length,
+    parentSaving, candidateSaving, gainTokens: gain, regressions, improved,
+    requirementFailures: safety.results.filter(result => !result.passed),
+    ruleFailures,
+    reasons: [
+      !changed && 'unchanged',
+      !safety.passed && 'preservation-requirement-failed',
+      failed && 'rule-error',
+      !repair && gain <= 0 && 'no-incremental-token-gain',
+      !repair && regressions.length > 0 && 'replay-token-regression',
+    ].filter((reason): reason is string => typeof reason === 'string'),
+  }
+}

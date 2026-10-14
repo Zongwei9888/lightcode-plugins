@@ -4,6 +4,7 @@ import type { EconomyFilterName } from '@lightcode/core'
 import { FileArtifactStore } from '@lightcode/store'
 import { cliContext } from './context.ts'
 import { doctor, VERSION } from './doctor.ts'
+import { evolve, evolveCheck, evolveTry, rules } from './evolve.ts'
 import { hook } from './hook.ts'
 import { report } from './report.ts'
 import { run } from './run.ts'
@@ -19,6 +20,10 @@ Usage:
   lc show <sha256>                 print a saved original output
   lc gc [--days N]                 delete saved originals older than N days
   lc doctor [--json]               configuration and per-host capability negotiation
+  lc evolve --learner pi|dsh|claude|codex|"<command>" [--since 7d] [--max-cases N] [--timeout 30m] [--dry-run] [--json]
+                                   learn output rules from recorded evidence; adopt them only if verified
+  lc rules [list|show|path|off|rollback] [--json]
+                                   learned rules: what is adopted, switch off, go back
   lc --version
 
 Data: $LIGHTCODE_HOME or ~/.lightcode.  Disable: LIGHTCODE_DISABLE=1 or LIGHTCODE_ECONOMY=off.
@@ -87,6 +92,22 @@ export async function main(argv: string[]): Promise<number> {
       return 0
     }
     case 'doctor': return doctor({ json: rest.includes('--json') })
+    case 'evolve': {
+      if (rest[0] === 'check' || rest[0] === 'try') {
+        const { values, positionals } = parseArgs({ args: rest.slice(1), allowPositionals: true, options: { workspace: { type: 'string' }, json: { type: 'boolean' } } })
+        return rest[0] === 'check' ? evolveCheck(values.workspace, values.json === true) : evolveTry(values.workspace, positionals[0])
+      }
+      const { values } = parseArgs({ args: rest, options: {
+        learner: { type: 'string' }, profile: { type: 'string' }, since: { type: 'string' }, 'max-cases': { type: 'string' },
+        timeout: { type: 'string' }, 'dry-run': { type: 'boolean' }, json: { type: 'boolean' },
+      } })
+      const maxCases = values['max-cases'] === undefined ? undefined : Number(values['max-cases'])
+      if (maxCases !== undefined && (!Number.isSafeInteger(maxCases) || maxCases < 1)) { process.stderr.write('lc evolve: --max-cases must be a positive integer\n'); return 2 }
+      return evolve({ ...values.learner === undefined ? {} : { learner: values.learner }, ...values.profile === undefined ? {} : { profile: values.profile },
+        ...values.since === undefined ? {} : { since: values.since }, ...maxCases === undefined ? {} : { maxCases },
+        ...values.timeout === undefined ? {} : { timeout: values.timeout }, dryRun: values['dry-run'] === true, json: values.json === true })
+    }
+    case 'rules': return rules(rest.find(arg => !arg.startsWith('-')), rest.includes('--json'))
     case '--version': case '-v': case 'version': process.stdout.write(`${VERSION}\n`); return 0
     case undefined: case '--help': case '-h': case 'help': process.stdout.write(HELP); return 0
     default:

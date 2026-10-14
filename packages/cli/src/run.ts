@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process'
 import { basename } from 'node:path'
 import { constants } from 'node:os'
 import { EconomyEngine } from '@lightcode/mechanisms'
-import { collectDaily } from '@lightcode/store'
+import { RuleStore, collectDaily } from '@lightcode/store'
 import type { ShellResult } from '@lightcode/core'
 import { cliContext, shellQuote } from './context.ts'
 
@@ -123,7 +123,8 @@ function project(options: RunOptions, command: string, code: number | null, sign
   const store = context.writable()
   if (!store) return undefined
   const engine = new EconomyEngine({ host: options.host, journal: store.journal, artifacts: store.artifacts,
-    config: config.economy, mode: config.economy.mode, delivery: 'command-wrapper', streams: 'separate' })
+    config: config.economy, mode: config.economy.mode, delivery: 'command-wrapper', streams: 'separate',
+    learned: () => new RuleStore(context.dataDir).load() })
   const stdout = decode(order.filter(item => item.fd === 1).map(item => item.chunk))
   const stderr = decode(order.filter(item => item.fd === 2).map(item => item.chunk))
   // Binary output is never filtered, and neither is the other stream of the same command.

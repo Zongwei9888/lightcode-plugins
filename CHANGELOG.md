@@ -1,8 +1,34 @@
 # Changelog
 
-## 0.1.0 (unreleased)
+## 0.2.0 (unreleased)
 
-First open-source release line: Token Economy on several hosts.
+First open-source release line: Token Economy on several hosts, recoverable
+compaction (LightShadow) on pi and DeepSeek Harness, and self-evolving
+filters. (0.1.0 was never published; its contents are part of this release.)
+
+- LightShadow: when pi or DeepSeek Harness compacts, tool results in the
+  compacted span are saved and replaced by references with a 320-byte
+  excerpt; the host's own summarizer condenses the rest; the checkpoint keeps
+  the user's messages verbatim and lists the references; `lightcode_recall`
+  reads any of them again (exactly, or a window of up to 8 KB around a
+  string, or the complete original Economy shortened). A checkpoint that is
+  not smaller, or any failure, leaves the compaction to the host. On pi
+  through `session_before_compact` (references also stored in the compaction
+  entry); on DeepSeek Harness by wrapping `summarize` of each preset's
+  compaction engine, and the tool-result pruner keeps the complete text of
+  results it cuts. `lightshadow.mode`, `LIGHTCODE_LIGHTSHADOW`; `/lightcode`,
+  `lc report` and `lc doctor` report it.
+- Self-evolving filters: the engine keeps the original of every complete
+  shell output as evidence (`economy.evidence`), with its stream layout.
+  `lc evolve --learner pi|dsh|claude|codex|<command>` writes a workspace
+  with the most promising evidence, runs the learner, replays every recorded
+  observation with the current and the proposed rules plus a set of
+  preservation requirements, and adopts the proposal only if every
+  requirement holds, no rule fails, and the total saving grows with no
+  observation saving less. Learned rules run before the built-in filters, in
+  a sandboxed V8 context, and a result that drops a diagnostic line or has an
+  invalid source map is discarded. `lc rules` lists, shows, switches off and
+  rolls back adoptions; `economy.learnedRules` switches them off.
 
 - `@lightcode/core`: the deterministic output filters of the LightCode
   research runtime — 79 shell-output filters (16 hand-written, 63 from pinned

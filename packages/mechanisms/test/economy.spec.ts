@@ -57,14 +57,25 @@ describe('EconomyEngine', () => {
     expect(JSON.parse(artifacts.read(record.sourceMap!.sha256)!)).toMatchObject({ version: 1, sourceLength: raw.length })
     expect(record.projected!.sha256).toBe(sha256(output.text!))
   })
-  it('records passes without storing the original', () => {
+  it('keeps the original of a pass as evidence for lc evolve, unless evidence is off', () => {
     const { engine, records, artifacts } = setup()
-    expect(engine.process({ sessionId: null, callId: null, tool: 'bash', result: shell('my-tool', 'x\n'.repeat(500)) }).text).toBeUndefined()
-    expect(records[0]).toMatchObject({ outcome: 'passed', reason: 'no-filter-match', matchDetail: 'command-not-covered', raw: { stored: false } })
-    expect(artifacts.items.size).toBe(0)
+    const output = 'x\n'.repeat(500)
+    expect(engine.process({ sessionId: null, callId: null, tool: 'bash', result: shell('my-tool', output) }).text).toBeUndefined()
+    expect(records[0]).toMatchObject({ outcome: 'passed', reason: 'no-filter-match', matchDetail: 'command-not-covered', raw: { stored: true },
+      layout: { stdout: { start: 0, length: output.length } } })
+    expect(artifacts.read(sha256(output))).toBe(output)
+    const off = setup({ config: { ...DEFAULT_CONFIG.economy, evidence: false } })
+    off.engine.process({ sessionId: null, callId: null, tool: 'bash', result: shell('my-tool', output) })
+    expect(off.records[0]).toMatchObject({ outcome: 'passed', raw: { stored: false } })
+    expect(off.artifacts.items.size).toBe(0)
+    // A host tool's own result is no evidence (learned rules see shell output only).
+    const native = setup()
+    native.engine.process({ sessionId: 's', callId: 'd', tool: 'grep', command: 'grep {}', native: { rendered: 'No matches found', projection: undefined } })
+    expect(native.records[0]).toMatchObject({ raw: { stored: false } })
+    expect(native.records[0]).not.toHaveProperty('layout')
   })
   it('previews without changing the result in observe mode', () => {
-    const { engine, records, artifacts } = setup({ mode: 'observe' })
+    const { engine, records, artifacts } = setup({ mode: 'observe', config: { ...DEFAULT_CONFIG.economy, evidence: false } })
     expect(engine.process({ sessionId: 's', callId: 'c', tool: 'bash', result: shell('grep -rn value src', grep(200)) }).text).toBeUndefined()
     expect(records[0]).toMatchObject({ outcome: 'previewed', filter: 'grep' })
     expect(artifacts.items.size).toBe(0)

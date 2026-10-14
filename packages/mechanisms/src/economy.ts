@@ -1,5 +1,5 @@
 import { createPolicy, decideNativeProjection, decideShellProjection, ECONOMY_RUNTIME_VERSION, estimateTokens as defaultEstimate, rewriteCommand, sha256 } from '@lightcode/core'
-import type { EconomyPolicy, NativeResult, ShellResult, TokenEstimator } from '@lightcode/core'
+import type { EconomyPolicy, LearnedRuleSet, NativeResult, ShellResult, TokenEstimator } from '@lightcode/core'
 import type { ArtifactPort, EconomyFailure, EconomyRecord, JournalPort, TextMeasure } from '@lightcode/protocol'
 import type { EconomyConfig } from '@lightcode/store'
 
@@ -22,7 +22,12 @@ export interface EconomyEngineOptions {
   readonly now?: () => Date
   /** Diagnostics only. Errors never reach the host's tool result. */
   readonly onError?: (error: unknown) => void
+  /** The adopted learned rules, read when a session's policy is captured (see `loadActiveRules`). */
+  readonly learned?: () => LearnedRuleSet | undefined
 }
+
+/** Originals larger than this are not kept as evidence (projections always keep theirs). */
+const MAX_EVIDENCE_BYTES = 1_048_576
 
 export interface EconomyRequest {
   readonly sessionId: string | null
@@ -64,7 +69,11 @@ export class EconomyEngine {
     const key = sessionId ?? ''
     let policy = this.policies.get(key)
     if (!policy) {
-      policy = createPolicy(this.options.config.filterOptions)
+      let learned: LearnedRuleSet | undefined
+      if (this.options.config.learnedRules !== false) {
+        try { learned = this.options.learned?.() } catch (error) { this.options.onError?.(error) }
+      }
+      policy = createPolicy(this.options.config.filterOptions, learned)
       this.policies.set(key, policy)
       if (this.policies.size > 256) this.policies.delete(this.policies.keys().next().value!)
     }
@@ -84,36 +93,59 @@ export class EconomyEngine {
     const estimate = options.estimateTokens ?? defaultEstimate
     const measure = (text: string): TextMeasure => ({ sha256: sha256(text), bytes: Buffer.byteLength(text, 'utf8'), tokens: estimate(text) })
     let policyHash = 'unavailable'
+    let learnedRulesHash: string | null = null
+    const layout = shell && typeof shell.rendered === 'string' && typeof shell.stdout?.text === 'string' ? {
+      stdout: { start: shell.stdout.start, length: shell.stdout.text.length },
+      ...shell.stderr && typeof shell.stderr.text === 'string' ? { stderr: { start: shell.stderr.start, length: shell.stderr.text.length } } : {},
+      ...shell.truncated ? { truncated: true as const } : {}, ...shell.interrupted ? { interrupted: true as const } : {},
+    } : undefined
     const base = () => ({
       schemaVersion: 1 as const, type: 'economy/decision' as const, time: (options.now?.() ?? new Date()).toISOString(),
       host: options.host, sessionId: request.sessionId, callId: request.callId, tool: request.tool,
       command: (native ? native.command : shell?.command) ?? '', exitCode: shell !== undefined && Number.isSafeInteger(shell.exitCode) ? shell.exitCode : null,
       delivery: options.delivery, streams: options.streams, mode: options.mode, runtimeVersion: ECONOMY_RUNTIME_VERSION, policyHash,
+      ...learnedRulesHash ? { learnedRulesHash } : {}, ...layout ? { layout } : {},
     })
+    /** The original as evidence for `lc evolve`: shell output only, when kept. */
+    const evidence = (): TextMeasure & { stored: boolean } => {
+      const measured = measure(rendered)
+      if (!shell || options.config.evidence === false || measured.bytes > MAX_EVIDENCE_BYTES || rendered === '') return { ...measured, stored: false }
+      try {
+        options.artifacts.save(rendered)
+        return { ...measured, stored: true }
+      } catch (error) {
+        options.onError?.(error)
+        return { ...measured, stored: false }
+      }
+    }
     try {
       const policy = this.policyFor(request.sessionId)
       policyHash = policy.policyHash
+      learnedRulesHash = policy.learnedRulesHash
       const decisionOptions = { policy, minimumSavedTokens: options.config.minimumSavedTokens, estimateTokens: estimate }
       const decision = native ? decideNativeProjection(native.native, decisionOptions) : decideShellProjection(shell!, decisionOptions)
       if (decision.kind === 'pass') {
         const record: EconomyRecord = { ...base(), outcome: 'passed', reason: decision.reason,
           ...decision.matchDetail === undefined ? {} : { matchDetail: decision.matchDetail },
           ...decision.filter === undefined ? {} : { filter: decision.filter },
+          ...decision.rule === undefined ? {} : { rule: decision.rule },
           ...decision.transformation === undefined ? {} : { transformation: decision.transformation },
-          raw: { ...measure(rendered), stored: false } }
+          raw: evidence() }
         this.append(record)
         return { record }
       }
-      const identity = { filter: decision.filter, transformation: decision.transformation, stream: decision.stream }
+      const identity = { filter: decision.filter, ...decision.rule === undefined ? {} : { rule: decision.rule },
+        transformation: decision.transformation, stream: decision.stream }
       if (options.maxProjectedChars !== undefined && decision.text.length > options.maxProjectedChars) {
         const record: EconomyRecord = { ...base(), outcome: 'passed', reason: 'over-host-inline-limit', filter: decision.filter,
-          transformation: decision.transformation, raw: { ...measure(rendered), stored: false }, projected: measure(decision.text) }
+          ...decision.rule === undefined ? {} : { rule: decision.rule },
+          transformation: decision.transformation, raw: evidence(), projected: measure(decision.text) }
         this.append(record)
         return { record }
       }
       if (options.mode === 'observe') {
         const record: EconomyRecord = { ...base(), outcome: 'previewed', ...identity,
-          raw: { ...measure(rendered), stored: false }, projected: measure(decision.text) }
+          raw: evidence(), projected: measure(decision.text) }
         this.append(record)
         return { record }
       }

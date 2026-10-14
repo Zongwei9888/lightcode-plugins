@@ -8,7 +8,7 @@ import { EconomyEngine, collectSubagents, describeToolCall, formatTokens, record
 import type { EconomySummary } from '@lightcode/mechanisms'
 import { HOST_PROFILES, V0_2_SPECS, negotiate } from '@lightcode/protocol'
 import type { ArtifactPort, JournalPort, JournalRecord, MechanismMode, Negotiation } from '@lightcode/protocol'
-import { FileArtifactStore, FileJournal, collectDaily, dataDirs, loadConfig, readJournals, resolveDataDir, writableDataDir } from '@lightcode/store'
+import { FileArtifactStore, FileJournal, RuleStore, collectDaily, dataDirs, loadConfig, readJournals, resolveDataDir, writableDataDir } from '@lightcode/store'
 import type { LoadedConfig } from '@lightcode/store'
 import { bashShellResult } from './bash.ts'
 import { NATIVE_TOOLS, nativeResult } from './native.ts'
@@ -27,6 +27,14 @@ const MAX_WARNINGS = 32
  * under that line, or the spill file would hold a sample instead of the original.
  */
 export const INLINE_LIMIT_CHARS = 48_000
+
+/** The learned rules new sessions use, for `/lightcode`. */
+function learnedRulesLine(store: RuleStore, enabled: boolean): string {
+  const active = store.state().active
+  if (!active) return 'Learned rules: none (lc evolve learns them from your sessions).'
+  const set = store.load()
+  return `Learned rules: ${active.slice(0, 12)}, ${set ? `${set.rules.length} rule${set.rules.length === 1 ? '' : 's'}` : 'not loadable'}${enabled ? '' : ' (off: economy.learnedRules is false)'}.`
+}
 
 export interface DshEconomyOptions {
   /** The plugin's live `mode` setting: a ceiling that can only lower LightCode's own configuration. */
@@ -82,6 +90,7 @@ export function createDshEconomy(options: DshEconomyOptions): DshEconomy {
     }
     return store
   }
+  const ruleStore = new RuleStore(configDir)
   const sessions = new Map<string, SessionState>()
   const warned = new Set<string>()
   const warn = (message: string) => {
@@ -125,7 +134,8 @@ export function createDshEconomy(options: DshEconomyOptions): DshEconomy {
       const { journal, artifacts } = storage()
       engine = new EconomyEngine({ host: HOST, journal, artifacts, config: state.loaded.config.economy, mode,
         maxProjectedChars: options.inlineLimitChars ?? INLINE_LIMIT_CHARS,
-        delivery: 'in-process', streams: 'separate', onError: error => warn(`LightCode: ${String(error)}; delivering the original output`) })
+        delivery: 'in-process', streams: 'separate', onError: error => warn(`LightCode: ${String(error)}; delivering the original output`),
+        learned: () => ruleStore.load(error => warn(`LightCode: learned rules not loaded: ${String(error)}`)) })
       state.engines.set(mode, engine)
     }
     return engine
@@ -231,6 +241,7 @@ export function createDshEconomy(options: DshEconomyOptions): DshEconomy {
         ...negotiateFor(loaded).map(item => `${item.mechanism}: ${item.mode} (${item.reason})`),
         ...loaded.problems.map(problem => `config problem: ${problem}`),
         ...api.extraReport?.(session.id) ?? [],
+        learnedRulesLine(ruleStore, loaded.config.economy.learnedRules),
         `Originals are kept in ${store?.dataDir ?? configDir}.`,
       ]
       return lines.join('\n')
