@@ -24,8 +24,23 @@ function terminal(name, { cwd, env, command }) {
   const started = tmux('new-session', '-d', '-s', name, '-x', '160', '-y', '45', '-c', cwd, ...vars, ...command)
   assert.equal(started.status, 0, started.stderr)
   const screen = () => tmux('capture-pane', '-t', name, '-p', '-S', '-300').stdout
+  /** What is on the screen now, without the scrollback. */
+  const visible = () => tmux('capture-pane', '-t', name, '-p').stdout
   return {
     screen,
+    visible,
+    /** Close the /lightcode panel and wait until it is gone: tmux may join a lone Escape with the next key. */
+    closePanel: async () => {
+      for (let attempt = 0; attempt < 5; attempt++) {
+        tmux('send-keys', '-t', name, 'Escape')
+        const deadline = Date.now() + 2000
+        while (Date.now() < deadline) {
+          if (!visible().includes('◆ LightCode')) return
+          await new Promise(resolve => setTimeout(resolve, 100))
+        }
+      }
+      throw new Error(`pi TUI: the panel did not close\n${visible()}`)
+    },
     keys: (...keys) => tmux('send-keys', '-t', name, ...keys),
     waitFor: async (pattern, what, timeoutMs = 60_000) => {
       const deadline = Date.now() + timeoutMs
@@ -94,8 +109,7 @@ export async function runPiTui({ cache, root, registry, log }) {
       session.keys('Enter')
       await session.waitFor(/◆ LightCode[\s\S]*THIS SESSION[\s\S]*Economy +3 of 4 outputs filtered[\s\S]*SELF-EVOLUTION[\s\S]*l learn now/, 'the /lightcode panel')
       keep('01-panel')
-      session.keys('Escape')
-      await new Promise(resolve => setTimeout(resolve, 500))
+      await session.closePanel()
       session.keys('/lightcode status', 'Enter')
       await session.waitFor(/LightCode Economy: 3 outputs filtered, ~\S+ tokens saved, 1 passed unchanged/, 'the /lightcode status report')
       log(`pi ${version} TUI: status bar ✓ /lightcode panel ✓ /lightcode status ✓`)
@@ -128,7 +142,7 @@ export async function runPiTui({ cache, root, registry, log }) {
       await session.waitFor(/Last run +✓ adopted rule link-progress/, 'the adoption in the panel', 240_000)
       await session.waitFor(/• link-progress/, 'the learned rule in the panel')
       keep('05-panel-adopted')
-      session.keys('Escape')
+      await session.closePanel()
       await session.waitFor(/LightCode learning adopted rule link-progress/, 'the adoption notice')
       keep('06-notice')
       const status = JSON.parse(readFileSync(join(lightcodeHome, 'evolve', 'status.json'), 'utf8'))

@@ -401,6 +401,7 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
                 const started = startLearning(ctx)
                 panel.message = { tone: started.ok ? 'success' : 'error', text: started.ok ? 'Learning started in the background. You can close this and keep working.' : started.text }
               } else if (action === 'rollback') panel.message = { tone: 'success', text: rulesAction('rollback') }
+              else if (action === 'off') panel.message = { tone: 'success', text: rulesAction('off') }
               refresh(true)
               return
             }
@@ -409,7 +410,9 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
             if (key === 'learn' && !running && 'label' in data.learner) panel.confirming = 'learn'
             else if (key === 'cancel' && running) panel.message = cancelEvolution(configDir) ? { tone: 'warning', text: 'Stopping the learning run…' } : { tone: 'error', text: 'No learning run to stop.' }
             else if (key === 'rollback' && data.evolve.rules.active) panel.confirming = 'rollback'
-            else if (key === 'toggle' && (data.evolve.rules.active || data.evolve.rules.history > 0)) panel.message = { tone: 'success', text: rulesAction(data.evolve.rules.active ? 'off' : 'on') }
+            // Switching off asks first (as rolling back does); switching back on is one key.
+            else if (key === 'toggle' && data.evolve.rules.active) panel.confirming = 'off'
+            else if (key === 'toggle' && data.evolve.rules.history > 0) panel.message = { tone: 'success', text: rulesAction('on') }
             refresh(key === 'toggle')
           },
           dispose: () => clearInterval(timer),

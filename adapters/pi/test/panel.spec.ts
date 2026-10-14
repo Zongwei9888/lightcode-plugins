@@ -70,6 +70,9 @@ describe('the /lightcode panel', () => {
 
   it('asks before learning or rolling back, and says why it cannot learn', () => {
     expect(renderPanel(data({}), { confirming: 'learn' }, 100, plain).join('\n')).toContain('Learn with pi · deepseek-v4-pro?')
+    expect(renderPanel(data({}), { confirming: 'off' }, 100, plain).join('\n')).toContain('Switch learned rules off?')
+    // Anything but y or n while asking is ignored, so stray typing cannot act.
+    for (const key of ['o', 'r', 'l', 'c', 'x']) expect(panelKey(key, { confirming: 'off' })).toBeUndefined()
     expect(panelKey('y', { confirming: 'learn' })).toBe('confirm')
     expect(panelKey('\x1b', { confirming: 'learn' })).toBe('back')
     expect(panelKey('l', {})).toBe('learn')

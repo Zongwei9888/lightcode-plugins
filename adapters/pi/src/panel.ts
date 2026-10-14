@@ -31,7 +31,7 @@ export interface PanelData {
 export type PanelAction = 'learn' | 'cancel' | 'rollback' | 'toggle'
 export interface PanelState {
   /** An action waiting for y/n. */
-  confirming?: 'learn' | 'rollback'
+  confirming?: 'learn' | 'rollback' | 'off'
   message?: { readonly tone: 'success' | 'warning' | 'error'; readonly text: string }
 }
 
@@ -184,6 +184,9 @@ export function renderPanel(data: PanelData, state: PanelState, width: number, t
     row(t.fg('text', `Learn with ${t.bold(data.learner.label)}? It reads up to 40 recorded outputs from this machine,`))
     row(t.fg('text', 'sends them to that model\'s provider, and stops after 20 min. Rules are adopted only if verified.'))
     row(`${t.bold(t.fg('accent', 'y'))} ${t.fg('muted', 'start')}   ${t.bold(t.fg('accent', 'n'))} ${t.fg('muted', 'back')}`)
+  } else if (state.confirming === 'off') {
+    row(t.fg('text', 'Switch learned rules off? Output is filtered by the built-in filters only until you switch them on again.'))
+    row(`${t.bold(t.fg('accent', 'y'))} ${t.fg('muted', 'switch off')}   ${t.bold(t.fg('accent', 'n'))} ${t.fg('muted', 'back')}`)
   } else if (state.confirming === 'rollback') {
     row(t.fg('text', 'Go back to the rules in use before the last adoption?'))
     row(`${t.bold(t.fg('accent', 'y'))} ${t.fg('muted', 'roll back')}   ${t.bold(t.fg('accent', 'n'))} ${t.fg('muted', 'back')}`)
