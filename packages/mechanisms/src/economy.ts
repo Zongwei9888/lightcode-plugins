@@ -22,7 +22,7 @@ export interface EconomyEngineOptions {
   readonly now?: () => Date
   /** Diagnostics only. Errors never reach the host's tool result. */
   readonly onError?: (error: unknown) => void
-  /** The adopted learned rules, read when a session's policy is captured (see `loadActiveRules`). */
+  /** The adopted learned rules; read at every decision, so it should be cheap (RuleStore.load caches by active.json). */
   readonly learned?: () => LearnedRuleSet | undefined
 }
 
@@ -73,16 +73,22 @@ export class EconomyEngine {
     this.options = options
   }
 
-  /** One policy per session, captured at its first decision. */
+  /**
+   * One policy per session, captured at its first decision and renewed when
+   * the adopted learned rules change (an adoption, rollback or switch-off
+   * reaches running sessions from their next output on; outputs already
+   * delivered keep what they were given).
+   */
   policyFor(sessionId: string | null): EconomyPolicy {
     const key = sessionId ?? ''
+    let learned: LearnedRuleSet | undefined
+    if (this.options.config.learnedRules !== false) {
+      try { learned = this.options.learned?.() } catch (error) { this.options.onError?.(error) }
+    }
     let policy = this.policies.get(key)
-    if (!policy) {
-      let learned: LearnedRuleSet | undefined
-      if (this.options.config.learnedRules !== false) {
-        try { learned = this.options.learned?.() } catch (error) { this.options.onError?.(error) }
-      }
+    if (!policy || policy.learnedRulesHash !== (learned?.hash ?? null)) {
       policy = createPolicy(this.options.config.filterOptions, learned)
+      this.policies.delete(key)
       this.policies.set(key, policy)
       if (this.policies.size > 256) this.policies.delete(this.policies.keys().next().value!)
     }

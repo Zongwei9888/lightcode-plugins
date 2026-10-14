@@ -35,3 +35,34 @@ export function adoptRules(lightcodeHome, files = BUILD_RULE_FILES) {
     history: [{ hash, parent: null, adoptedAt: new Date().toISOString(), rules: 1 }] }), { mode: 0o600 })
   return hash
 }
+
+/** Linker progress no filter knows; each run differs (a counter), so the learner sees some runs and the checker holds others back. */
+export function writeLinkScript(dir) {
+  writeFileSync(join(dir, 'link.sh'), `#!/bin/sh
+n=$(cat .link-runs 2>/dev/null || echo 0); n=$((n + 1)); echo $n > .link-runs
+i=1
+while [ $i -le 150 ]; do printf '[%3d/150] Linking target_%d (run %d)\\n' $i $i $n; i=$((i + 1)); done
+echo "Linked 150 targets"
+`)
+  chmodSync(join(dir, 'link.sh'), 0o755)
+}
+
+/**
+ * What a learner does in its workspace: keep the rules it was given (already
+ * in rules-work), add one for the linker progress, run ./check.
+ */
+export function linkLearnerCommand(kept = []) {
+  const entries = [...kept, 'link-progress'].map(id => `{ "id": "${id}", "file": "rules/${id}.js", "transformation": "noise-removal" }`).join(',\n  ')
+  return `mkdir -p rules-work/rules
+cat > rules-work/rules/link-progress.js <<'JS'
+defineRule({ project(input, lc) {
+  if (!input.argv || input.argv[0] !== './link.sh') return null
+  return lc.keepLines(input.raw, line => !/^\\[\\s*\\d+\\/\\d+\\] Linking /.test(line.text), n => '[' + n + ' link progress lines omitted]\\n')
+} })
+JS
+cat > rules-work/index.json <<'JSON'
+{ "schemaVersion": 1, "rules": [
+  ${entries} ] }
+JSON
+./check`
+}

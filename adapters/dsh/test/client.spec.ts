@@ -28,7 +28,9 @@ class FakeFormModel {
 
 const modules: Record<string, unknown> = {
   'react/jsx-runtime': { jsx: element, jsxs: element },
-  '@deepseek-ai/dsh-client-ui-primitives': { SettingsFormModel: FakeFormModel, SettingsForm: 'SettingsForm', SegmentedControl: 'SegmentedControl', Tag: 'Tag' },
+  'react': { useState: (initial: unknown) => [typeof initial === 'function' ? (initial as () => unknown)() : initial, () => {}], useEffect: () => {}, useRef: (current: unknown) => ({ current }) },
+  '@deepseek-ai/dsh-client-ui-primitives': { SettingsFormModel: FakeFormModel, SettingsForm: 'SettingsForm', SegmentedControl: 'SegmentedControl', Tag: 'Tag',
+    Button: 'Button', StateDot: 'StateDot', Switch: 'Switch', TextShimmer: 'TextShimmer', Toast: 'Toast' },
 }
 
 function load() {
@@ -66,7 +68,7 @@ describe('DSH browser half', () => {
     expect(id).toBe('@lightcode/dsh')
     expect(exports.inject).toEqual(['slots', 'locale', 'configForms'])
     expect(typeof exports.apply).toBe('function')
-    expect([...new Set(requested)].sort()).toEqual(['@deepseek-ai/dsh-client-ui-primitives', 'react/jsx-runtime'])
+    expect([...new Set(requested)].sort()).toEqual(['@deepseek-ai/dsh-client-ui-primitives', 'react', 'react/jsx-runtime'])
   })
   it('puts the mode form on the bundle page while the Host serves the lightcode entry', () => {
     const mounted = mount()
@@ -74,8 +76,11 @@ describe('DSH browser half', () => {
     expect(FakeFormModel.last!.scope).toEqual({ ns: 'lightcode' })
     expect(mounted.registrations).toHaveLength(0)
     mounted.serve()
-    expect(mounted.registrations).toHaveLength(1)
-    expect(mounted.registrations[0]!.options).toMatchObject({ name: 'plugins.bundle.config', key: '@lightcode/dsh', locale: 'lightcode.settings' })
+    expect(mounted.registrations.map(item => item.options)).toEqual([
+      expect.objectContaining({ name: 'plugins.bundle.config', key: '@lightcode/dsh', locale: 'lightcode.settings' }),
+      { name: 'plugins.detail.section', id: 'lightcode.evolve', order: 10, locale: 'lightcode.settings' },
+      { name: 'shell.overlay', id: 'lightcode.evolve-toast', order: 50, locale: 'lightcode.settings' },
+    ])
     expect(Object.keys(mounted.dictionaries['lightcode.settings']!).sort()).toEqual(['en', 'zh'])
     expect(Object.keys(mounted.dictionaries['lightcode.settings']!.zh!).sort()).toEqual(Object.keys(mounted.dictionaries['lightcode.settings']!.en!).sort())
   })

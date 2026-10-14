@@ -119,8 +119,15 @@ so forks and resumes keep them; DSH from the journal).
 
 ## Self-evolution
 
-`lc evolve` performs one step pi_{k+1} = Verify(Propose(pi_k, E_k)) over the
-learned rules, which run in front of the fixed built-in filters.
+`lc evolve`, the pi panel and the DSH Plugins page perform one step
+pi_{k+1} = Verify(Propose(pi_k, E_k)) over the learned rules, which run in
+front of the fixed built-in filters. The step is `runEvolution` in
+`@lightcode/mechanisms` (learning.ts); the plugins start it through their
+bundled runner (`evolve.js`) as a detached process, under a lock shared by all
+hosts, and read its progress from `~/.lightcode/evolve/status.json`. The same
+runner refreshes `scan.json` (what is worth learning, and each learned rule's
+use) and applies the in-use monitor, which switches off a rule whose original
+the agent keeps recalling.
 
 - **Evidence.** With `economy.evidence` on (default), the engine saves the
   original of every complete shell output, not only projected ones, and the
@@ -145,11 +152,15 @@ learned rules, which run in front of the fixed built-in filters.
   decision with the parent and the candidate set, and the preservation
   requirements are checked. Accept iff the rules changed, every requirement
   holds, no rule failed, and either a violated requirement is repaired or
-  the total saving grows with no observation saving less.
+  the total saving grows with no observation saving less and, for the
+  commands the candidate improved on the cases the learner saw, it also saves
+  more on the cases of those commands held back from it (at least 30% of each
+  command's cases are held back).
 - **Adopt.** Accepted directories are installed read-only under
   `~/.lightcode/rules/<sha256>` and named in `rules/active.json` with their
-  parent; a session pins the set active when its policy is captured, and
-  the set's hash is part of the policy hash and every decision record.
+  parent; engines reload the set whenever `active.json` changes (so running
+  sessions pick up an adoption from their next output on), and the set's
+  hash is part of every decision record.
 
 ## Packaging
 

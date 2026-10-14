@@ -132,9 +132,12 @@ describe('lc evolve', () => {
     expect(lc(['evolve'], { home }).err).toContain('choose a learner')
     expect(lc(['evolve', '--learner', 'true', '--since', 'yesterday'], { home }).status).toBe(2)
     // Each run keeps its workspace, learner log and verdict for inspection.
-    const runs = readdirSync(join(home, 'evolve'))
+    const runs = readdirSync(join(home, 'evolve'), { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => entry.name).sort()
     expect(runs.length).toBeGreaterThanOrEqual(1)
     expect(readdirSync(join(home, 'evolve', runs.at(-1)!)).sort()).toEqual(['checker.json', 'feedback.json', 'learner.log', 'workspace'])
+    // The status the hosts' interfaces read: the last run, finished, and a history of runs.
+    expect(JSON.parse(readFileSync(join(home, 'evolve', 'status.json'), 'utf8'))).toMatchObject({ host: 'cli', phase: 'done', outcome: { result: 'failed' } })
+    expect(readFileSync(join(home, 'evolve', 'history.jsonl'), 'utf8').trim().split('\n').length).toBeGreaterThanOrEqual(2)
   }, 60_000)
 
   it('verifies against its own record of the evidence, and stops whatever the learner left running', () => {

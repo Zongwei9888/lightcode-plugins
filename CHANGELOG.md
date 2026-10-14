@@ -29,6 +29,26 @@ filters. (0.1.0 was never published; its contents are part of this release.)
   a sandboxed V8 context, and a result that drops a diagnostic line or has an
   invalid source map is discarded. `lc rules` lists, shows, switches off and
   rolls back adoptions; `economy.learnedRules` switches them off.
+- Learning from the hosts' own interfaces. pi: `/lightcode` opens a panel
+  (savings, learned rules and their use, commands worth learning from, a run
+  in progress; `l` learn, `c` cancel, `r` roll back, `o` off/on), the status
+  bar follows a run, and pi announces its result; the learner is pi on the
+  session's model. DeepSeek Harness: a *Self-evolution* section on the
+  plugin's Plugins page (Web and Desktop) with **Learn now**, live progress,
+  the learned rules with a switch and **Roll back**, and a toast when a run
+  ends; the learner is DSH headless on the default model and the profile's
+  providers. Both run learning as a separate process (one at a time across
+  hosts, 20 minutes at most, cancellable); running sessions use adopted rules
+  from their next output on. `/lightcode learn | cancel | rules | rollback |
+  off | on` on both hosts.
+- Verification holds observations back: the learner sees at most 70% of each
+  command's observations, and a proposal whose improved commands save
+  nothing more on the held-back ones is rejected (`did-not-generalize`).
+- In-use monitor: a learned rule whose original the agent asks
+  `lightcode_recall` for 3 times and in at least 1 of 5 uses is switched off
+  (an adoption that can be rolled back), and the next learner is told.
+- Switching learned rules back on restores the ones in use when they were
+  switched off.
 
 - `@lightcode/core`: the deterministic output filters of the LightCode
   research runtime — 79 shell-output filters (16 hand-written, 63 from pinned

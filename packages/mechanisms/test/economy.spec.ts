@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { nativeGrepRecords, sha256 } from '@lightcode/core'
+import { compileLearnedRules, nativeGrepRecords, sha256 } from '@lightcode/core'
+import type { LearnedRuleSet } from '@lightcode/core'
 import type { ArtifactPort, ArtifactRef, EconomyRecord, JournalRecord } from '@lightcode/protocol'
 import { DEFAULT_CONFIG } from '@lightcode/store'
 import { EconomyEngine, normalizeShellCommand, summarizeEconomy } from '../src/index.ts'
@@ -28,6 +29,25 @@ function setup(overrides: Partial<EconomyEngineOptions> = {}) {
 }
 
 describe('EconomyEngine', () => {
+  it('a running session takes up adopted learned rules from its next output, and lets them go when they are switched off', () => {
+    const progress = Array.from({ length: 80 }, (_, i) => `[${i + 1}/80] Linking t${i}`).join('\n') + '\nLinked\n'
+    const rules = compileLearnedRules([
+      { path: 'index.json', text: JSON.stringify({ schemaVersion: 1, rules: [{ id: 'link', file: 'rules/link.js' }] }) },
+      { path: 'rules/link.js', text: "defineRule({ project(input, lc) { return input.argv && input.argv[0] === './link.sh' ? lc.keepLines(input.raw, line => !/^\\[\\d+\\/\\d+\\] Linking /.test(line.text), n => '[' + n + ' link lines omitted]\\n') : null } })" },
+    ])
+    let active: LearnedRuleSet | undefined
+    const { engine, records } = setup({ learned: () => active })
+    try {
+      const run = (callId: string) => engine.process({ sessionId: 's', callId, tool: 'bash', result: shell('./link.sh', progress) })
+      expect(run('c1').text).toBeUndefined()
+      active = rules
+      expect(run('c2').text).toBe('Linked\n[80 link lines omitted]\n')
+      expect(records.at(-1)).toMatchObject({ outcome: 'projected', rule: 'link', learnedRulesHash: rules.hash })
+      active = undefined
+      expect(run('c3').text).toBeUndefined()
+    } finally { rules.dispose() }
+  })
+
   it('runs a host tool\'s own result through the same save, journal and admission', () => {
     const { engine, records, artifacts } = setup()
     const rendered = Array.from({ length: 40 }, (_, i) => `packages/app/src/module.ts:${i + 1}: const value${i} = ${i}`).join('\n')

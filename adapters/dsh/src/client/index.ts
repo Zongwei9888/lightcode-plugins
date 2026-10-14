@@ -1,6 +1,7 @@
 /**
  * LightCode for DeepSeek Harness, browser half: the `mode` setting on the
- * bundle's page in Plugins. It edits the live `mode` field of the `lightcode`
+ * bundle's page in Plugins, the self-evolution section below it (./evolve.ts)
+ * and a toast when a learning run ends. It edits the live `mode` field of the `lightcode`
  * profile entry through the Web client's shared configuration form, so a save
  * applies to the next tool result without a restart. The page exists while
  * the Host serves that entry, i.e. while the bundle is switched on.
@@ -10,6 +11,7 @@ import type { SnapshotStore } from '@deepseek-ai/dsh-client-ui-primitives'
 import { en, zh } from './locales.ts'
 import type { Copy } from './locales.ts'
 import { MODE_FIELD } from './mode.ts'
+import { EvolveSection, EvolveToast } from './evolve.ts'
 import { LightCodeConfig } from './page.ts'
 import type { ConfigState } from './page.ts'
 
@@ -38,10 +40,18 @@ export function apply(ctx: ClientContext): void {
   const form = new SettingsFormModel<unknown>(ctx.configForms.get(ENTRY), [MODE_FIELD])
   const store: SnapshotStore<ConfigState> = form.bind(() => ({ ...form.shell(), mode: form.field('mode') }))
   ctx.effect(() => () => form.dispose(), 'lightcode: form subscription')
-  ctx.effect(() => ctx.configForms.whileServed([ENTRY], () => ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({
-    name: 'plugins.bundle.config',
-    key: PACKAGE,
-    locale: NS,
-    inject: () => ({ hooks: { lightcodeConfig: store }, ...form.actions() }),
-  }, LightCodeConfig))), 'lightcode: plugin page')
+  ctx.effect(() => ctx.configForms.whileServed([ENTRY], () => {
+    const disposers = [
+      ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({
+        name: 'plugins.bundle.config',
+        key: PACKAGE,
+        locale: NS,
+        inject: () => ({ hooks: { lightcodeConfig: store }, ...form.actions() }),
+      }, LightCodeConfig)),
+      // Self-evolution: a section on this bundle's page, and a toast anywhere when a run ends.
+      ctx.slots.inject('plugins.detail.section', () => ctx.slots.register({ name: 'plugins.detail.section', id: 'lightcode.evolve', order: 10, locale: NS }, EvolveSection)),
+      ctx.slots.inject('shell.overlay', () => ctx.slots.register({ name: 'shell.overlay', id: 'lightcode.evolve-toast', order: 50, locale: NS }, EvolveToast)),
+    ]
+    return () => { for (const dispose of disposers.reverse()) dispose() }
+  }), 'lightcode: plugin page')
 }

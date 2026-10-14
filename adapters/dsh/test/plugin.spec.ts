@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { Config, apply, inject, name } from '../src/index.ts'
-import type { CommandRuntime, HostContext, PostToolDecision, ToolExecution, ToolExecutionResult } from '../src/host.ts'
+import type { CommandRuntime, ConnectionRuntime, HostContext, PostToolDecision, ToolExecution, ToolExecutionResult } from '../src/host.ts'
 import { bashResult, pytestOutput } from './render.ts'
 
 let home: string
@@ -24,6 +24,7 @@ function fakeContext() {
   const commands: Parameters<CommandRuntime['register']>[0][] = []
   const disposers: (() => void)[] = []
   const warnings: string[] = []
+  const routes: Parameters<ConnectionRuntime['fetch']['register']>[0][] = []
   const ctx: HostContext = {
     on: ((event: string, listener: (...args: any[]) => unknown, options?: unknown) => {
       if (event === 'tools/post-execute') listeners.push({ listener: listener as Listener })
@@ -32,13 +33,14 @@ function fakeContext() {
     }) as HostContext['on'],
     tools: { register: definition => { tools.push(definition); return () => {} } },
     inject: (deps, callback) => {
-      expect(deps).toEqual(['commands'])
-      callback({ ...ctx, commands: { register: definition => { commands.push(definition); return () => {} } } })
+      expect([['commands'], ['connection']]).toContainEqual(deps)
+      callback({ ...ctx, commands: { register: definition => { commands.push(definition); return () => {} } },
+        connection: { fetch: { register: route => { routes.push(route); return async () => {} } } } })
     },
     effect: execute => { disposers.push(execute()) },
     logger: { warn: message => warnings.push(message), info: () => {} },
   }
-  return { ctx, listeners, others, tools, commands, disposers, warnings }
+  return { ctx, listeners, others, tools, commands, disposers, warnings, routes }
 }
 
 const live = <T>(value: T) => ({ get: () => value })

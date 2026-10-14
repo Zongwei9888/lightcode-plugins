@@ -89,8 +89,11 @@ await Promise.all([
     external: ['@earendil-works/*', 'typebox'] }),
   bundleNode({ entry: 'adapters/dsh/src/index.ts', outfile: 'adapters/dsh/lib/index.js', name: '@lightcode/dsh',
     external: ['@deepseek-ai/*'] }),
+  // The learning runner each plugin starts as its own process.
+  bundleNode({ entry: 'adapters/pi/src/evolve.ts', outfile: 'adapters/pi/dist/evolve.js', name: '@lightcode/pi (learning runner)', external: [] }),
+  bundleNode({ entry: 'adapters/dsh/src/evolve.ts', outfile: 'adapters/dsh/lib/evolve.js', name: '@lightcode/dsh (learning runner)', external: [] }),
   bundleNode({ entry: 'packages/cli/src/main.ts', outfile: 'packages/cli/dist/lc.js', name: '@lightcode/cli',
     external: [], executable: true }),
   bundleDshClient(),
 ])
-console.log('bundled @lightcode/pi, @lightcode/dsh (Host and browser halves) and @lightcode/cli')
+console.log('bundled @lightcode/pi, @lightcode/dsh (Host and browser halves), their learning runners and @lightcode/cli')

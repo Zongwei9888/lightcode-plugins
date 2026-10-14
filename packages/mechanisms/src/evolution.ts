@@ -1,4 +1,4 @@
-import { createPolicy, decideShellProjection, estimateTokens as defaultEstimate, sha256 } from '@lightcode/core'
+import { createPolicy, decideShellProjection, estimateTokens as defaultEstimate, literalCommand, sha256 } from '@lightcode/core'
 import type { EconomyPolicy, LearnedRuleSet, ShellResult, TokenEstimator } from '@lightcode/core'
 import type { ArtifactPort, EconomyRecord, JournalRecord } from '@lightcode/protocol'
 
@@ -13,8 +13,21 @@ import type { ArtifactPort, EconomyRecord, JournalRecord } from '@lightcode/prot
  *   proposed policy, and check the preservation requirements. A proposal is
  *   accepted iff it changes the rules, meets every requirement, no rule fails
  *   on the evidence, and either repairs a policy that violated a requirement
- *   or saves more tokens in total with no observation saving less.
+ *   or saves more tokens in total with no observation saving less. When some
+ *   observations were held back from the learner, every command it improved
+ *   that has held-back observations must save more on those too.
  */
+
+/**
+ * The tool a command runs, for grouping observations: its program, and the
+ * subcommand when there is one (`npm install`, `git diff`, `cargo test`;
+ * `pytest -v` and `python3 app.py` are just `pytest` and `python3`).
+ */
+export function commandHead(command: string): string {
+  const words = literalCommand(command) ?? command.trim().split(/\s+/u)
+  const [program = '', next] = words
+  return next !== undefined && /^[a-z][a-z0-9-]*$/u.test(next) ? `${program} ${next}` : program
+}
 
 export interface EvidenceCase {
   /** Stable: the original's hash and the command. */
@@ -195,6 +208,19 @@ export interface VerificationReport {
   readonly requirementFailures: readonly RequirementResult[]
   /** Calls of learned rules that failed during replay, by rule. */
   readonly ruleFailures: Readonly<Record<string, number>>
+  /**
+   * Held-out check: the commands the candidate improved on observations the
+   * learner saw, and its gain on the held-back observations of each.
+   * `failed` when any such command gains nothing there; `untested` when none
+   * has held-back observations.
+   */
+  readonly generalization?: {
+    readonly status: 'confirmed' | 'untested' | 'failed'
+    readonly commands: readonly string[]
+    readonly heldOutCases: number
+    readonly heldOutGain: number
+    readonly byCommand?: readonly { readonly command: string; readonly heldOutCases: number; readonly heldOutGain: number }[]
+  }
   readonly reasons: readonly string[]
 }
 
@@ -209,6 +235,8 @@ export function verifyRules(options: {
   requirements?: readonly PreservationRequirement[]
   filterOptions?: unknown
   minimumSavedTokens?: number
+  /** IDs of the observations held back from the learner; with them, the others count as seen. */
+  heldOut?: ReadonlySet<string>
 }): VerificationReport {
   const requirements = options.requirements ?? defaultRequirements()
   const parentPolicy = createPolicy(options.filterOptions, options.parent)
@@ -217,6 +245,8 @@ export function verifyRules(options: {
   const before = new Map(options.candidate?.failures ?? [])
   let parentSaving = 0, candidateSaving = 0, improved = 0
   const regressions: { id: string; command: string; parentSaving: number; saving: number }[] = []
+  const improvedHeads = new Set<string>()
+  const heldOutGainByHead = new Map<string, { cases: number; gain: number }>()
   for (const item of options.cases) {
     const parentRow = replayCase(parentPolicy, item, replayOptions)
     const row = replayCase(candidatePolicy, item, replayOptions)
@@ -224,6 +254,29 @@ export function verifyRules(options: {
     candidateSaving += row.saving * item.occurrences
     if (row.saving < parentRow.saving) regressions.push({ id: item.id, command: item.result.command, parentSaving: parentRow.saving, saving: row.saving })
     else if (row.saving > parentRow.saving) improved++
+    if (options.heldOut) {
+      const head = commandHead(item.result.command)
+      if (!options.heldOut.has(item.id)) { if (row.saving > parentRow.saving) improvedHeads.add(head) }
+      else {
+        const entry = heldOutGainByHead.get(head) ?? { cases: 0, gain: 0 }
+        entry.cases++
+        entry.gain += (row.saving - parentRow.saving) * item.occurrences
+        heldOutGainByHead.set(head, entry)
+      }
+    }
+  }
+  let generalization: VerificationReport['generalization']
+  if (options.heldOut) {
+    const commands = [...improvedHeads].sort()
+    const byCommand = commands.flatMap(command => {
+      const entry = heldOutGainByHead.get(command)
+      return entry ? [{ command, heldOutCases: entry.cases, heldOutGain: entry.gain }] : []
+    })
+    const heldOutCases = byCommand.reduce((sum, item) => sum + item.heldOutCases, 0)
+    const heldOutGain = byCommand.reduce((sum, item) => sum + item.heldOutGain, 0)
+    // Judged per command: one that generalizes must not hide one that only fits its samples.
+    generalization = { status: byCommand.length === 0 ? 'untested' : byCommand.every(item => item.heldOutGain > 0) ? 'confirmed' : 'failed',
+      commands, heldOutCases, heldOutGain, byCommand }
   }
   const parentSafety = checkRequirements(parentPolicy, requirements)
   const safety = checkRequirements(candidatePolicy, requirements)
@@ -236,7 +289,8 @@ export function verifyRules(options: {
   const changed = (options.candidate?.hash ?? null) !== (options.parent?.hash ?? null)
   const gain = candidateSaving - parentSaving
   const repair = !parentSafety.passed && safety.passed
-  const accepted = changed && safety.passed && !failed && (repair || (gain > 0 && regressions.length === 0))
+  const overfit = generalization?.status === 'failed'
+  const accepted = changed && safety.passed && !failed && (repair || (gain > 0 && regressions.length === 0 && !overfit))
   return {
     accepted,
     changeKind: repair ? 'safety-repair' : 'compression-improvement',
@@ -246,12 +300,14 @@ export function verifyRules(options: {
     parentSaving, candidateSaving, gainTokens: gain, regressions, improved,
     requirementFailures: safety.results.filter(result => !result.passed),
     ruleFailures,
+    ...generalization ? { generalization } : {},
     reasons: [
       !changed && 'unchanged',
       !safety.passed && 'preservation-requirement-failed',
       failed && 'rule-error',
       !repair && gain <= 0 && 'no-incremental-token-gain',
       !repair && regressions.length > 0 && 'replay-token-regression',
+      !repair && overfit && 'did-not-generalize',
     ].filter((reason): reason is string => typeof reason === 'string'),
   }
 }

@@ -32,6 +32,7 @@
   "files": [
     "lib/index.js",
     "lib/client.js",
+    "lib/evolve.js",
     "locale/*.json",
     "icon.svg",
     "cordis.patch.yml",

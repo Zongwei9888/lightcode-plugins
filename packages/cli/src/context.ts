@@ -1,5 +1,3 @@
-import { delimiter, join } from 'node:path'
-import { accessSync, constants, statSync } from 'node:fs'
 import { FileArtifactStore, FileJournal, dataDirs, loadConfig, readJournals, resolveDataDir, writableDataDir } from '@lightcode/store'
 import type { LoadedConfig } from '@lightcode/store'
 import type { JournalRecord } from '@lightcode/protocol'
@@ -43,19 +41,4 @@ export function cliContext(options: { cwd?: string; env?: NodeJS.ProcessEnv } = 
   }
 }
 
-/** POSIX single-quoting: the result is one literal word in sh, bash and zsh. */
-export function shellQuote(value: string): string {
-  return /^[A-Za-z0-9_./:=@%+,-]+$/.test(value) ? value : `'${value.replace(/'/g, `'\\''`)}'`
-}
-
-/** Whether `name` resolves to an executable on PATH, without running anything. */
-export function onPath(name: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
-  for (const dir of (env.PATH ?? '').split(delimiter)) {
-    if (!dir) continue
-    const candidate = join(dir, name)
-    try {
-      if (statSync(candidate).isFile()) { accessSync(candidate, constants.X_OK); return candidate }
-    } catch { /* Not here. */ }
-  }
-  return undefined
-}
+export { onPath, shellQuote } from '@lightcode/mechanisms'

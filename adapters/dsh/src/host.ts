@@ -88,7 +88,21 @@ export interface HostContext {
   /** The event bus; LightShadow reads its listener list to find DSH's compaction engines. */
   readonly events?: unknown
   readonly tools?: ToolRuntime
-  inject(deps: readonly string[], callback: (ctx: HostContext & { readonly commands: CommandRuntime }) => void): void
+  inject(deps: readonly string[], callback: (ctx: HostContext & { readonly commands: CommandRuntime; readonly connection: ConnectionRuntime }) => void): void
+  /** A service by name, when the composition has it (`agentDefaultModel`, `profileContext`). */
+  get?(name: string): unknown
   effect(execute: () => () => void, label?: string): void
   readonly logger: { warn(message: string): void; info(message: string): void }
+}
+
+/** `@deepseek-ai/dsh-client-connection` HostConnectionFetch: exact Fetch routes under /api. */
+export interface ConnectionRuntime {
+  readonly fetch: {
+    register(route: {
+      readonly path: string
+      readonly methods: readonly ('GET' | 'HEAD' | 'POST')[]
+      readonly requestBody: 'buffered' | 'streaming'
+      readonly fetch: (request: Request) => Promise<Response>
+    }): () => Promise<void>
+  }
 }

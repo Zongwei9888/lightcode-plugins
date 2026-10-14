@@ -122,9 +122,11 @@ function project(options: RunOptions, command: string, code: number | null, sign
   // Originals must be savable before anything is filtered (sandboxed hosts may only allow TMPDIR).
   const store = context.writable()
   if (!store) return undefined
+  // One store, so the rules compile once however many streams this run filters.
+  const rules = new RuleStore(context.dataDir)
   const engine = new EconomyEngine({ host: options.host, journal: store.journal, artifacts: store.artifacts,
     config: config.economy, mode: config.economy.mode, delivery: 'command-wrapper', streams: 'separate',
-    learned: () => new RuleStore(context.dataDir).load() })
+    learned: () => rules.load() })
   const stdout = decode(order.filter(item => item.fd === 1).map(item => item.chunk))
   const stderr = decode(order.filter(item => item.fd === 2).map(item => item.chunk))
   // Binary output is never filtered, and neither is the other stream of the same command.

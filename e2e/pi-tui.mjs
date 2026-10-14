@@ -10,8 +10,9 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createFixture, COMMANDS } from './lib/fixture.mjs'
 import { ensureTool, VERSIONS } from './lib/hosts.mjs'
-import { startMockLlm } from './lib/mock-llm.mjs'
+import { startMockLlm, toolResults } from './lib/mock-llm.mjs'
 import { childEnv, hasCommand, run, runAsync } from './lib/run.mjs'
+import { linkLearnerCommand, writeLinkScript } from './lib/rules.mjs'
 import { journal } from './lib/verify.mjs'
 
 const tmux = (...args) => spawnSync('tmux', args, { encoding: 'utf8' })
@@ -78,19 +79,73 @@ export async function runPiTui({ cache, root, registry, log }) {
   try {
     run(pi, ['install', 'npm:@lightcode/pi'], { cwd: base, env })
 
-    // 1. A TUI session: the status bar shows the savings, /lightcode explains them.
+    // 1. A TUI session: the status bar shows the savings, the /lightcode panel and report explain them.
     const session = terminal('lightcode-pi-tui', { cwd: work, env: vars, command: [pi, '--provider', 'mock', '--model', 'mock-model'] })
+    const shots = join(base, 'screens')
+    mkdirSync(shots, { recursive: true })
+    const keep = name => writeFileSync(join(shots, `${name}.txt`), session.screen())
     try {
       await session.waitFor(/mock-model/, 'pi to start')
       session.keys('Run the fixture commands.', 'Enter')
       await session.waitFor(/^ ?done\s*$/m, 'the scripted turn to finish', 120_000)
       await session.waitFor(/LightCode −\d/, 'the LightCode status')
       session.keys('/lightcode')
-      await session.waitFor(/lightcode .*LightCode: savings in this session/, '/lightcode in the command list')
+      await session.waitFor(/lightcode .*LightCode: savings, learned rules and learning/, '/lightcode in the command list')
       session.keys('Enter')
-      await session.waitFor(/LightCode Economy: 3 outputs filtered, ~\S+ tokens saved, 1 passed unchanged/, 'the /lightcode report')
+      await session.waitFor(/◆ LightCode[\s\S]*THIS SESSION[\s\S]*Economy +3 of 4 outputs filtered[\s\S]*SELF-EVOLUTION[\s\S]*l learn now/, 'the /lightcode panel')
+      keep('01-panel')
+      session.keys('Escape')
+      await new Promise(resolve => setTimeout(resolve, 500))
+      session.keys('/lightcode status', 'Enter')
+      await session.waitFor(/LightCode Economy: 3 outputs filtered, ~\S+ tokens saved, 1 passed unchanged/, 'the /lightcode status report')
+      log(`pi ${version} TUI: status bar ✓ /lightcode panel ✓ /lightcode status ✓`)
+
+      // 1b. Learning from the panel: evidence from this session, "l" and "y", a learner (pi itself, on the
+      // session's model) writes a rule in the background, the panel and footer follow it, and pi announces the
+      // adoption; the running session uses the rule from its next output on.
+      writeLinkScript(work)
+      const before = decisions()
+      // The scripted model picks its next call by the tool results the conversation already holds.
+      const sessionCommands = [...commands, './link.sh', './link.sh', './link.sh']
+      mock.setScript({ commands: sessionCommands })
+      session.keys('Run the link script three times.', 'Enter')
+      const deadline = Date.now() + 120_000
+      while (decisions() < before + 3) {
+        if (Date.now() > deadline) throw new Error(`pi TUI: the link runs were not recorded\n${session.screen()}`)
+        await new Promise(resolve => setTimeout(resolve, 250))
+      }
+      await session.waitFor(/LightCode −\d/, 'the status after the link runs')
+      session.keys('/lightcode', 'Enter')
+      await session.waitFor(/✦ Ready to learn[\s\S]*Worth learning +\.\/link\.sh +3 outputs/, 'the panel to suggest learning', 60_000)
+      keep('02-panel-ready')
+      session.keys('l')
+      await session.waitFor(/Learn with pi · mock-model\?/, 'the learning confirmation')
+      keep('03-panel-confirm')
+      mock.setScript({ commands: [linkLearnerCommand()] })
+      session.keys('y')
+      await session.waitFor(/● (Starting|Learning|Verifying) \d+:\d\d/, 'the run in progress')
+      keep('04-panel-learning')
+      await session.waitFor(/Last run +✓ adopted rule link-progress/, 'the adoption in the panel', 240_000)
+      await session.waitFor(/• link-progress/, 'the learned rule in the panel')
+      keep('05-panel-adopted')
+      session.keys('Escape')
+      await session.waitFor(/LightCode learning adopted rule link-progress/, 'the adoption notice')
+      keep('06-notice')
+      const status = JSON.parse(readFileSync(join(lightcodeHome, 'evolve', 'status.json'), 'utf8'))
+      assert.equal(status.host, 'pi')
+      assert.equal(status.learner, 'pi · mock-model')
+      // The same session, next output: the learned rule applies.
+      mock.setScript({ commands: [...sessionCommands, './link.sh'] })
+      const sent = mock.requests.length
+      session.keys('Run the link script once more.', 'Enter')
+      const until2 = Date.now() + 120_000
+      while (!mock.requests.slice(sent).some(request => toolResults(request).some(result => result.text.includes('link progress lines omitted')))) {
+        if (Date.now() > until2) throw new Error(`pi TUI: the learned rule did not apply in the running session\n${session.screen()}`)
+        await new Promise(resolve => setTimeout(resolve, 250))
+      }
+      mock.setScript({ commands })
+      log(`pi ${version} TUI: learning from the panel ✓ (pi learner on the session's model, held-out confirmed, notice, rule live in the same session)`)
     } finally { session.close() }
-    log(`pi ${version} TUI: status bar ✓ /lightcode ✓`)
 
     // 2. pi config: off means not loaded at all; on again means filtering again.
     await toggleInConfig(false)

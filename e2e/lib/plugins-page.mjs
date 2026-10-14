@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { COMMANDS } from './fixture.mjs'
-import { BUILD_LEARNED, adoptRules, writeBuildScript } from './rules.mjs'
+import { BUILD_LEARNED, adoptRules, linkLearnerCommand, writeBuildScript, writeLinkScript } from './rules.mjs'
 import { SHADOW_PROMPT, checkpointRequest, readBack, seqCommands, shadowScript } from './shadow-script.mjs'
 import { toolResults } from './mock-llm.mjs'
 import { delivered, journal, verifyDeliveries } from './verify.mjs'
@@ -175,6 +175,61 @@ export async function exercisePluginsPage({ page, label, profileDir, lightcodeHo
   assert.equal(learned.rule, 'build-progress')
   assert.equal(learned.learnedRulesHash, adopted)
   log(`${label}: learned rule applied in a new session ✓`)
+
+  // 2d. Self-evolution from the plugin's page: evidence from a chat, "Learn now", and a learner (DSH headless
+  // on the same model) that writes a rule; the page follows the run to its adoption, a toast says so, and the
+  // rule controls switch and roll back.
+  writeLinkScript(workspace)
+  mock.setScript({ commands: ['./link.sh', './link.sh', './link.sh'], toolArguments: command => ({ description: `Fixture: ${command}`, command }) })
+  try { await chat('05e-chat-evidence') } finally { mock.setScript(fixture) }
+  await openLightCode()
+  const section = page.locator('[data-lightcode-evolve]')
+  await section.first().waitFor()
+  await page.locator('[data-lightcode-state="ready"]').waitFor({ timeout: 60_000 })
+  assert.match(await page.locator('[data-lightcode-worth]').innerText(), /\.\/link\.sh\s+3 outputs/)
+  await section.first().scrollIntoViewIfNeeded()
+  await shot('05f-evolve-ready')
+  await page.locator('[data-lightcode-action="learn"]').click()
+  assert.match(await page.locator('[data-lightcode-confirm]').innerText(), /Learn with DSH · mock-model\?/)
+  await shot('05g-evolve-confirm')
+  mock.setScript({ commands: [linkLearnerCommand(['build-progress'])], toolArguments: command => ({ description: 'Write the rule and check it', command }) })
+  try {
+    await page.locator('[data-lightcode-action="confirm"]').click()
+    await page.locator('[data-lightcode-evolve="running"]').waitFor({ timeout: 30_000 })
+    await shot('05h-evolve-running')
+    await page.locator('[data-lightcode-last="adopted"]').waitFor({ timeout: 300_000 })
+  } catch (error) {
+    const runs = join(lightcodeHome, 'evolve')
+    throw new Error(`${error.message}\n--- status\n${readFileSync(join(runs, 'status.json'), 'utf8')}`, { cause: error })
+  } finally { mock.setScript(fixture) }
+  await page.locator('[data-lightcode-rule="link-progress"]').waitFor()
+  await page.getByText('LightCode learned link-progress (+', { exact: false }).first().waitFor({ timeout: 30_000 })
+  await shot('05i-evolve-adopted')
+  // The section uses the app's tokens only, so the dark theme (DSH follows the system's) restyles it.
+  await page.emulateMedia({ colorScheme: 'dark' })
+  await page.waitForTimeout(500)
+  await shot('05j-evolve-dark')
+  await page.emulateMedia({ colorScheme: 'light' })
+  const status = JSON.parse(readFileSync(join(lightcodeHome, 'evolve', 'status.json'), 'utf8'))
+  assert.equal(status.host, 'dsh')
+  assert.equal(status.learner, 'DSH · mock-model')
+  const held = status.outcome.generalization
+  assert.equal(held.status, 'confirmed')
+  assert.deepEqual(held.commands, ['./link.sh'])
+  assert.deepEqual(held.byCommand.map(item => [item.command, item.heldOutCases]), [['./link.sh', 1]])
+  assert.ok(held.heldOutGain > 0, 'the rule gained nothing on the held-back output')
+  const activeRules = () => JSON.parse(readFileSync(join(lightcodeHome, 'rules', 'active.json'), 'utf8')).active
+  const learnedHash = activeRules()
+  assert.notEqual(learnedHash, adopted)
+  await page.locator('[data-lightcode-action="rollback"]').click()
+  await until(() => activeRules() === adopted, 'the rollback to the earlier rules')
+  await page.locator('[data-lightcode-rule="link-progress"]').waitFor({ state: 'detached' })
+  await page.locator('[data-lightcode-rules]').getByRole('switch').click()
+  await until(() => activeRules() === null, 'learned rules to switch off')
+  await page.locator('[data-lightcode-rules="none"]').waitFor()
+  await page.locator('[data-lightcode-rules]').getByRole('switch').click()
+  await until(() => activeRules() === adopted, 'learned rules to switch back on')
+  log(`${label}: self-evolution from the Plugins page ✓ (learned link-progress with DSH headless, held-out confirmed, toast, rollback, off/on)`)
 
   // 3. Mode on the plugin's page, applied to the next tool call without a restart.
   await saveMode('Observe')

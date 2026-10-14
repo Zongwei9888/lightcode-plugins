@@ -139,12 +139,22 @@ compactions, cut results and recalls.
 
 ## Learned rules
 
-`lc evolve --learner dsh` (from `@lightcode/cli`; it runs
-`dsh --profile headless`, choose another with `--profile`) uses DSH as a
-learner over the evidence LightCode recorded, and adopts new filter rules
-only if they verify. New sessions use them automatically; `/lightcode` names
-the active set. See the
-[main README](https://github.com/Zongwei9888/lightcode-plugins#self-evolving-filters).
+**Plugins** → LightCode has a *Self-evolution* section (Web and Desktop):
+
+- what LightCode has recorded, the learned rules and what each saved, and the
+  commands worth learning from;
+- **Learn now** starts a run in the background after you confirm. The
+  learner is DSH itself (`dsh --profile headless`, with your default model and
+  the providers of your profile). It reads up to 40 recorded outputs, so they
+  go to that model's provider;
+- the run's steps (prepare, learn, verify) and the learner's checks, live,
+  with **Cancel**; a toast anywhere in the app when it ends;
+- a switch for the learned rules and **Roll back**.
+
+In a session, `/lightcode learn | cancel | rules | rollback | off | on` do
+the same, and `lc evolve --learner dsh` (from `@lightcode/cli`) runs it from
+a terminal. Running sessions use adopted rules from their next output on. See
+the [main README](https://github.com/Zongwei9888/lightcode-plugins#self-evolving-filters).
 
 ## Remove
 
@@ -170,7 +180,7 @@ LightCode 是 DeepSeek Harness（DSH）的插件，在模型读取之前精简�
 
 **可找回的压缩（LightShadow）**：DSH 压缩长对话时，被压缩部分的工具结果换成引用，模型可以用 `lightcode_recall` 原样读回；你的原话逐字保留在检查点里；DSH 把超过 8192 字符的结果截成首尾两段时，完整内容也会保存并在截断处注明编号。检查点没有变小或出错时，DSH 按原方式压缩。网页版和桌面版里每个 agent 预设各有一个压缩模块，LightCode 在 agent 启动时自动接上。
 
-**学到的规则**：`lc evolve --learner dsh`（来自 `@lightcode/cli`）让 DSH 当学习者，从你的会话证据里学新规则，验证通过才采用，新会话自动使用。
+**自进化**：插件 → LightCode 页面有“自进化”一节（网页版和桌面版）：显示已记录的输出、学到的规则及各自省下的 token、值得学习的命令；点**开始学习**并确认后在后台运行，学习者是 DSH 自己（`dsh --profile headless`，使用你的默认模型和当前配置里的模型服务），会读取最多 40 条记录的输出并发送给该模型的服务商；页面实时显示准备、学习、验证三步和自检次数，可以**取消**；结束时在应用里弹出提示；学到的规则可以开关、可以**回滚**。会话里也可以用 `/lightcode learn | cancel | rules | rollback | off | on`，终端里用 `lc evolve --learner dsh`。正在运行的会话从下一条输出起使用新规则。
 
 DSH 自带的 `grep`、`glob` 工具的完整结果做无损排版（去掉每行的 `Line ` 前缀、同一目录的路径归到一起）。用内置 `subagent`、`subagent_fork` 工具启动的子 agent 同样生效，父会话的 `/lightcode` 会把子 agent 省下的一起算上。在
 **插件** 页的 LightCode 详情里可以切换 **模式**：精简（默认）/ 只记录 / 关闭，

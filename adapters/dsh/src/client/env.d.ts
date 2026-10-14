@@ -4,6 +4,12 @@
  * the members used here are declared, after
  * `@deepseek-ai/dsh-client-ui-primitives` 0.2.0-rc.2 / 0.2.1-alpha.2.
  */
+declare module 'react' {
+  export function useState<T>(initial: T | (() => T)): [T, (next: T | ((previous: T) => T)) => void]
+  export function useEffect(effect: () => void | (() => void), deps?: readonly unknown[]): void
+  export function useRef<T>(initial: T): { current: T }
+}
+
 declare module 'react/jsx-runtime' {
   export function jsx(type: unknown, props: Record<string, unknown>, key?: string): unknown
   export function jsxs(type: unknown, props: Record<string, unknown>, key?: string): unknown
@@ -29,4 +35,9 @@ declare module '@deepseek-ai/dsh-client-ui-primitives' {
   export const SettingsForm: unknown
   export const SegmentedControl: unknown
   export const Tag: unknown
+  export const Button: unknown
+  export const StateDot: unknown
+  export const Switch: unknown
+  export const TextShimmer: unknown
+  export const Toast: unknown
 }

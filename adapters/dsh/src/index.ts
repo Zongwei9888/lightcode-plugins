@@ -6,11 +6,16 @@
  * original (and a source map) in its private store. LightShadow
  * (./shadow.ts): DSH's compaction keeps tool results recallable through
  * `lightcode_recall`. `/lightcode` reports both; the `mode` setting is live.
+ * Self-evolution (./learning.ts): routes under /api/lightcode for the
+ * Plugins page, where a learning run starts, and `/lightcode learn`.
  */
 import Schema from '@deepseek-ai/schemastery'
 import type { MechanismMode } from '@lightcode/protocol'
+import { formatTokens, outcomeSentence, readEvolveStatus } from '@lightcode/mechanisms'
 import { HOST, INLINE_LIMIT_CHARS, createDshEconomy } from './economy.ts'
 import type { HostContext, Volatile } from './host.ts'
+import { createDshLearning } from './learning.ts'
+import type { DshLearningOptions } from './learning.ts'
 import { RECALL_TOOL, createDshShadow } from './shadow.ts'
 
 export const name = 'lightcode'
@@ -29,6 +34,9 @@ export const Config = Schema.object({
     .description('A projection longer than this (characters) is not used: the original passes, so DSH\'s spill policy keeps the complete text. '
       + 'Keep it at or below spill-policy maxInlineTokens × 4 (the default fits DSH\'s default 12,500).'),
 })
+
+/** Tests replace the learning runner and learner. */
+export const testing: { learning?: Partial<DshLearningOptions> } = {}
 
 export function apply(ctx: HostContext, config: Config): void {
   const economy = createDshEconomy({
@@ -88,13 +96,54 @@ export function apply(ctx: HostContext, config: Config): void {
       },
     })
   }
+  const learning = createDshLearning({
+    configDir: economy.configDir, env: process.env,
+    selection: () => (ctx.get?.('agentDefaultModel') as { currentSelection?: () => { provider: string; model: string } } | undefined)?.currentSelection?.(),
+    installAnchor: () => (ctx.get?.('profileContext') as { installAnchor?: string } | undefined)?.installAnchor,
+    patchPath: () => (ctx.get?.('profileContext') as { patchPath?: string } | undefined)?.patchPath,
+    ...testing.learning,
+  })
+  // The Plugins page's self-evolution section talks to these.
+  ctx.inject(['connection'], inner => {
+    for (const route of learning.routes()) {
+      inner.effect(() => {
+        const dispose = inner.connection.fetch.register(route)
+        return () => { void dispose() }
+      }, `lightcode: ${route.path}`)
+    }
+  })
+  const learnCommand = (sub: string): string => {
+    if (sub === 'learn') {
+      const started = learning.start()
+      if (started.ok) return 'LightCode is learning output rules in the background (Plugins → LightCode shows its progress).'
+      return `LightCode did not start learning: ${({ running: 'a learning run is already in progress', 'no-runner': 'this installation has no learning runner',
+        'no-node': 'Node.js was not found', 'no-dsh': 'the dsh command was not found', 'spawn-failed': 'the runner did not start' } as Record<string, string>)[started.error] ?? started.error}.`
+    }
+    if (sub === 'cancel') return learning.cancel() ? 'Stopping the learning run.' : 'No learning run in progress.'
+    if (sub === 'off' || sub === 'on' || sub === 'rollback') {
+      const result = learning.rules(sub)
+      if (sub === 'rollback' && !result.ok) return 'No learned rules are active.'
+      return result.active ? `Learned rules ${result.active.slice(0, 12)} are in use from the next output on.` : 'No learned rules are in use now.'
+    }
+    const evolve = readEvolveStatus(economy.configDir)
+    const run = evolve.run
+    return [
+      evolve.rules.active ? `Learned rules ${evolve.rules.active.slice(0, 12)}: ${evolve.rules.rules.map(rule => rule.id).join(', ') || 'none'}` : 'No learned rules are active.',
+      run?.running ? `Learning with ${run.learner}: ${run.phase}, ${run.checks} check${run.checks === 1 ? '' : 's'} so far.`
+        : run?.outcome ? `Last learning run: ${outcomeSentence(run.outcome)}.` : 'No learning run yet: /lightcode learn starts one.',
+      ...evolve.scan?.ready ? [`Worth learning: ${evolve.scan.opportunities.slice(0, 3).map(item => `${item.command} (~${formatTokens(item.leftTokens)} tokens left)`).join(', ')}.`] : [],
+    ].join('\n')
+  }
   ctx.inject(['commands'], inner => {
     inner.effect(() => inner.commands.register({
       definitionId: '@lightcode/dsh/lightcode',
       name: 'lightcode',
-      description: 'LightCode: tokens saved in this session and the current mode',
+      description: 'LightCode: tokens saved in this session; /lightcode learn | cancel | rules | rollback | off | on',
       handler: invocation => {
         const session = invocation.agent.session
+        // rawInput is the text after the command name.
+        const sub = String(invocation.rawInput ?? '').trim().split(/\s+/u)[0] ?? ''
+        if (['learn', 'cancel', 'rules', 'rollback', 'off', 'on'].includes(sub)) return { kind: 'success', text: learnCommand(sub) }
         return { kind: 'success', text: economy.report({ id: String(session.id), cwd: session.header?.cwd }) }
       },
     }), 'lightcode: /lightcode command')

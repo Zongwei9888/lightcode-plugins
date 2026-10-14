@@ -37,6 +37,15 @@ describe('RuleStore', () => {
     store.activate(second)
     store.deactivate()
     expect(store.state().active).toBeNull()
+    // Switching on restores what was in use when switched off, even when that is not the last adoption.
+    expect(store.rollback()).toBe(second)
+    store.activate(first)
+    store.activate(second)
+    expect(store.rollback()).toBe(first)
+    store.deactivate()
+    expect(store.state()).toMatchObject({ active: null, paused: first })
+    expect(store.rollback()).toBe(first)
+    expect(store.state().paused).toBeUndefined()
   })
 
   it('refuses rules changed on disk, links, and malformed directories', () => {

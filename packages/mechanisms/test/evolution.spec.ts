@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { compileLearnedRules, createPolicy, sha256 } from '@lightcode/core'
 import type { ArtifactPort, EconomyRecord } from '@lightcode/protocol'
-import { checkRequirements, collectEvidence, defaultRequirements, verifyRules } from '../src/index.ts'
+import { checkRequirements, collectEvidence, commandHead, defaultRequirements, verifyRules } from '../src/index.ts'
 
 const artifacts = (texts: string[]): ArtifactPort => {
   const map = new Map(texts.map(text => [sha256(text), text]))
@@ -53,5 +53,35 @@ describe('evolution', () => {
     expect(verifyRules({ parent: lossy, candidate: undefined, cases })).toMatchObject({ accepted: true, changeKind: 'safety-repair' })
     const throws = rule("throw new Error('x')")
     expect(verifyRules({ parent: undefined, candidate: throws, cases })).toMatchObject({ accepted: false, reasons: expect.arrayContaining(['rule-error']), ruleFailures: { r: expect.any(Number) } })
+  })
+
+  it('rejects a rule that only fits the observations the learner saw, judging each command on its own', () => {
+    const output = (seed: string) => Array.from({ length: 50 }, (_, i) => `[${i + 1}/50] step ${i} ${seed}`).join('\n') + '\nok\n'
+    const a = output('alpha'), b = output('beta')
+    const cases = collectEvidence([record('./steps', a), record('./steps', b, { time: '2026-10-13T00:00:00.000Z' })], artifacts([a, b]))
+    const heldOut = new Set([cases.find(item => item.result.rendered === b)!.id])
+    const general = rule("return input.argv && input.argv[0] === './steps' ? lc.keepLines(input.raw, line => !/^\\[\\d+\\/\\d+\\]/.test(line.text)) : null")
+    expect(verifyRules({ parent: undefined, candidate: general, cases, heldOut })).toMatchObject({ accepted: true,
+      generalization: { status: 'confirmed', commands: ['./steps'], heldOutCases: 1 } })
+    // Matches the sample it saw, word for word.
+    const memorized = rule("return input.raw.includes('alpha') ? lc.keepLines(input.raw, line => !/^\\[\\d+\\/\\d+\\]/.test(line.text)) : null")
+    expect(verifyRules({ parent: undefined, candidate: memorized, cases, heldOut })).toMatchObject({ accepted: false, reasons: ['did-not-generalize'],
+      generalization: { status: 'failed', heldOutGain: 0 } })
+    // With nothing held out of that command, generalization is untested, not failed.
+    expect(verifyRules({ parent: undefined, candidate: memorized, cases, heldOut: new Set() }))
+      .toMatchObject({ accepted: true, generalization: { status: 'untested' } })
+    // One command that generalizes does not hide another that only fits its samples.
+    const c = output('gamma').replace(/step/gu, 'pass'), d = output('delta').replace(/step/gu, 'pass')
+    const both = collectEvidence([record('./steps', a), record('./steps', b, { time: '2026-10-13T00:00:00.000Z' }),
+      record('./other', c, { time: '2026-10-12T00:00:00.000Z' }), record('./other', d, { time: '2026-10-11T00:00:00.000Z' })], artifacts([a, b, c, d]))
+    const mixed = rule("if (!input.argv) return null; if (input.argv[0] === './steps' || input.raw.includes('gamma')) return lc.keepLines(input.raw, line => !/^\\[\\d+\\/\\d+\\]/.test(line.text)); return null")
+    const held = new Set(both.filter(item => item.result.rendered === b || item.result.rendered === d).map(item => item.id))
+    expect(verifyRules({ parent: undefined, candidate: mixed, cases: both, heldOut: held })).toMatchObject({ accepted: false, reasons: ['did-not-generalize'],
+      generalization: { status: 'failed', byCommand: [{ command: './other', heldOutGain: 0 }, { command: './steps', heldOutCases: 1 }] } })
+  })
+
+  it('groups commands by tool and subcommand', () => {
+    expect(['npm install', 'npm test -- -u', 'pytest -v', 'python3 app.py', 'git diff --stat', './build.sh', 'cargo test --release'].map(commandHead))
+      .toEqual(['npm install', 'npm test', 'pytest', 'python3', 'git diff', './build.sh', 'cargo test'])
   })
 })

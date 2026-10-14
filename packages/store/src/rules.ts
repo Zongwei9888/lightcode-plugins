@@ -31,6 +31,10 @@ export interface ActiveRules {
   readonly schemaVersion: 1
   /** Null when learned rules are switched off (`lc rules off`). */
   readonly active: string | null
+  /** The rules in use when they were switched off; switching on restores them. */
+  readonly paused?: string
+  /** When `active` last changed (an adoption, rollback or switch); use is judged from here. */
+  readonly activatedAt?: string
   readonly history: readonly RuleAdoption[]
 }
 
@@ -115,36 +119,42 @@ export class RuleStore {
     return hash
   }
 
-  /** Make an installed directory the active one, recording the adoption. */
-  activate(hash: string, details: Omit<RuleAdoption, 'hash' | 'parent' | 'adoptedAt' | 'rules'> = {}, now = new Date()): RuleAdoption {
+  /**
+   * Make an installed directory the active one, recording the adoption.
+   * With `expect`, only if the active rules are still those (else undefined).
+   */
+  activate(hash: string, details: Omit<RuleAdoption, 'hash' | 'parent' | 'adoptedAt' | 'rules'> = {}, now = new Date(), expect?: string | null): RuleAdoption | undefined {
     const files = this.files(hash)
     const state = this.state()
+    if (expect !== undefined && state.active !== expect) return undefined
     const adoption: RuleAdoption = { hash, parent: state.active, adoptedAt: now.toISOString(), rules: parseRuleIndex(files).length, ...details }
-    this.writeState({ schemaVersion: 1, active: hash, history: [...state.history, adoption] })
+    this.writeState({ schemaVersion: 1, active: hash, activatedAt: adoption.adoptedAt, history: [...state.history, adoption] })
     return adoption
   }
 
-  /** Switch learned rules off; the history stays. */
+  /** Switch learned rules off, remembering which were in use; the history stays. */
   deactivate(): void {
     const state = this.state()
-    this.writeState({ ...state, active: null })
+    if (state.active === null) return
+    this.writeState({ schemaVersion: 1, active: null, paused: state.active, activatedAt: new Date().toISOString(), history: state.history })
   }
 
   /**
    * Go back to the rules the active ones replaced (or none). With learned
-   * rules switched off, switch the last adopted ones back on. Returns the new
-   * active hash.
+   * rules switched off, switch back on the ones in use when they were
+   * switched off (or else the last adopted). Returns the new active hash.
    */
   rollback(): string | null {
     const state = this.state()
     if (state.active === null) {
-      const last = state.history.at(-1)?.hash ?? null
-      if (last) this.writeState({ ...state, active: last })
-      return last
+      const known = (hash: string | undefined) => hash !== undefined && HASH.test(hash) && existsSync(join(this.root, hash))
+      const back = known(state.paused) ? state.paused! : state.history.at(-1)?.hash ?? null
+      if (back) this.writeState({ schemaVersion: 1, active: back, activatedAt: new Date().toISOString(), history: state.history })
+      return back
     }
     const current = [...state.history].reverse().find(item => item.hash === state.active)
     const previous = current?.parent ?? null
-    this.writeState({ ...state, active: previous })
+    this.writeState({ schemaVersion: 1, active: previous, activatedAt: new Date().toISOString(), history: state.history })
     return previous
   }
 
@@ -172,9 +182,12 @@ export class RuleStore {
     if (this.cache?.stamp === stamp) return this.cache.set
     let set: LearnedRuleSet | undefined
     const active = stamp === '-' ? null : this.state().active
-    if (active) {
+    if (active && active === this.cache?.set?.hash) set = this.cache.set
+    else if (active) {
       try { set = compileLearnedRules(this.files(active)) } catch (error) { onError?.(error) }
     }
+    // Engines renew a policy before every decision, so the set it replaced is no longer used.
+    if (this.cache?.set && this.cache.set !== set) this.cache.set.dispose()
     this.cache = { stamp, set }
     return set
   }

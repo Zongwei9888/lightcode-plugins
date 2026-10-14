@@ -43,8 +43,14 @@ without installing: `pi -e npm:@lightcode/pi`.
 Nothing to do: from the next `bash`, `grep` or `find` call on, recognized output is filtered.
 
 - The status bar shows the tokens saved in the session (`LightCode −5.8k tok`).
-- `/lightcode` shows the session's savings, its compactions and recalls, the
-  learned rules in use, and what pi lets LightCode do.
+- `/lightcode` opens LightCode's panel: the session's savings and
+  compactions, the learned rules and what each saved, the commands worth
+  learning from, and a learning run in progress. Keys: `l` learn now, `c`
+  cancel, `r` roll back, `o` switch learned rules off or on, `esc` close.
+  `/lightcode status` prints the same as text (also in `-p` and RPC mode);
+  `/lightcode learn | cancel | rules | rollback | off | on` act directly.
+- While a run goes, the status bar shows it (`◐ learning 2:31`); it shows
+  `✦ ready to learn` when there is enough new output to learn from.
 - `pi --lightcode observe` (or `off`) lowers the mode for one run: `observe`
   records what would change without changing anything.
 - `pi config` lists the package; switching its extension off unloads
@@ -98,9 +104,15 @@ include `lightcode_recall` for the model to be able to recall.
 
 ## Learned rules
 
-`lc evolve --learner pi` (from `@lightcode/cli`) runs pi as a learner over
-the evidence LightCode recorded, and adopts new filter rules only if they
-verify. New pi sessions use the adopted rules automatically. See the
+Press `l` in the `/lightcode` panel (or run `/lightcode learn`) and confirm:
+LightCode starts pi itself as the learner, in the background, with the
+session's model (`pi -p --provider <yours> --model <yours>`). It reads up to
+40 recorded outputs, so they go to that model's provider. The panel shows the
+steps (prepare, learn, verify) and the learner's checks; pi tells you the
+result when it ends, and the running session uses adopted rules from its next
+output on. Runs need Node.js (pi's own, or `node` on PATH) and stop after 20
+minutes. `lc evolve --learner pi` (from `@lightcode/cli`) does the same in a
+terminal. See the
 [main README](https://github.com/Zongwei9888/lightcode-plugins#self-evolving-filters).
 
 ## Subagents
@@ -138,7 +150,8 @@ pi 的 `context_edit` 交付，**pi 自己的会话文件、TUI 和导出仍是�
 
 - 安装：`pi install npm:@lightcode/pi`（加 `-l` 只装到当前项目）
 - 可找回的压缩（LightShadow）：pi 压缩长会话时，被压缩部分的工具结果换成引用，模型可以用 `lightcode_recall` 原样读回；你的原话逐字保留在摘要里；结果没变小或出错时交给 pi 自己压缩
-- 学到的规则：`lc evolve --learner pi`（来自 `@lightcode/cli`）让 pi 当学习者，从你的会话证据里学新规则，验证通过才采用，新会话自动使用
+- `/lightcode` 打开面板：本会话的节省和压缩、学到的规则及各自省下的 token、值得学习的命令、正在进行的学习。按键：`l` 开始学习，`c` 取消，`r` 回滚，`o` 开关学到的规则，`esc` 关闭；`/lightcode status` 输出文字版
+- 学到的规则：在面板里按 `l` 并确认，LightCode 会在后台用当前会话的模型启动 pi 作为学习者，从记录的输出里学新规则，验证通过才采用，正在运行的会话从下一条输出起生效；也可以用 `lc evolve --learner pi`
 - 状态栏显示本会话省下的 token；`/lightcode` 查看明细
 - pi 自带的 `grep`、`find` 工具的结果做无损排版（同一文件的匹配、同一目录的路径归到一起，每行、每个路径和提示都保留）；`read`、`edit`、`write`、`ls` 从不改动
 - 子 agent：每个子 agent 单独起一个 `pi` 进程的子 agent 扩展（如 pi 自带的 subagent 示例）里，LightCode 同样生效；父会话的状态栏和 `/lightcode` 会把子 agent 省下的一起算上（通过环境变量 `LIGHTCODE_PARENT_SESSION` 传递父会话 ID，只有该 pi 直接启动的子进程才会认领；同一个 pi 里 `/new`、`/resume`、`/fork` 出来的会话不算子 agent）

@@ -31,7 +31,7 @@ export const INLINE_LIMIT_CHARS = 48_000
 /** The learned rules new sessions use, for `/lightcode`. */
 function learnedRulesLine(store: RuleStore, enabled: boolean): string {
   const active = store.state().active
-  if (!active) return 'Learned rules: none (lc evolve learns them from your sessions).'
+  if (!active) return 'Learned rules: none (/lightcode learn learns them from your sessions).'
   const set = store.load()
   return `Learned rules: ${active.slice(0, 12)}, ${set ? `${set.rules.length} rule${set.rules.length === 1 ? '' : 's'}` : 'not loadable'}${enabled ? '' : ' (off: economy.learnedRules is false)'}.`
 }
@@ -64,6 +64,8 @@ export interface DshEconomy {
   report(session: { id: string; cwd?: string | undefined }): string
   /** Where originals and the journal are written (resolved on first use). */
   readonly dataDir: string
+  /** Where configuration and learned rules live. */
+  readonly configDir: string
   /** Negotiated LightShadow mode for a session. */
   shadowMode(session: { id: string; cwd?: string | undefined }): MechanismMode
   /** LightShadow as the user's own configuration and environment set it, before any session. */
@@ -249,6 +251,7 @@ export function createDshEconomy(options: DshEconomyOptions): DshEconomy {
       return lines.join('\n')
     },
     get dataDir() { return storage().dataDir },
+    configDir,
     shadowMode: session => negotiateFor(sessionState(session.id, session.cwd).loaded).find(item => item.mechanism === 'lightshadow')!.mode,
     configuredShadowMode: () => loadConfig({ dataDir: configDir, env }).config.lightshadow.mode,
     journal: () => storage().journal,
