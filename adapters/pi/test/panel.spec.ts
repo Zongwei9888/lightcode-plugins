@@ -59,6 +59,11 @@ describe('the /lightcode panel', () => {
     expect(done).toContain('✓ Rules active')
     expect(done).toContain('1 active · adopted 1 min ago · +2.6k on 69 outputs')
     expect(done).toMatch(/• pytest-verbose-passed +41× +−11\.2k +↺ 1/)
+    // A rule with no use yet says so, rather than "0× −0".
+    const fresh = renderPanel(data({ rules: { active: 'a'.repeat(64), rules: [{ id: 'cargo-test-passing', transformation: 'noise-removal' }], history: 1 },
+      scan: { schemaVersion: 1, time: '', evidence: 1, newEvidence: 0, leftTokens: 0, ready: false, opportunities: [], disabled: [],
+        rules: [{ id: 'cargo-test-passing', projections: 0, savedTokens: 0, originalRecalls: 0 }] } }), {}, 100, plain).join('\n')
+    expect(fresh).toMatch(/• cargo-test-passing +not used yet/)
     expect(done.replace(/[ │]*\n[ │]+/gu, ' ')).toContain('✓ adopted rule pytest-verbose-passed: +2.6k tokens on 69 recorded outputs, confirmed on 12 it had not seen · 1 min ago')
     expect(done).toContain('r roll back')
   })

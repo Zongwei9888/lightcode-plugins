@@ -94,7 +94,9 @@ export async function exercisePluginsPage({ page, label, profileDir, lightcodeHo
       await box.click()
       await box.fill(prompt)
       await page.keyboard.press('Enter')
-      const sent = await until(() => mock.requests.length > before, 'the prompt to reach the model', 15_000).then(() => true, () => false)
+      // Only a request carrying this prompt counts: a late title request from the previous chat is not this one.
+      const carries = request => JSON.stringify(request.messages ?? []).includes(JSON.stringify(prompt).slice(1, -1))
+      const sent = await until(() => mock.requests.slice(before).some(carries), 'the prompt to reach the model', 15_000).then(() => true, () => false)
       if (sent) break
       if (attempt === 2) throw new Error(`the prompt was not sent: ${prompt}`)
       await page.getByRole('button', { name: 'New session' }).first().click()

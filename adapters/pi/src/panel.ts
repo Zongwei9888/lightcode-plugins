@@ -148,7 +148,7 @@ export function renderPanel(data: PanelData, state: PanelState, width: number, t
     const uses = new Map((scan?.rules ?? []).map(use => [use.id, use]))
     for (const rule of rules.rules.slice(0, 6)) {
       const use = uses.get(rule.id)
-      const stats = use ? `${String(use.projections).padStart(4)}× ${t.fg('success', `−${formatTokens(use.savedTokens)}`.padStart(8))}${use.originalRecalls ? t.fg('warning', `  ↺ ${use.originalRecalls}`) : ''}` : t.fg('dim', 'not used yet')
+      const stats = use && use.projections > 0 ? `${String(use.projections).padStart(4)}× ${t.fg('success', `−${formatTokens(use.savedTokens)}`.padStart(8))}${use.originalRecalls ? t.fg('warning', `  ↺ ${use.originalRecalls}`) : ''}` : t.fg('dim', 'not used yet')
       row(spread(`${label('')}${t.fg('accent', '•')} ${rule.id}`, stats, inner))
     }
     if (rules.rules.length > 6) row(`${label('')}${t.fg('dim', `… ${rules.rules.length - 6} more (lc rules show)`)}`)

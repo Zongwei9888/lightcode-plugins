@@ -83,5 +83,15 @@ describe('evolution', () => {
   it('groups commands by tool and subcommand', () => {
     expect(['npm install', 'npm test -- -u', 'pytest -v', 'python3 app.py', 'git diff --stat', './build.sh', 'cargo test --release'].map(commandHead))
       .toEqual(['npm install', 'npm test', 'pytest', 'python3', 'git diff', './build.sh', 'cargo test'])
+    // What agents really run: a cd, pipes, assignments, setup commands.
+    expect([
+      'cd /tmp/work && python3 -m pytest -v 2>&1 | tail -15',
+      'cd packages/x/src; grep -n "a\\|b" index.ts | head -20',
+      'cd "/some dir" && FOO=1 cargo test --release',
+      'export CI=1 && npx jest --silent',
+      'source .venv/bin/activate; python app.py',
+      'cat file.txt | grep x',
+      'cd src',
+    ].map(commandHead)).toEqual(['python3 -m pytest', 'grep', 'cargo test', 'jest', 'python', 'cat', 'cd src'])
   })
 })

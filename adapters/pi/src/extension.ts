@@ -377,7 +377,10 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
         const panel: PanelState = {}
         let data = panelData(ctx)
         const refresh = (full = false) => {
+          const wasRunning = data.evolve.run?.running === true
           try { data = full ? panelData(ctx) : { ...data, evolve: evolveStatus() ?? data.evolve, now: Date.now() } } catch { /* Keep the last view. */ }
+          // A note about the run (started, stopping) is over once the run is; its result shows instead.
+          if (wasRunning && data.evolve.run?.running !== true) delete panel.message
           tui.requestRender()
         }
         const timer = setInterval(() => refresh(), 1000)

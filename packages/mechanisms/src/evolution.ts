@@ -1,4 +1,4 @@
-import { createPolicy, decideShellProjection, estimateTokens as defaultEstimate, literalCommand, sha256 } from '@lightcode/core'
+import { createPolicy, decideShellProjection, estimateTokens as defaultEstimate, sha256 } from '@lightcode/core'
 import type { EconomyPolicy, LearnedRuleSet, ShellResult, TokenEstimator } from '@lightcode/core'
 import type { ArtifactPort, EconomyRecord, JournalRecord } from '@lightcode/protocol'
 
@@ -18,14 +18,54 @@ import type { ArtifactPort, EconomyRecord, JournalRecord } from '@lightcode/prot
  *   that has held-back observations must save more on those too.
  */
 
+/** Shell words outside quotes, with the separators `&&`, `||`, `;` and `|` as words of their own. */
+function shellWords(command: string): string[] {
+  const words: string[] = []
+  let word = '', quote: string | undefined, started = false
+  const flush = () => { if (started) words.push(word); word = ''; started = false }
+  for (let i = 0; i < command.length; i++) {
+    const ch = command[i]!
+    if (quote) { if (ch === quote) quote = undefined; else word += ch; continue }
+    if (ch === "'" || ch === '"') { quote = ch; started = true; continue }
+    if (/\s/u.test(ch)) { flush(); continue }
+    const two = command.slice(i, i + 2)
+    if (two === '&&' || two === '||') { flush(); words.push(two); i++; continue }
+    if (ch === ';' || ch === '|' || ch === '\n') { flush(); words.push(ch === '\n' ? ';' : ch); continue }
+    word += ch
+    started = true
+  }
+  flush()
+  return words
+}
+
+const SETUP = new Set(['cd', 'pushd', 'popd', 'export', 'source', '.', 'set', 'unset', 'env', 'true', 'clear', 'echo'])
+
 /**
- * The tool a command runs, for grouping observations: its program, and the
- * subcommand when there is one (`npm install`, `git diff`, `cargo test`;
+ * The tool a command runs, for grouping observations: the program that
+ * produces the output (past `cd …&&`, variable assignments and setup
+ * commands, the first stage of a pipeline), with its subcommand when there
+ * is one (`npm install`, `git diff`, `cargo test`, `python3 -m pytest`;
  * `pytest -v` and `python3 app.py` are just `pytest` and `python3`).
  */
 export function commandHead(command: string): string {
-  const words = literalCommand(command) ?? command.trim().split(/\s+/u)
-  const [program = '', next] = words
+  const words = shellWords(command)
+  // Segments split on && || ; — in each, the first stage of a pipeline.
+  const segments: string[][] = [[]]
+  for (const word of words) {
+    if (word === '&&' || word === '||' || word === ';') segments.push([])
+    else segments.at(-1)!.push(word)
+  }
+  const stages = segments.map(segment => {
+    const pipe = segment.indexOf('|')
+    const first = pipe < 0 ? segment : segment.slice(0, pipe)
+    let at = 0
+    while (at < first.length && /^[A-Za-z_][A-Za-z0-9_]*=/u.test(first[at]!)) at++
+    return first.slice(at)
+  }).filter(stage => stage.length > 0)
+  const stage = stages.find(item => !SETUP.has(item[0]!)) ?? stages.at(-1) ?? []
+  let [program = '', next, third] = stage
+  if (program === 'npx' || program === 'bunx' || program === 'uvx') { program = next ?? program; next = third }
+  if (/^python[0-9.]*$/u.test(program) && next === '-m' && third) return `${program} -m ${third}`
   return next !== undefined && /^[a-z][a-z0-9-]*$/u.test(next) ? `${program} ${next}` : program
 }
 
