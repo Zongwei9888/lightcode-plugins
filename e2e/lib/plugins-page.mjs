@@ -88,18 +88,24 @@ export async function exercisePluginsPage({ page, label, profileDir, lightcodeHo
   const chat = async (name, prompt = 'Run the fixture commands.') => {
     const before = mock.requests.length
     await page.getByRole('button', { name: 'New session' }).first().click()
-    // A fresh session can re-render under the composer just after the click: send again until the model is asked.
+    // A fresh session can re-render under the composer just after the click, losing the Enter: then the text is
+    // still in the composer and is sent again. Once the composer is empty the prompt was submitted, however long
+    // it takes to reach the model (a slow CI machine): wait for it in this session rather than starting another.
+    // Only a request carrying this prompt counts: a late title request from the previous chat is not this one.
+    const carries = request => JSON.stringify(request.messages ?? []).includes(JSON.stringify(prompt).slice(1, -1))
+    const reached = ms => until(() => mock.requests.slice(before).some(carries), 'the prompt to reach the model', ms).then(() => true, () => false)
     for (let attempt = 0; ; attempt++) {
       const box = composer()
       await box.click()
       await box.fill(prompt)
       await page.keyboard.press('Enter')
-      // Only a request carrying this prompt counts: a late title request from the previous chat is not this one.
-      const carries = request => JSON.stringify(request.messages ?? []).includes(JSON.stringify(prompt).slice(1, -1))
-      const sent = await until(() => mock.requests.slice(before).some(carries), 'the prompt to reach the model', 15_000).then(() => true, () => false)
-      if (sent) break
+      if (await reached(15_000)) break
+      const unsent = (await composer().innerText().catch(() => '')).includes(prompt)
+      if (!unsent) {
+        if (await reached(120_000)) break
+        throw new Error(`the prompt was submitted but never reached the model: ${prompt}`)
+      }
       if (attempt === 2) throw new Error(`the prompt was not sent: ${prompt}`)
-      await page.getByRole('button', { name: 'New session' }).first().click()
     }
     await page.getByText('done', { exact: true }).waitFor({ timeout: 240_000 })
     await shot(name)
