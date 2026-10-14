@@ -157,11 +157,6 @@ export function registerLightShadow(pi: ExtensionAPI, options: PiShadowOptions):
         append(checkpointRecord(base, { kind: 'standard', plan, checkpointTokens: 0, reason: 'observe' }))
         return undefined
       }
-      const residual = (messages: readonly AgentMessage[], offset: number) => messages.map((message, i) => {
-        const text = plan.residual[offset + i]!.text
-        const own = shadowMessage(message)
-        return own.role === 'tool' && own.text !== text ? { ...message, content: [{ type: 'text' as const, text }] } as AgentMessage : message
-      })
       const model = ctx.model
       if (!model) throw new Error('no model selected')
       const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model)
@@ -174,8 +169,10 @@ export function registerLightShadow(pi: ExtensionAPI, options: PiShadowOptions):
       const previousSummary = preparation.previousSummary === undefined ? undefined : plan.residualPrior
       const result = await summarize({
         ...preparation,
-        messagesToSummarize: residual(summarized, 0),
-        turnPrefixMessages: residual(prefix, summarized.length),
+        // The summarizer reads the tool results in full, so the summary keeps their findings (with references
+        // only, agents re-ran commands instead of recalling); the checkpoint keeps references to them.
+        messagesToSummarize: summarized,
+        turnPrefixMessages: prefix,
         ...previousSummary === undefined ? {} : { previousSummary },
       }, routed, auth.apiKey, headers, [event.customInstructions, SHADOW_SUMMARY_INSTRUCTION].filter(Boolean).join('\n\n'),
       event.signal, ctx.thinkingLevel)

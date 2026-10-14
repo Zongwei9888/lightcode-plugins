@@ -87,9 +87,11 @@ with the other LightCode hosts; see the
 When pi compacts (automatically near the context limit, or with `/compact`),
 LightCode supplies the summary through `session_before_compact`:
 
+- pi's own summarizer (the same `compact()` call and model pi would use)
+  writes the summary, asked to keep the findings of tool results rather than
+  their bodies;
 - each tool result in the compacted part is saved and replaced by a short
-  reference before pi's own summarizer (the same `compact()` call and model
-  pi would use) condenses the rest;
+  reference;
 - the summary is followed by your messages, verbatim, and a catalog of the
   references; pi's own file tracking is kept;
 - `lightcode_recall` becomes available to the model: it returns a result

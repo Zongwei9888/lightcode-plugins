@@ -8,7 +8,8 @@ filters. (0.1.0 was never published; its contents are part of this release.)
 
 - LightShadow: when pi or DeepSeek Harness compacts, tool results in the
   compacted span are saved and replaced by references with a 320-byte
-  excerpt; the host's own summarizer condenses the rest; the checkpoint keeps
+  excerpt; the host's own summarizer reads the span in full and keeps the
+  findings; the checkpoint keeps
   the user's messages verbatim and lists the references; `lightcode_recall`
   reads any of them again (exactly, or a window of up to 8 KB around a
   string, or the complete original Economy shortened). A checkpoint that is

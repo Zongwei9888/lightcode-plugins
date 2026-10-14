@@ -120,9 +120,9 @@ mount separately inside each agent preset; DSH offers plugins no hook for it.
 LightCode finds each engine when an agent starts (through the engine's own
 `agent/pre-step` listener) and takes over one step of it, the summary:
 
-- tool results in the compacted part are saved and replaced by short
-  references before DSH's summarizer (the same call and model DSH would use)
-  condenses the rest;
+- DSH's summarizer (the same call and model DSH would use) writes the
+  summary, asked to keep the findings of tool results rather than their
+  bodies; the tool results are saved and replaced by short references;
 - the checkpoint is that summary, your messages verbatim, and a catalog of
   the references; DSH still selects the range, checks the size and writes
   the session log;

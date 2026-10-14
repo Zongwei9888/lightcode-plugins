@@ -62,10 +62,13 @@ describe('LightShadow on pi (real pi 1.1 session, faux model)', () => {
       ],
     })
 
-    // pi's summarizer got the segment with the long results replaced by references, plus LightShadow's instruction.
+    // pi's summarizer got the segment with the results in full (so the summary keeps their findings), plus LightShadow's instruction.
     expect(fake.calls).toHaveLength(1)
-    const sent = fake.calls[0]!.prep.messagesToSummarize.filter(message => message.role === 'toolResult').map(message => textOf(message.content))
-    expect(sent.every(text => text.startsWith('[recoverable observation]'))).toBe(true)
+    const prep = fake.calls[0]!.prep
+    const sent = [...prep.messagesToSummarize, ...prep.turnPrefixMessages].filter(message => message.role === 'toolResult').map(message => textOf(message.content))
+    expect(sent.length).toBeGreaterThan(0)
+    expect(sent.some(text => text.startsWith('[recoverable observation]'))).toBe(false)
+    expect(fake.calls[0]!.instructions).toContain('findings')
     expect(fake.calls[0]!.instructions).toContain('recall tool')
 
     // The checkpoint: pi's summary, the user's words verbatim, the catalog; the file tracking pi keeps in details survives.

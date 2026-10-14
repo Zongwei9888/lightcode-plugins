@@ -75,9 +75,10 @@ describe('LightShadow on DSH', () => {
     shadow.discover(host.events)
     expect(shadow.attached).toEqual({ engines: 1, pruners: 1 })
     const result = await host.engine.summarize(span(), agent as never)
-    // DSH's summarizer saw a reference instead of the result, and LightShadow's note.
+    // DSH's summarizer saw the result in full (so the summary can keep its findings), and LightShadow's note.
     const sent = host.calls[0]!.messages
-    expect(String(sent[3]!.content[0]!.text)).toMatch(/^\[recoverable observation\]\nobservation_id: o-[a-f0-9]{12}\ntool: bash/)
+    expect(sent[3]).toEqual(span().messages[3])
+    expect(String(sent.at(-1)!.content[0]!.text)).toContain('findings')
     expect(String(sent.at(-1)!.content[0]!.text)).toContain('recall tool')
     expect(sent[0]).toEqual(span().messages[0])
     // The checkpoint keeps DSH's envelope and adds the user's exact words and the catalog.

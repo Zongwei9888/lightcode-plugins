@@ -89,9 +89,12 @@ LightShadow changes what the span becomes:
    digits of the text's sha256, the tool, the size and an excerpt (first two
    and last two non-empty lines, at most 320 bytes), when that saves tokens.
    A result Economy shortened also names its complete original.
-2. **Summarize the residual** with the host's own summarizer and model (pi's
-   `compact()`, DSH's `BasicCompactionEngine.summarize`), plus a note that
-   references are recoverable.
+2. **Summarize the span** with the host's own summarizer and model (pi's
+   `compact()`, DSH's `BasicCompactionEngine.summarize`), with tool results
+   in full and a note to keep their findings (not their bodies) since they
+   stay recoverable. (Summarizing references instead made agents re-run
+   commands after a compaction: in real DeepSeek runs on DSH, about 40% more
+   requests than DSH's own compaction; with full results, fewer.)
 3. **Checkpoint** = the summary, the user's messages verbatim (the first one
    and as many of the latest as fit in 32 KB), and the catalog. An earlier
    checkpoint in the span contributes its user messages and references; its

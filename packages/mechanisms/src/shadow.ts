@@ -59,11 +59,11 @@ export const RECALL_TOOL_NAME = 'lightcode_recall'
 
 /** Appended to the host's own compaction instruction for the residual segment. */
 export const SHADOW_SUMMARY_INSTRUCTION = [
-  'Some tool results in this conversation were replaced by [recoverable observation] markers.',
-  'Their full text is saved and the agent can read any of them again with the recall tool,',
-  'so do not copy file bodies, command logs or test output into the summary, and never invent',
-  'the content of a removed result. Do not list observation IDs; LightCode appends the catalog.',
-  'The user\'s messages are also kept word for word after the summary; summarize what was done.',
+  'After this compaction every tool result in this span stays recoverable: LightCode appends a catalog of them,',
+  'and the agent can read any of them again with the recall tool. So write the summary the agent needs to carry on',
+  'without re-running anything: the findings from the tool results (facts, file paths with line numbers, values,',
+  'errors, what passed and what failed) and the decisions made. Do not paste whole files, logs or test output;',
+  'say what they showed. Do not list observation IDs. The user\'s messages are kept word for word after the summary.',
 ].join(' ')
 
 export const RECALL_TOOL_DESCRIPTION = 'Read again a tool result that context compaction removed, exactly as you first saw it. '

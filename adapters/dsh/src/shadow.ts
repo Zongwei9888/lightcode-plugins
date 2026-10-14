@@ -182,8 +182,10 @@ export function createDshShadow(options: DshShadowOptions): DshShadow {
         const messages = [...input.messages]
         for (const [i, index] of indexes.entries()) {
           const item = segment[i]!, residual = plan.residual[i]!
-          // Tool results become references; an earlier checkpoint loses the user messages and catalog the plan carries.
-          if ((item.role === 'tool' || item.role === 'summary') && residual.text !== item.text) {
+          // The summarizer reads the tool results in full, so the summary keeps their findings (with references
+          // only, agents re-ran commands instead of recalling). An earlier checkpoint loses the user messages and
+          // catalog the plan carries.
+          if (item.role === 'summary' && residual.text !== item.text) {
             messages[index] = { ...messages[index]!, content: [{ type: 'text', text: residual.text }] }
           }
         }

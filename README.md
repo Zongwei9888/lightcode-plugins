@@ -48,9 +48,11 @@ history and drops it. Whatever the summary leaves out is gone, including
 tool output the agent may need again. With LightShadow, when pi or DeepSeek
 Harness compacts:
 
-- every tool result in the compacted span is saved and replaced by a
-  reference with a short excerpt (the first and last lines, at most 320
-  bytes); the host's own summarizer then condenses only what is left;
+- the host's own summarizer reads the span as usual and is asked to keep the
+  findings the agent needs to carry on (paths, line numbers, values,
+  errors), not whole files or logs;
+- every tool result in the span is saved and replaced by a reference with a
+  short excerpt (the first and last lines, at most 320 bytes);
 - the checkpoint that replaces the span is that summary, **your messages
   word for word**, and a catalog of the references;
 - the model can read any of them again with the `lightcode_recall` tool:
