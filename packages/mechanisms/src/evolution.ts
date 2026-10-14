@@ -73,14 +73,27 @@ export interface ReplayRow {
   readonly delivered: string
 }
 
-/** s_pi(e): replay one observation through the full decision (filters, stream policy, admission). */
-export function replayCase(policy: EconomyPolicy, item: { id: string; result: ShellResult }, options: { minimumSavedTokens?: number; estimateTokens?: TokenEstimator } = {}): ReplayRow {
+/**
+ * The most characters a host delivers inline, as its adapter configures the
+ * engine (`maxProjectedChars`): a longer projection passes at runtime, so it
+ * saves nothing in replay either.
+ */
+export const HOST_INLINE_LIMITS: Readonly<Record<string, number>> = Object.freeze({ dsh: 48_000 })
+
+/** s_pi(e): replay one observation through the full decision (filters, stream policy, admission, the host's inline limit). */
+export function replayCase(policy: EconomyPolicy, item: { id: string; result: ShellResult; host?: string },
+  options: { minimumSavedTokens?: number; estimateTokens?: TokenEstimator } = {}): ReplayRow {
   const estimate = options.estimateTokens ?? defaultEstimate
   const decision = decideShellProjection(item.result, { policy, minimumSavedTokens: options.minimumSavedTokens ?? 16, estimateTokens: estimate })
   const rawTokens = estimate(item.result.rendered)
   if (decision.kind === 'pass') {
     return { id: item.id, reason: decision.reason, ...decision.filter ? { filter: decision.filter } : {}, ...decision.rule ? { rule: decision.rule } : {},
       rawTokens, saving: 0, delivered: item.result.rendered }
+  }
+  const limit = item.host === undefined ? undefined : HOST_INLINE_LIMITS[item.host]
+  if (limit !== undefined && decision.text.length > limit) {
+    return { id: item.id, reason: 'over-host-inline-limit', filter: decision.filter, ...decision.rule ? { rule: decision.rule } : {}, rawTokens,
+      saving: 0, delivered: item.result.rendered }
   }
   return { id: item.id, reason: 'projected', filter: decision.filter, ...decision.rule ? { rule: decision.rule } : {}, rawTokens,
     saving: decision.rawTokens - decision.projectedTokens, delivered: decision.text }
@@ -137,6 +150,14 @@ export function defaultRequirements(): PreservationRequirement[] {
     ['not ok 2 - retries', "error: 'expected 4, got 3'", '# fail 1'], 1)
   add('compiler-error', 'make', 'cc -c a.c\ncc -c b.c\nb.c:12:5: error: use of undeclared identifier \'retry\'\n    retry(3);\n    ^\n1 error generated.\nmake: *** [b.o] Error 1\n',
     ["b.c:12:5: error: use of undeclared identifier 'retry'", 'make: *** [b.o] Error 1'], 2)
+  add('python-traceback', 'python3 app.py', 'loading config\n' + 'step ok\n'.repeat(40) + 'Traceback (most recent call last):\n  File "app.py", line 12, in <module>\n    main()\n  File "app.py", line 9, in main\n    parse(rate)\nValueError: invalid literal for int() with base 10: \'1,5\'\n',
+    ['Traceback (most recent call last):', 'File "app.py", line 9, in main', "ValueError: invalid literal for int() with base 10: '1,5'"], 1)
+  add('jest-failure', 'npx jest', 'PASS src/a.test.ts\n'.repeat(30) + 'FAIL src/retry.test.ts\n  ● retry › waits longer each time\n\n    expect(received).toBe(expected)\n\n    Expected: 4\n    Received: 3\n\nTests:       1 failed, 30 passed, 31 total\n',
+    ['FAIL src/retry.test.ts', '● retry › waits longer each time', 'Expected: 4', 'Received: 3', 'Tests:       1 failed, 30 passed, 31 total'], 1)
+  add('go-test-failure', 'go test ./...', 'ok  \texample.com/a\t0.01s\n'.repeat(30) + '--- FAIL: TestRetry (0.00s)\n    retry_test.go:12: got 3, want 4\nFAIL\nFAIL\texample.com/retry\t0.01s\n',
+    ['--- FAIL: TestRetry (0.00s)', 'retry_test.go:12: got 3, want 4', 'FAIL\texample.com/retry'], 1)
+  add('npm-error', 'npm install', 'npm WARN deprecated a@1.0.0\n'.repeat(20) + 'npm ERR! code ERESOLVE\nnpm ERR! ERESOLVE unable to resolve dependency tree\nnpm ERR! Found: react@18.3.1\n',
+    ['npm ERR! code ERESOLVE', 'npm ERR! ERESOLVE unable to resolve dependency tree', 'npm ERR! Found: react@18.3.1'], 1)
   add('git-conflict', 'git status', 'On branch main\nYou have unmerged paths.\n\nUnmerged paths:\n\tboth modified:   src/retry.py\n',
     ['You have unmerged paths.', 'both modified:   src/retry.py'])
   return items

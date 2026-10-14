@@ -87,9 +87,18 @@ lc evolve --learner pi          # or dsh, claude, codex, or any command
    tokens in total with **no observation saving less**.
 
 Adopted rules run before the built-in filters in new sessions on every host,
-in a sandbox (no file system, network, `require`, timers or `eval`; 100 ms
-per call), and a rule result that drops an error, warning or failure line,
-or whose source map does not match the output, is discarded. `lc rules`
+in a worker thread with its own memory limit and a fresh JavaScript context
+for every output (no file system, network, `require`, timers or `eval`;
+100 ms per call; a rule that keeps failing is switched off). A rule result is
+discarded unless every piece of it is copied from the output (its only own
+words are notes like `[120 progress lines omitted]`), it keeps every error,
+exception, warning and failure line, and its source map matches.
+
+The learner reads command output from your sessions, which can contain text
+written by others (a cloned repository, a web page). Treat it like any agent
+working on untrusted input: the Claude Code learner may only run `./check`
+and `./try`, Codex runs in its workspace sandbox, and with pi or DeepSeek
+Harness the learner has the shell those agents normally have. `lc rules`
 lists, shows, switches off and rolls back adoptions.
 
 ## Hosts

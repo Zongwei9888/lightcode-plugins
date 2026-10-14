@@ -128,14 +128,27 @@ describe('LightShadow on DSH', () => {
     expect((read('s1') as ShadowCheckpointRecord[]).filter(record => record.type === 'shadow/checkpoint')).toMatchObject([{ kind: 'standard', reason: 'checkpoint-not-smaller' }])
   })
 
-  it('passes DSH\'s summarizer errors through untouched only after one plain attempt', async () => {
+  it('hands DSH\'s summarizer errors to DSH\'s own recovery, after a single call', async () => {
     const host = fakeHost(), { shadow, warnings } = setup()
     let attempts = 0
     host.engine.summarize = async () => { attempts++; throw new Error('provider down') }
     shadow.discover(host.events)
     await expect(host.engine.summarize(span(), agent as never)).rejects.toThrow('provider down')
-    expect(attempts).toBe(2)
-    expect(warnings[0]).toContain('provider down')
+    expect(attempts).toBe(1)
+    expect(warnings).toEqual([])
+  })
+
+  it('prices with DSH\'s token meter when the agent offers it, and skips the summary call that could not fit', async () => {
+    const host = fakeHost(), { shadow, read } = setup()
+    shadow.discover(host.events)
+    // DSH's meter prices the span at 40 tokens and anything carrying the user-message list at 1000: no checkpoint fits.
+    const estimateMessage = (message: { content: { text?: string }[] }) => message.content.some(block => block.text?.includes('User messages (verbatim)')) ? 1000 : 10
+    const metered = { ...agent, ctx: { get: (name: string) => name === 'tokenMeter' ? { estimateMessage } : undefined } }
+    const result = await host.engine.summarize(span(), metered as never)
+    expect(host.calls).toHaveLength(1)
+    expect(host.calls[0]!.messages).toEqual(span().messages)
+    expect(result.summary).toEqual(text('We ran seq 3000.'))
+    expect((read('s1') as ShadowCheckpointRecord[]).filter(record => record.type === 'shadow/checkpoint')).toMatchObject([{ kind: 'standard', reason: 'checkpoint-not-smaller' }])
   })
 
   it('leaves the span alone in observe and off modes', async () => {
@@ -159,6 +172,11 @@ describe('LightShadow on DSH', () => {
     expect(record).toMatchObject({ kind: 'cut', references: [{ id }] })
     expect(artifacts.read(record.references[0]!.sha256)).toBe(`s1:${big}`)
     expect(shadow.recall({ id: 's1' }, { observation_id: id, query: '1500' }, null).text).toContain('\n1500\n')
+    // A note that would push the result over the pruner's threshold is not written.
+    host.pruner.config.thresholdChars = 5150
+    const tight = host.pruner.pruneSession({ id: 's1' }) as { text: string }[]
+    expect(tight[0]!.text).toContain(DSH_PRUNE_MARKER)
+    host.pruner.config.thresholdChars = 8192
     // Outside pruneSession (no session known), the pruner's own cut stands.
     expect(host.pruner.pruneContent([{ type: 'text', text: big }])![0]!.text).toContain(DSH_PRUNE_MARKER)
   })

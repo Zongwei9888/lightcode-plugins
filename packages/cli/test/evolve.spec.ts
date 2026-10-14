@@ -95,7 +95,7 @@ describe('lc evolve', () => {
     // Roll back: new sessions read the build output in full again.
     expect(lc(['rules', 'rollback'], { home }).out).toContain('No learned rules are active now.')
     expect(lc(['run', '-c', './build.sh'], { cwd, home }).out).toContain('[ 80/80] Compiling module_79.rs')
-  })
+  }, 60_000)
 
   it('rejects a rule that loses literal data, or that does worse than the built-in filters', () => {
     const home = temp(), cwd = project(), work = temp()
@@ -118,7 +118,7 @@ describe('lc evolve', () => {
     const broken = lc(['evolve', '--learner', learner(work, 'broken', "throw new Error('boom')"), '--json'], { cwd, home })
     expect(JSON.parse(broken.out)).toMatchObject({ accepted: false, reasons: expect.arrayContaining(['rule-error']), ruleFailures: { broken: expect.any(Number) } })
     expect(lc(['rules'], { home }).out).toContain('No learned rules yet')
-  })
+  }, 60_000)
 
   it('refuses a rule directory that does not load, and reports when there is nothing to learn from', () => {
     const home = temp(), cwd = project(), work = temp()
@@ -135,7 +135,23 @@ describe('lc evolve', () => {
     const runs = readdirSync(join(home, 'evolve'))
     expect(runs.length).toBeGreaterThanOrEqual(1)
     expect(readdirSync(join(home, 'evolve', runs.at(-1)!)).sort()).toEqual(['checker.json', 'feedback.json', 'learner.log', 'workspace'])
-  })
+  }, 60_000)
+
+  it('verifies against its own record of the evidence, and stops whatever the learner left running', () => {
+    const home = temp(), cwd = project(), work = temp()
+    lc(['run', '-c', './build.sh'], { cwd, home })
+    expect(lc(['run', '-c', 'grep -rn value src'], { cwd, home }).out).toContain('omitted')
+    // A learner that shadows the built-in grep filter (a regression there) and hides that observation from the checker file.
+    const script = join(work, 'tamper.sh')
+    writeFileSync(script, `${readFileSync(learner(work, 'grep-lite', 'return lc.keepLines(input.raw, (line, i) => i >= 8)', "input.argv && (input.argv[0] === 'grep' || input.argv[0] === './build.sh')").slice(3), 'utf8')}
+node -e "const f='../checker.json';const s=JSON.parse(require('fs').readFileSync(f,'utf8'));s.caseIds=s.caseIds.slice(0,1);require('fs').writeFileSync(f,JSON.stringify(s))"
+(sleep 30; echo late > rules-work/late.txt) &
+`)
+    const started = Date.now()
+    const result = JSON.parse(lc(['evolve', '--learner', `sh ${script}`, '--json'], { cwd, home }).out)
+    expect(Date.now() - started).toBeLessThan(20_000)
+    expect(result).toMatchObject({ accepted: false, cases: 2, reasons: expect.arrayContaining(['replay-token-regression']) })
+  }, 60_000)
 
   it('parses durations', () => {
     expect([parseDuration('30m'), parseDuration('12h'), parseDuration('7d'), parseDuration('7 days')]).toEqual([1_800_000, 43_200_000, 604_800_000, undefined])

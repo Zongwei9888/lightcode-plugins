@@ -10,7 +10,9 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { COMMANDS } from './fixture.mjs'
+import { BUILD_LEARNED, adoptRules, writeBuildScript } from './rules.mjs'
 import { SHADOW_PROMPT, checkpointRequest, readBack, seqCommands, shadowScript } from './shadow-script.mjs'
+import { toolResults } from './mock-llm.mjs'
 import { delivered, journal, verifyDeliveries } from './verify.mjs'
 
 export const COMMAND_LIST = [COMMANDS.search, COMMANDS.tests, COMMANDS.diff, COMMANDS.plain]
@@ -61,7 +63,7 @@ export async function until(check, what, timeoutMs = 60_000) {
  * @param {{ page: import('playwright-core').Page, label: string, profileDir: string, lightcodeHome: string,
  *   mock: { requests: any[] }, shot: (name: string) => Promise<unknown>, log: (line: string) => void, pageErrors: string[] }} options
  */
-export async function exercisePluginsPage({ page, label, profileDir, lightcodeHome, mock, shot, log, pageErrors }) {
+export async function exercisePluginsPage({ page, label, profileDir, lightcodeHome, workspace, mock, shot, log, pageErrors }) {
   await page.getByRole('button', { name: 'Continue' }).click({ timeout: 30_000 }).catch(() => {})
   const decisions = () => journal(lightcodeHome, 'dsh').filter(record => record.type === 'economy/decision')
   const profile = () => JSON.parse(readFileSync(join(profileDir, 'package.json'), 'utf8'))
@@ -86,10 +88,17 @@ export async function exercisePluginsPage({ page, label, profileDir, lightcodeHo
   const chat = async (name, prompt = 'Run the fixture commands.') => {
     const before = mock.requests.length
     await page.getByRole('button', { name: 'New session' }).first().click()
-    const box = composer()
-    await box.click()
-    await box.fill(prompt)
-    await page.keyboard.press('Enter')
+    // A fresh session can re-render under the composer just after the click: send again until the model is asked.
+    for (let attempt = 0; ; attempt++) {
+      const box = composer()
+      await box.click()
+      await box.fill(prompt)
+      await page.keyboard.press('Enter')
+      const sent = await until(() => mock.requests.length > before, 'the prompt to reach the model', 15_000).then(() => true, () => false)
+      if (sent) break
+      if (attempt === 2) throw new Error(`the prompt was not sent: ${prompt}`)
+      await page.getByRole('button', { name: 'New session' }).first().click()
+    }
     await page.getByText('done', { exact: true }).waitFor({ timeout: 240_000 })
     await shot(name)
     return mock.requests.slice(before)
@@ -154,6 +163,18 @@ export async function exercisePluginsPage({ page, label, profileDir, lightcodeHo
   await page.getByText(/LightShadow: \d+ compactions?, \d+ long results? cut, \d+ tool results kept recallable/).first().waitFor()
   await shot('05c-lightcode-lightshadow')
   log(`${label}: LightShadow in the agent preset ✓ (${checkpoints.map(record => record.kind).join(', ')}); recall ✓; /lightcode ✓`)
+
+  // 2c. A learned rule (as lc evolve adopts one) applies in the next session: the rule sandbox runs in the host's process.
+  writeBuildScript(workspace)
+  const adopted = adoptRules(lightcodeHome)
+  mock.setScript({ commands: ['./build.sh'], toolArguments: command => ({ description: `Fixture: ${command}`, command }) })
+  let built
+  try { built = await chat('05d-chat-learned-rule') } finally { mock.setScript(fixture) }
+  assert.equal(toolResults(built.at(-1)).at(-1)?.text, BUILD_LEARNED, 'the learned rule did not apply')
+  const learned = decisions().at(-1)
+  assert.equal(learned.rule, 'build-progress')
+  assert.equal(learned.learnedRulesHash, adopted)
+  log(`${label}: learned rule applied in a new session ✓`)
 
   // 3. Mode on the plugin's page, applied to the next tool call without a restart.
   await saveMode('Observe')

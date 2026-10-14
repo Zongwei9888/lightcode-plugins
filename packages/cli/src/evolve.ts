@@ -1,8 +1,9 @@
 import { spawn } from 'node:child_process'
+import type { SpawnOptionsWithStdioTuple } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { compileLearnedRules, createPolicy, literalCommand, RuleDirectoryError } from '@lightcode/core'
-import type { LearnedRuleSet } from '@lightcode/core'
+import type { LearnedRuleSet, RuleFile } from '@lightcode/core'
 import { collectEvidence, formatTokens, replayCase, verifyRules } from '@lightcode/mechanisms'
 import type { EvidenceCase, VerificationReport } from '@lightcode/mechanisms'
 import type { ArtifactPort } from '@lightcode/protocol'
@@ -20,7 +21,8 @@ import type { CliContext } from './context.ts'
 export const LEARNERS: Readonly<Record<string, (instruction: string, options: { profile?: string }) => string[]>> = {
   pi: instruction => ['pi', '-p', '--no-session', instruction],
   dsh: (instruction, options) => ['dsh', '--profile', options.profile ?? 'headless', instruction],
-  claude: instruction => ['claude', '-p', instruction, '--permission-mode', 'acceptEdits', '--allowedTools', 'Bash Read Edit Write Glob Grep'],
+  // Shell access limited to the checker and the try tool.
+  claude: instruction => ['claude', '-p', instruction, '--permission-mode', 'acceptEdits', '--allowedTools', 'Bash(./check*) Bash(./try*) Read Edit Write Glob Grep'],
   codex: instruction => ['codex', 'exec', '--full-auto', '--skip-git-repo-check', instruction],
 }
 const INSTRUCTION = 'Read PROMPT.md in the current directory and carry out that task. Work only inside this directory.'
@@ -54,11 +56,14 @@ function checkerEvidence(context: CliContext, state: CheckerState): EvidenceCase
     .filter(item => wanted.has(item.id))
 }
 
-function loadCandidate(dir: string): LearnedRuleSet | undefined {
-  const files = readRuleDirectory(dir)
+function compileCandidate(files: readonly RuleFile[]): LearnedRuleSet | undefined {
   const index = files.find(file => file.path === 'index.json')
   if (index && (JSON.parse(index.text) as { rules?: unknown[] }).rules?.length === 0) return undefined
   return compileLearnedRules(files)
+}
+
+function loadCandidate(dir: string): LearnedRuleSet | undefined {
+  return compileCandidate(readRuleDirectory(dir))
 }
 
 const commandHead = (command: string) => literalCommand(command)?.[0] ?? command.trim().split(/\s+/u)[0] ?? ''
@@ -146,13 +151,19 @@ copied piece of text is exact:
                                                     rest; null when nothing would be omitted
 - lc.builder(raw) -> b                              b.keep(start, end) copies raw.slice(start, end)
                                                     b.keepLine(line) copies a whole line with its newline
-                                                    b.generate(text, reason) adds text of your own
+                                                    b.generate(note, reason) adds an omission note
                                                     b.newline(); b.finish() -> { text, sourceMap }
 - lc.stripAnsi(text)
 
-The environment is plain JavaScript: no require/import, no file system, network, timers or eval.
-Each call has 100 ms. A result that is not smaller, has an invalid source map, or drops a line that
-mentions error, warning, failure, fatal, panic, traceback or exception is discarded.
+Everything in a result is copied from the output, except omission notes of the form
+"[<number> <words> omitted]" (letters, digits and simple punctuation, at most 80 characters) and
+newlines. Any other text of the rule's own makes LightCode discard the result.
+
+The environment is plain JavaScript: no require/import, no file system, network, timers or eval,
+and nothing a rule keeps lasts from one output to the next. Each call has 100 ms. A result that is not
+smaller, has an invalid source map, or drops a line that reports an error, exception, warning or
+failure (including assertion lines, "FAIL", "npm ERR!", "not ok", pytest's "E   " and "> " lines)
+is discarded.
 `
 
 /** Write the learner's workspace; returns the directory of the run. */
@@ -170,7 +181,8 @@ export function prepareRun(context: CliContext, options: { since?: number; maxCa
   const state: CheckerState = { schemaVersion: 1, parent, caseIds: evidence.map(item => item.id), since: since?.toISOString() ?? null,
     minimumSavedTokens, ...filterOptions === undefined ? {} : { filterOptions } }
   writeFileSync(join(runDir, 'checker.json'), JSON.stringify(state, null, 2) + '\n', { mode: 0o600 })
-  const shown = learnerCases(evidence, parentSet, filterOptions, minimumSavedTokens)
+  let shown
+  try { shown = learnerCases(evidence, parentSet, filterOptions, minimumSavedTokens) } finally { parentSet?.dispose() }
   const index = shown.map(({ item, row }, i) => {
     const file = `cases/${String(i + 1).padStart(4, '0')}.json`
     writeFileSync(join(workspace, file), JSON.stringify({
@@ -185,28 +197,41 @@ export function prepareRun(context: CliContext, options: { since?: number; maxCa
   writeFileSync(join(workspace, 'PROMPT.md'), learnerPrompt(workspace))
   writeFileSync(join(workspace, 'RULES.md'), RULES_MD)
   // The checker runs this same lc, with node, whatever the learner's PATH holds.
-  const lc = `${shellQuote(process.execPath)} ${shellQuote(resolve(process.argv[1] ?? 'lc'))}`
+  const lc = [process.execPath, ...process.execArgv, resolve(process.argv[1] ?? 'lc')].map(shellQuote).join(' ')
   writeFileSync(join(workspace, 'check'), `#!/bin/sh\nexec ${lc} evolve check --workspace ${shellQuote(workspace)} "$@"\n`, { mode: 0o755 })
   writeFileSync(join(workspace, 'try'), `#!/bin/sh\nexec ${lc} evolve try --workspace ${shellQuote(workspace)} "$@"\n`, { mode: 0o755 })
-  return { runDir, workspace, evidence, shown: index.length, parent }
+  return { runDir, workspace, evidence, shown: index.length, parent, state }
 }
 
 function checkerOf(workspace: string): CheckerState {
   return JSON.parse(readFileSync(join(resolve(workspace), '..', 'checker.json'), 'utf8')) as CheckerState
 }
 
-/** Verify a workspace's rules-work against its run's evidence. */
-export function checkWorkspace(context: CliContext, workspace: string): { report?: VerificationReport; error?: string } {
-  const state = checkerOf(workspace)
+/**
+ * Verify a workspace's rules-work against its run's evidence. `lc evolve`
+ * passes the checker state it wrote (the learner can edit the file, not the
+ * process's memory) and gets back the exact files it verified.
+ */
+export function checkWorkspace(context: CliContext, workspace: string, known?: CheckerState): { report?: VerificationReport; error?: string; files?: RuleFile[] } {
+  const state = known ?? checkerOf(workspace)
   const store = new RuleStore(context.dataDir)
-  let candidate: LearnedRuleSet | undefined
-  try { candidate = loadCandidate(join(workspace, 'rules-work')) } catch (error) {
+  let candidate: LearnedRuleSet | undefined, parent: LearnedRuleSet | undefined
+  let files: RuleFile[]
+  try {
+    files = readRuleDirectory(join(workspace, 'rules-work'))
+    candidate = compileCandidate(files)
+  } catch (error) {
     return { error: error instanceof RuleDirectoryError ? error.message : String(error) }
   }
-  const parent = state.parent ? compileLearnedRules(store.files(state.parent)) : undefined
-  const report = verifyRules({ parent, candidate, cases: checkerEvidence(context, state), filterOptions: state.filterOptions,
-    minimumSavedTokens: state.minimumSavedTokens })
-  return { report }
+  try {
+    parent = state.parent ? compileLearnedRules(store.files(state.parent)) : undefined
+    const report = verifyRules({ parent, candidate, cases: checkerEvidence(context, state), filterOptions: state.filterOptions,
+      minimumSavedTokens: state.minimumSavedTokens })
+    return { report, files }
+  } finally {
+    candidate?.dispose()
+    parent?.dispose()
+  }
 }
 
 function describe(report: VerificationReport): string {
@@ -222,20 +247,36 @@ function describe(report: VerificationReport): string {
   return lines.join('\n') + '\n'
 }
 
+/**
+ * Run the learner in its own process group: on timeout, and once it exits,
+ * the whole group is stopped, so nothing it started in the background can
+ * keep running or change rules-work after verification.
+ */
 function runLearner(argv: readonly string[], options: { cwd: string; timeoutMs: number; shell: boolean; log: string }): Promise<number | null> {
   return new Promise(resolvePromise => {
     // The learner's own commands must reach it unfiltered and must not become evidence.
     const env = { ...process.env, LIGHTCODE_DISABLE: '1', LIGHTCODE_EVOLVE_WORKSPACE: options.cwd, LIGHTCODE_EVOLVE_PROMPT: join(options.cwd, 'PROMPT.md') }
-    const child = options.shell
-      ? spawn('/bin/sh', ['-c', argv[0]!], { cwd: options.cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })
-      : spawn(argv[0]!, argv.slice(1), { cwd: options.cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })
+    const spawnOptions: SpawnOptionsWithStdioTuple<'ignore', 'pipe', 'pipe'> = { cwd: options.cwd, env, stdio: ['ignore', 'pipe', 'pipe'], detached: true }
+    const child = options.shell ? spawn('/bin/sh', ['-c', argv[0]!], spawnOptions) : spawn(argv[0]!, argv.slice(1), spawnOptions)
+    const group = (signal: NodeJS.Signals) => { try { if (child.pid) process.kill(-child.pid, signal) } catch { /* Already gone. */ } }
     let log = ''
+    let settled = false
     const keep = (chunk: Buffer) => { log += chunk.toString('utf8'); if (log.length > 4_000_000) log = log.slice(-2_000_000); process.stderr.write(chunk) }
     child.stdout.on('data', keep)
     child.stderr.on('data', keep)
-    const timer = setTimeout(() => { child.kill('SIGTERM'); setTimeout(() => child.kill('SIGKILL'), 5000).unref() }, options.timeoutMs)
-    child.on('error', error => { log += `\n${String(error)}\n`; clearTimeout(timer); writeFileSync(options.log, log); resolvePromise(null) })
-    child.on('close', code => { clearTimeout(timer); writeFileSync(options.log, log); resolvePromise(code) })
+    const finish = (code: number | null) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      group('SIGTERM')
+      setTimeout(() => group('SIGKILL'), 2000).unref()
+      writeFileSync(options.log, log)
+      resolvePromise(code)
+    }
+    const timer = setTimeout(() => { log += `\n[lc evolve: the learner ran out of time]\n`; group('SIGTERM'); setTimeout(() => group('SIGKILL'), 5000).unref() }, options.timeoutMs)
+    child.on('error', error => { log += `\n${String(error)}\n`; finish(null) })
+    // 'exit', not 'close': a background process holding the pipes must not keep lc evolve waiting.
+    child.on('exit', code => { setTimeout(() => finish(code), 200) })
   })
 }
 
@@ -263,8 +304,8 @@ export async function evolve(args: {
   const code = await runLearner(argv, { cwd: prepared.workspace, timeoutMs, shell: custom, log: join(prepared.runDir, 'learner.log') })
   if (code === null) process.stderr.write(`lc evolve: the learner did not run (see ${join(prepared.runDir, 'learner.log')})\n`)
   else if (code !== 0) process.stderr.write(`lc evolve: the learner exited with ${code}; verifying what it left\n`)
-  const checked = checkWorkspace(context, prepared.workspace)
-  writeFileSync(join(prepared.runDir, 'feedback.json'), JSON.stringify(checked, null, 2) + '\n')
+  const checked = checkWorkspace(context, prepared.workspace, prepared.state)
+  writeFileSync(join(prepared.runDir, 'feedback.json'), JSON.stringify({ report: checked.report, error: checked.error }, null, 2) + '\n')
   if (!checked.report) {
     process.stdout.write(`NOT ACCEPTED: ${checked.error}\n`)
     return 1
@@ -273,7 +314,9 @@ export async function evolve(args: {
   let adopted: string | null = null
   if (report.accepted && !args.dryRun) {
     const store = new RuleStore(context.dataDir)
-    adopted = store.install(join(prepared.workspace, 'rules-work'))
+    // Exactly the files that were verified.
+    adopted = store.installFiles(checked.files!)
+    if (adopted !== report.candidateHash) throw new Error(`lc evolve: installed rules ${adopted} differ from the verified ${report.candidateHash}`)
     store.activate(adopted, { cases: report.cases, gainTokens: report.gainTokens })
   }
   if (args.json) process.stdout.write(JSON.stringify({ ...report, adopted, workspace: prepared.workspace }, null, 2) + '\n')
@@ -300,6 +343,7 @@ export function evolveTry(workspace: string | undefined, caseFile: string | unde
   const item = JSON.parse(readFileSync(resolve(workspace, caseFile), 'utf8')) as { command: string; exitCode: number; stdout: string; stderr?: string }
   let candidate: LearnedRuleSet | undefined
   try { candidate = loadCandidate(join(resolve(workspace), 'rules-work')) } catch (error) { process.stdout.write(`rules-work does not load: ${String((error as Error).message)}\n`); return 1 }
+  try {
   const state = checkerOf(workspace)
   const rendered = item.stderr ? `${item.stdout}${item.stderr}` : item.stdout
   const result = { command: item.command, exitCode: item.exitCode, rendered, stdout: { start: 0, text: item.stdout },
@@ -308,6 +352,7 @@ export function evolveTry(workspace: string | undefined, caseFile: string | unde
   process.stdout.write(`${row.reason}${row.rule ? ` by rule ${row.rule}` : row.filter ? ` by ${row.filter}` : ''}: ${row.rawTokens} -> ${row.rawTokens - row.saving} tokens\n---\n${row.delivered}${row.delivered.endsWith('\n') ? '' : '\n'}`)
   if (candidate && candidate.failures.size) process.stdout.write(`--- rule failures: ${JSON.stringify(Object.fromEntries(candidate.failures))}\n`)
   return 0
+  } finally { candidate?.dispose() }
 }
 
 /** `lc rules`: what is adopted, and switching. */
@@ -331,13 +376,20 @@ export function rules(action: string | undefined, json: boolean): number {
       return 0
     }
     case 'path': process.stdout.write(`${state.active ? store.dirOf(state.active) : store.root}\n`); return 0
-    case 'off': store.deactivate(); process.stdout.write('Learned rules are off for new sessions (lc rules rollback or lc evolve to adopt again).\n'); return 0
+    case 'off': store.deactivate(); process.stdout.write('Learned rules are off for new sessions (lc rules on switches the last adopted rules back on).\n'); return 0
+    case 'on': {
+      if (state.active) { process.stdout.write(`Rules ${state.active.slice(0, 12)} are already active.\n`); return 0 }
+      const last = store.rollback()
+      process.stdout.write(last ? `Active rules are now ${last.slice(0, 12)}.\n` : 'No learned rules have been adopted yet.\n')
+      return 0
+    }
     case 'rollback': {
+      if (!state.active) { process.stdout.write('No learned rules are active (lc rules on switches the last adopted ones back on).\n'); return 0 }
       const previous = store.rollback()
       process.stdout.write(previous ? `Active rules are now ${previous.slice(0, 12)}.\n` : 'No learned rules are active now.\n')
       return 0
     }
-    default: process.stderr.write('lc rules [list|show|path|off|rollback] [--json]\n'); return 2
+    default: process.stderr.write('lc rules [list|show|path|off|on|rollback] [--json]\n'); return 2
   }
 }
 

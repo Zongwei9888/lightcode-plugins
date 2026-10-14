@@ -18,10 +18,10 @@
  * log) stays DSH's. `lightcode_recall` reads a reference again.
  */
 import {
-  RECALL_TOOL_DESCRIPTION, RECALL_TOOL_NAME, SHADOW_SUMMARY_INSTRUCTION, checkpointAdmitted, checkpointRecord, cutNote, externalizeCut,
+  RECALL_TOOL_DESCRIPTION, RECALL_TOOL_NAME, SHADOW_SUMMARY_INSTRUCTION, checkpointRecord, cutNote, externalizeCut,
   planShadow, recallObservation, referenceIndex, renderCheckpoint, renderRecall,
 } from '@lightcode/mechanisms'
-import type { RecallResult, ShadowMessage } from '@lightcode/mechanisms'
+import type { RecallResult, ShadowMessage, ShadowPlan } from '@lightcode/mechanisms'
 import type { ArtifactPort, EconomyRecord, JournalPort, JournalRecord, MechanismMode, ShadowReference } from '@lightcode/protocol'
 import type { ContentBlock, HostSession } from './host.ts'
 
@@ -61,6 +61,20 @@ export interface DshShadowOptions {
   readonly now?: () => Date
 }
 
+/** DSH's token meter (`ctx.tokenMeter.estimateMessage`) as the agent's context offers it, if any. */
+function meterOf(agent: HostAgent): ((message: HostMessage) => number) | undefined {
+  try {
+    const ctx = (agent as { ctx?: { get?: (name: string) => unknown } }).ctx
+    const meter = ctx?.get?.('tokenMeter') as { estimateMessage?: (message: unknown) => unknown } | undefined
+    if (typeof meter?.estimateMessage !== 'function') return undefined
+    return message => {
+      const value = meter.estimateMessage!(message)
+      if (typeof value !== 'number' || !Number.isFinite(value)) throw new Error('token meter returned no number')
+      return value
+    }
+  } catch { return undefined }
+}
+
 const texts = (blocks: readonly ContentBlock[]): string | undefined => {
   let text = ''
   for (const [i, block] of blocks.entries()) {
@@ -69,6 +83,10 @@ const texts = (blocks: readonly ContentBlock[]): string | undefined => {
   }
   return text
 }
+
+/** Text blocks as they are; any other block (an image, a file) as a short placeholder. */
+const describeBlocks = (blocks: readonly ContentBlock[]) =>
+  blocks.map(block => block.type === 'text' && typeof block.text === 'string' ? block.text : `[${block.type}]`).join('\n')
 
 /** DSH messages as LightShadow reads them; the system head is no part of the segment. */
 export function shadowMessages(messages: readonly HostMessage[]): { segment: ShadowMessage[]; indexes: number[] } {
@@ -91,14 +109,14 @@ export function shadowMessages(messages: readonly HostMessage[]): { segment: Sha
     } else if (message.role === 'tool') {
       const text = texts(message.content)
       const name = message.toolCallId === undefined ? undefined : names.get(message.toolCallId)
-      item = text === undefined ? { role: 'other', text: JSON.stringify(message.content) }
+      item = text === undefined ? { role: 'other', text: describeBlocks(message.content) }
         : { role: 'tool', text, ...name ? { toolName: name } : {}, ...message.toolCallId ? { callId: message.toolCallId } : {} }
     } else if (message.role === 'user') {
       const text = message.content.filter(block => block.type === 'text').map(block => String(block.text)).join('\n')
       const kind = message.source?.kind
       item = { role: kind === 'compact-checkpoint' ? 'summary' : kind === 'user' ? 'user' : 'other', text }
     } else {
-      item = { role: 'other', text: JSON.stringify(message.content) }
+      item = { role: 'other', text: describeBlocks(message.content) }
     }
     segment.push(item)
     indexes.push(index)
@@ -135,7 +153,7 @@ export function createDshShadow(options: DshShadowOptions): DshShadow {
       try { mode = options.mode(session) } catch { mode = 'off' }
       if (mode === 'off') return original(input, agent, signal)
       const base = () => ({ host: options.host, sessionId: session.id, time: time() })
-      let plan
+      let prepared: { plan: ShadowPlan; messages: HostMessage[]; spanTokens: number; measure: (text: string) => number } | undefined
       try {
         const records = options.read(session.id)
         const known = referenceIndex(records)
@@ -147,37 +165,49 @@ export function createDshShadow(options: DshShadowOptions): DshShadow {
           }
         }
         const { segment, indexes } = shadowMessages(input.messages)
-        plan = planShadow(segment, { artifacts: options.artifacts(), knownReference: id => known.get(id), originalOf: id => originals.get(id) })
+        const plan = planShadow(segment, { artifacts: options.artifacts(), knownReference: id => known.get(id), originalOf: id => originals.get(id) })
         if (mode === 'observe') {
           append(checkpointRecord(base(), { kind: 'standard', plan, checkpointTokens: 0, reason: 'observe' }))
+          return original(input, agent, signal)
+        }
+        // Price the span and the checkpoint the way DSH's own size check does, when its meter is reachable.
+        const meter = meterOf(agent)
+        const measure = (text: string) => meter ? meter({ role: 'user', content: [{ type: 'text', text }], source: { kind: 'user' } }) : Math.ceil(text.length / 4) + FRAMING_TOKENS
+        const spanTokens = meter ? input.messages.filter(message => message.role !== 'system').reduce((sum, message) => sum + meter(message), 0) : plan.segmentTokens
+        // What the checkpoint adds besides the summary must leave room for one.
+        if (measure(renderCheckpoint('', plan)) >= spanTokens * 0.6) {
+          append(checkpointRecord(base(), { kind: 'standard', plan, checkpointTokens: measure(renderCheckpoint('', plan)), reason: 'checkpoint-not-smaller' }))
           return original(input, agent, signal)
         }
         const messages = [...input.messages]
         for (const [i, index] of indexes.entries()) {
           const item = segment[i]!, residual = plan.residual[i]!
-          if (item.role === 'tool' && residual.text !== item.text) messages[index] = { ...messages[index]!, content: [{ type: 'text', text: residual.text }] }
-          // An earlier checkpoint's user messages and catalog are carried by the plan.
-          if (item.role === 'summary' && residual.text !== item.text) messages[index] = { ...messages[index]!, content: [{ type: 'text', text: residual.text }] }
+          // Tool results become references; an earlier checkpoint loses the user messages and catalog the plan carries.
+          if ((item.role === 'tool' || item.role === 'summary') && residual.text !== item.text) {
+            messages[index] = { ...messages[index]!, content: [{ type: 'text', text: residual.text }] }
+          }
         }
         // DSH's summarizer appends its own instruction after the conversation; LightShadow's note goes last in the span.
         messages.push({ role: 'user', content: [{ type: 'text', text: SHADOW_SUMMARY_INSTRUCTION }], source: { kind: 'user' } })
-        const result = await original({ ...input, messages }, agent, signal)
-        const summary = texts(result.summary) ?? result.summary.filter(block => block.type === 'text').map(block => String(block.text)).join('\n')
-        const text = renderCheckpoint(summary, plan)
-        const tokens = Math.ceil(text.length / 4) + FRAMING_TOKENS
-        if (!checkpointAdmitted('x'.repeat(tokens * 4), plan)) {
-          append(checkpointRecord(base(), { kind: 'standard', plan, checkpointTokens: tokens, reason: 'checkpoint-not-smaller' }))
-          return original(input, agent, signal)
-        }
-        append(checkpointRecord(base(), { kind: 'lightshadow', plan, checkpointTokens: tokens }))
-        return { ...result, summary: [{ type: 'text', text }] }
+        prepared = { plan, messages, spanTokens, measure }
       } catch (error) {
         if (signal?.aborted) throw error
         options.warn?.(`LightCode LightShadow: ${String(error)}; using DSH's own compaction`)
-        append(checkpointRecord(base(), { kind: 'standard', plan: { references: [], contract: [], segmentTokens: plan?.segmentTokens ?? 0 },
-          checkpointTokens: 0, reason: 'error' }))
+        append(checkpointRecord(base(), { kind: 'standard', plan: { references: [], contract: [], segmentTokens: 0 }, checkpointTokens: 0, reason: 'error' }))
         return original(input, agent, signal)
       }
+      // DSH's own errors (rate limits, overflow) go to DSH's recovery unchanged.
+      const result = await original({ ...input, messages: prepared.messages }, agent, signal)
+      const { plan, spanTokens, measure } = prepared
+      const summary = result.summary.filter(block => block.type === 'text').map(block => String(block.text)).join('\n')
+      const text = renderCheckpoint(summary, plan)
+      const tokens = measure(text)
+      if (tokens >= spanTokens * 0.9) {
+        append(checkpointRecord(base(), { kind: 'standard', plan, checkpointTokens: tokens, reason: 'checkpoint-not-smaller' }))
+        return original(input, agent, signal)
+      }
+      append(checkpointRecord(base(), { kind: 'lightshadow', plan, checkpointTokens: tokens }))
+      return { ...result, summary: [{ type: 'text', text }] }
     }
     engine[WRAPPED] = true
     attached.engines++
@@ -203,6 +233,10 @@ export function createDshShadow(options: DshShadowOptions): DshShadow {
         if (!reference) return pruned
         const kept = texts(pruned)?.length ?? full.length
         const note = cutNote(reference, full.length - kept + DSH_PRUNE_MARKER.length)
+        // The pruner checked its own size before this note replaced its marker: stay within its threshold,
+        // or the next pass would cut the result again.
+        const threshold = (pruner as { config?: { thresholdChars?: unknown } }).config?.thresholdChars
+        if (typeof threshold === 'number' && kept - DSH_PRUNE_MARKER.length + note.length > threshold) return pruned
         const block = pruned[markerAt]!
         const next = [...pruned]
         next[markerAt] = { ...block, text: String(block.text).replace(DSH_PRUNE_MARKER, note) }

@@ -108,15 +108,16 @@ function marker(reference: ShadowReference): string {
 
 /** IDs in the observation catalogs of earlier checkpoints quoted in `text`. */
 export function catalogIds(text: string): string[] {
-  const ids: string[] = []
-  let start = text.indexOf(CATALOG_OPEN)
-  while (start >= 0) {
-    const end = text.indexOf(CATALOG_CLOSE, start)
-    const block = text.slice(start, end < 0 ? undefined : end)
-    for (const match of block.matchAll(CATALOG_ID)) ids.push(match[1]!)
-    start = end < 0 ? -1 : text.indexOf(CATALOG_OPEN, end)
-  }
-  return ids
+  // LightShadow appends its catalog last; quoted text never contains the tag (see `quote`).
+  const start = text.lastIndexOf(CATALOG_OPEN)
+  if (start < 0) return []
+  const end = text.indexOf(CATALOG_CLOSE, start)
+  return [...text.slice(start, end < 0 ? undefined : end).matchAll(CATALOG_ID)].map(match => match[1]!)
+}
+
+/** JSON string literal on one line that cannot contain a tag: `<`, U+2028 and U+2029 are escaped. */
+function quote(text: string): string {
+  return JSON.stringify(text).replace(/</gu, '\\u003c').replace(/\u2028/gu, '\\u2028').replace(/\u2029/gu, '\\u2029')
 }
 
 /**
@@ -195,7 +196,7 @@ function boundContract(users: readonly string[], maxBytes: number): { contract: 
 }
 
 const CONTRACT_HEADING = '## User messages (verbatim)'
-const CONTRACT_LINE = /^- (".*")$/u
+const CONTRACT_LINE = /^- ("[^\n]*")$/u
 
 /**
  * Split a checkpoint LightShadow wrote (possibly inside the host's own
@@ -205,13 +206,13 @@ const CONTRACT_LINE = /^- (".*")$/u
 export function parseCheckpoint(text: string): { summary: string; contract: string[]; ids: string[] } {
   const ids = catalogIds(text)
   let rest = text
-  const open = rest.indexOf(CATALOG_OPEN)
+  const open = rest.lastIndexOf(CATALOG_OPEN)
   if (open >= 0) {
     const close = rest.indexOf(CATALOG_CLOSE, open)
     rest = rest.slice(0, open) + (close < 0 ? '' : rest.slice(close + CATALOG_CLOSE.length))
   }
   const contract: string[] = []
-  const heading = rest.indexOf(`${CONTRACT_HEADING}\n`)
+  const heading = rest.lastIndexOf(`${CONTRACT_HEADING}\n`)
   if (heading >= 0) {
     const lines = rest.slice(heading + CONTRACT_HEADING.length + 1).split('\n')
     let taken = 0
@@ -238,10 +239,10 @@ export function renderCheckpoint(summary: string, plan: Pick<ShadowPlan, 'contra
     CATALOG_OPEN,
     'Tool results removed from this conversation. Read one again with the recall tool and its observation_id.',
     ...plan.references.map(ref => `observation_id: ${ref.id} | tool: ${ref.tool} | bytes: ${ref.bytes}${ref.original ? ` | original: ${ref.original.bytes} bytes` : ''}`
-      + `${ref.excerpt ? ` | excerpt: ${JSON.stringify(ref.excerpt)}` : ''}`),
+      + `${ref.excerpt ? ` | excerpt: ${quote(ref.excerpt)}` : ''}`),
     CATALOG_CLOSE,
   ].join('\n') : ''
-  const contract = plan.contract.length ? [CONTRACT_HEADING, ...plan.contract.map(text => `- ${JSON.stringify(text)}`),
+  const contract = plan.contract.length ? [CONTRACT_HEADING, ...plan.contract.map(text => `- ${quote(text)}`),
     plan.contractOmitted ? `(${plan.contractOmitted} earlier user message${plan.contractOmitted === 1 ? '' : 's'} summarized above)` : ''].filter(Boolean).join('\n') : ''
   return [summary.trim(), contract, catalog].filter(Boolean).join('\n\n')
 }

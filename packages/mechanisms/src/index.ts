@@ -1,4 +1,4 @@
-export { describeToolCall, EconomyEngine, isPrepared, normalizeShellCommand } from './economy.ts'
+export { describeToolCall, EconomyEngine, evidenceAllowed, isPrepared, normalizeShellCommand } from './economy.ts'
 export type { CommandNormalizerOptions, EconomyEngineOptions, EconomyOutput, EconomyRequest, NativeEconomyRequest, Prepared } from './economy.ts'
 export { formatTokens, summarizeEconomy, summarizeShadow } from './receipts.ts'
 export type { EconomySummary, ShadowSummary } from './receipts.ts'

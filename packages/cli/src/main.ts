@@ -22,7 +22,7 @@ Usage:
   lc doctor [--json]               configuration and per-host capability negotiation
   lc evolve --learner pi|dsh|claude|codex|"<command>" [--since 7d] [--max-cases N] [--timeout 30m] [--dry-run] [--json]
                                    learn output rules from recorded evidence; adopt them only if verified
-  lc rules [list|show|path|off|rollback] [--json]
+  lc rules [list|show|path|off|on|rollback] [--json]
                                    learned rules: what is adopted, switch off, go back
   lc --version
 

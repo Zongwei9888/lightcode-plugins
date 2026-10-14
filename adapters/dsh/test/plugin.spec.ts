@@ -73,6 +73,14 @@ describe('DSH plugin entry', () => {
     expect(output).toEqual({ text: expect.stringMatching(/^recall failed: unknown observation_id/), ok: false })
     expect(tools[0]!.output.render({}, output)).toEqual([{ type: 'text', text: (output as { text: string }).text }])
   })
+  it('declares no recall tool when LightCode\'s configuration switches LightShadow off', () => {
+    process.env.LIGHTCODE_LIGHTSHADOW = 'off'
+    try {
+      const { ctx, tools } = fakeContext()
+      apply(ctx, { mode: live('apply'), inlineLimitChars: 48_000 })
+      expect(tools).toEqual([])
+    } finally { delete process.env.LIGHTCODE_LIGHTSHADOW }
+  })
   it('never swallows a downstream failure', async () => {
     const { ctx, listeners } = fakeContext()
     apply(ctx, { mode: live('apply'), inlineLimitChars: 48_000 })

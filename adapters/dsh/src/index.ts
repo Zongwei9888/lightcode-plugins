@@ -40,8 +40,15 @@ export function apply(ctx: HostContext, config: Config): void {
   // (which prepends) bounds the projection rather than handing LightCode a spilled preview.
   ctx.on('tools/post-execute', async (exec, result, next) => economy.postExecute(exec, result, await next()))
 
+  // The recall tool is declared to every agent only when LightCode's own configuration allows LightShadow;
+  // without it, LightShadow at most observes (references nobody could recall are never made).
+  let recallRegistered = false
   const shadow = createDshShadow({
-    host: HOST, mode: session => economy.shadowMode(session), journal: economy.journal, artifacts: economy.artifacts, read: economy.read,
+    host: HOST, journal: economy.journal, artifacts: economy.artifacts, read: economy.read,
+    mode: session => {
+      const mode = economy.shadowMode(session)
+      return mode === 'apply' && !recallRegistered ? 'observe' : mode
+    },
     warn: message => ctx.logger.warn(message),
   })
   // Presets mount their compaction engines after this plugin; look again whenever an agent starts or steps.
@@ -54,30 +61,33 @@ export function apply(ctx: HostContext, config: Config): void {
     return engines === 0 ? ['LightShadow: no DSH compaction engine found yet (it attaches when an agent starts).']
       : [`LightShadow is attached to ${engines} compaction engine${engines === 1 ? '' : 's'} and ${pruners} result pruner${pruners === 1 ? '' : 's'}.`]
   }
-  ctx.tools?.register({
-    name: RECALL_TOOL.name,
-    description: RECALL_TOOL.description,
-    parameters: {
-      type: 'object',
-      properties: {
-        observation_id: { type: 'string', description: 'An observation_id from the observation catalog, such as o-1a2b3c4d5e6f.' },
-        query: { type: 'string', description: 'An exact string the result contains; needed for results over 8 KB.' },
-        original: { type: 'boolean', description: 'Read the complete output LightCode shortened before you first read it.' },
+  if (economy.configuredShadowMode() !== 'off' && ctx.tools) {
+    recallRegistered = true
+    ctx.tools.register({
+      name: RECALL_TOOL.name,
+      description: RECALL_TOOL.description,
+      parameters: {
+        type: 'object',
+        properties: {
+          observation_id: { type: 'string', description: 'An observation_id from the observation catalog, such as o-1a2b3c4d5e6f.' },
+          query: { type: 'string', description: 'An exact string the result contains; needed for results over 8 KB.' },
+          original: { type: 'boolean', description: 'Read the complete output LightCode shortened before you first read it.' },
+        },
+        required: ['observation_id'],
+        additionalProperties: false,
       },
-      required: ['observation_id'],
-      additionalProperties: false,
-    },
-    output: {
-      schema: { type: 'object', properties: { text: { type: 'string' }, ok: { type: 'boolean' } }, required: ['text', 'ok'], additionalProperties: false },
-      render: (_args, value) => [{ type: 'text', text: String((value as { text?: unknown }).text ?? '') }],
-    },
-    async execute(args, exec) {
-      const session = exec.agent?.session
-      if (!session) return { text: 'recall failed: no session', ok: false }
-      const { text, result } = shadow.recall({ id: String(session.id) }, args, String(exec.callId))
-      return { text, ok: result.ok }
-    },
-  })
+      output: {
+        schema: { type: 'object', properties: { text: { type: 'string' }, ok: { type: 'boolean' } }, required: ['text', 'ok'], additionalProperties: false },
+        render: (_args, value) => [{ type: 'text', text: String((value as { text?: unknown }).text ?? '') }],
+      },
+      async execute(args, exec) {
+        const session = exec.agent?.session
+        if (!session) return { text: 'recall failed: no session', ok: false }
+        const { text, result } = shadow.recall({ id: String(session.id) }, args, String(exec.callId))
+        return { text, ok: result.ok }
+      },
+    })
+  }
   ctx.inject(['commands'], inner => {
     inner.effect(() => inner.commands.register({
       definitionId: '@lightcode/dsh/lightcode',

@@ -69,7 +69,7 @@ export async function runDesktop({ cache, root, registry, log }) {
     const pageErrors = []
     page.on('pageerror', error => pageErrors.push(error.message))
     await page.getByRole('button', { name: 'Plugins' }).first().waitFor({ timeout: 120_000 })
-    await exercisePluginsPage({ page, label: 'desktop', profileDir: join(dshHome, 'profiles', 'desktop'), lightcodeHome, mock, shot, log, pageErrors })
+    await exercisePluginsPage({ page, label: 'desktop', profileDir: join(dshHome, 'profiles', 'desktop'), lightcodeHome, workspace, mock, shot, log, pageErrors })
     log(`desktop: screenshots in ${shots}`)
   } catch (error) {
     await shot('failure')?.catch(() => {})

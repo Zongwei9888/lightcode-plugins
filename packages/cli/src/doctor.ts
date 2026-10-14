@@ -28,6 +28,7 @@ export function doctor(options: { json?: boolean } = {}): number {
     `  config      ${sources.length ? sources.join(', ') : 'defaults'}`,
     `  economy     mode=${config.economy.mode} minimumSavedTokens=${config.economy.minimumSavedTokens} retention=${config.artifacts.retentionDays}d`,
     `  lightshadow mode=${config.lightshadow.mode}`,
+    `  evolution   evidence=${config.economy.evidence ? 'kept (every complete shell output, except credential-looking ones)' : 'off'} learnedRules=${config.economy.learnedRules ? 'on' : 'off'}`,
   ]
   for (const problem of problems) lines.push(`  ! ${problem} (Economy and LightShadow are off until this is fixed)`)
   for (const host of hosts) {

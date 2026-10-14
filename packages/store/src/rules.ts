@@ -94,7 +94,11 @@ export class RuleStore {
 
   /** Copy a checked directory into the store under its hash, read-only. Returns the hash. */
   install(source: string): string {
-    const files = readRuleDirectory(source)
+    return this.installFiles(readRuleDirectory(source))
+  }
+
+  /** Write exactly these files (the ones that were verified) under their hash, read-only. Returns the hash. */
+  installFiles(files: readonly RuleFile[]): string {
     parseRuleIndex(files)
     const hash = ruleDirectoryHash(files)
     const target = this.dirOf(hash)
@@ -126,9 +130,18 @@ export class RuleStore {
     this.writeState({ ...state, active: null })
   }
 
-  /** Go back to the rules the active ones replaced (or none). Returns the new active hash. */
+  /**
+   * Go back to the rules the active ones replaced (or none). With learned
+   * rules switched off, switch the last adopted ones back on. Returns the new
+   * active hash.
+   */
   rollback(): string | null {
     const state = this.state()
+    if (state.active === null) {
+      const last = state.history.at(-1)?.hash ?? null
+      if (last) this.writeState({ ...state, active: last })
+      return last
+    }
     const current = [...state.history].reverse().find(item => item.hash === state.active)
     const previous = current?.parent ?? null
     this.writeState({ ...state, active: previous })

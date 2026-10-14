@@ -28,6 +28,15 @@ export interface EconomyEngineOptions {
 
 /** Originals larger than this are not kept as evidence (projections always keep theirs). */
 const MAX_EVIDENCE_BYTES = 1_048_576
+/** Commands that print the environment or read credentials are never kept as evidence. */
+const SENSITIVE_COMMAND = /(?:^|[\s/;|&(])(?:env|printenv|export|set)(?:\s*$|\s*[;|&)])|\.env\b|secret|token|passw|credential|\.netrc|id_(?:rsa|ed25519|ecdsa|dsa)\b|\.pem\b|\.p12\b|\.key\b|auth\.json|\b(?:aws|gcloud|az|gh|npm|docker|kubectl)\s+(?:configure|auth|login|token)/iu
+/** Output that carries something that looks like a credential is never kept as evidence either. */
+const SENSITIVE_OUTPUT = /-----BEGIN [A-Z ]*PRIVATE KEY-----|\bAKIA[0-9A-Z]{16}\b|\bgh[pousr]_[A-Za-z0-9]{30,}|\bsk-[A-Za-z0-9_-]{20,}|\bxox[abpr]-[A-Za-z0-9-]{10,}|\b(?:api[_-]?key|secret|password|token)\s*[=:]\s*\S{8,}/iu
+
+/** Whether an output may be kept as evidence for `lc evolve`. */
+export function evidenceAllowed(command: string, rendered: string): boolean {
+  return !SENSITIVE_COMMAND.test(command) && !SENSITIVE_OUTPUT.test(rendered)
+}
 
 export interface EconomyRequest {
   readonly sessionId: string | null
@@ -109,7 +118,8 @@ export class EconomyEngine {
     /** The original as evidence for `lc evolve`: shell output only, when kept. */
     const evidence = (): TextMeasure & { stored: boolean } => {
       const measured = measure(rendered)
-      if (!shell || options.config.evidence === false || measured.bytes > MAX_EVIDENCE_BYTES || rendered === '') return { ...measured, stored: false }
+      if (!shell || options.config.evidence === false || measured.bytes > MAX_EVIDENCE_BYTES || rendered === ''
+        || !evidenceAllowed(shell.command, rendered)) return { ...measured, stored: false }
       try {
         options.artifacts.save(rendered)
         return { ...measured, stored: true }

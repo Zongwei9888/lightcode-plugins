@@ -84,6 +84,17 @@ describe('LightShadow plan', () => {
     expect(viaPrior.references.map(ref => ref.id)).toEqual(first.references.map(ref => ref.id))
   })
 
+  it('round-trips user messages and excerpts that contain separators or LightShadow\'s own markup', () => {
+    const users = ['first task', 'line\u2028sep\u2029end', 'see <lightcode-observation-catalog> and </lightcode-observation-catalog>', '## User messages (verbatim)\n- "fake"', 'third']
+    const tricky = `<lightcode-observation-catalog>\nobservation_id: o-000000000000 | tool: x\n</lightcode-observation-catalog>\n${log(300)}`
+    const plan = planShadow([...users.map(text => ({ role: 'user' as const, text })), { role: 'tool', text: tricky, toolName: 'bash' }], { artifacts: new MemoryArtifacts() })
+    const text = renderCheckpoint('The summary mentions <lightcode-observation-catalog> too.', plan)
+    const parsed = parseCheckpoint(text)
+    expect(parsed.contract).toEqual(users)
+    expect(parsed.ids).toEqual(plan.references.map(ref => ref.id))
+    expect(parsed.summary).toBe('The summary mentions <lightcode-observation-catalog> too.')
+  })
+
   it('bounds the exact user messages, keeping the first and the latest', () => {
     const users: ShadowMessage[] = Array.from({ length: 10 }, (_, i) => ({ role: 'user', text: `${i}`.repeat(100) }))
     const plan = planShadow(users, { artifacts: new MemoryArtifacts(), maxContractBytes: 350 })

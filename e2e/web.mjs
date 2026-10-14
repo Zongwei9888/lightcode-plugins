@@ -58,7 +58,7 @@ export async function runWeb({ cache, root, registry, log }) {
     const shot = name => page.screenshot({ path: join(shots, `${name}.png`) })
     try {
       await page.goto(web.url)
-      await exercisePluginsPage({ page, label: `web ${version}`, profileDir, lightcodeHome, mock, shot, log, pageErrors })
+      await exercisePluginsPage({ page, label: `web ${version}`, profileDir, lightcodeHome, workspace, mock, shot, log, pageErrors })
       log(`web ${version}: screenshots in ${shots}`)
     } catch (error) {
       await shot('failure').catch(() => {})

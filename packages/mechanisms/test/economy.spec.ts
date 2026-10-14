@@ -68,6 +68,14 @@ describe('EconomyEngine', () => {
     off.engine.process({ sessionId: null, callId: null, tool: 'bash', result: shell('my-tool', output) })
     expect(off.records[0]).toMatchObject({ outcome: 'passed', raw: { stored: false } })
     expect(off.artifacts.items.size).toBe(0)
+    // Nothing that looks like credentials is kept.
+    const secrets = setup()
+    for (const [command, text] of ([['cat .env', 'A=1\n'.repeat(100)], ['printenv', 'PATH=/bin\n'.repeat(100)], ['./show-config', `${'x\n'.repeat(100)}api_key = abcdef0123456789\n`],
+      ['cat deploy.txt', `${'y\n'.repeat(100)}-----BEGIN OPENSSH PRIVATE KEY-----\n`]] as [string, string][])) {
+      secrets.engine.process({ sessionId: 's', callId: command, tool: 'bash', result: shell(command, text) })
+    }
+    expect(secrets.records.map(record => (record as EconomyRecord).raw?.stored)).toEqual([false, false, false, false])
+    expect(secrets.artifacts.items.size).toBe(0)
     // A host tool's own result is no evidence (learned rules see shell output only).
     const native = setup()
     native.engine.process({ sessionId: 's', callId: 'd', tool: 'grep', command: 'grep {}', native: { rendered: 'No matches found', projection: undefined } })

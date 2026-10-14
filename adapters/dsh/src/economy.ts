@@ -66,6 +66,8 @@ export interface DshEconomy {
   readonly dataDir: string
   /** Negotiated LightShadow mode for a session. */
   shadowMode(session: { id: string; cwd?: string | undefined }): MechanismMode
+  /** LightShadow as the user's own configuration and environment set it, before any session. */
+  configuredShadowMode(): MechanismMode
   journal(): JournalPort
   artifacts(): ArtifactPort
   read(sessionId: string): readonly JournalRecord[]
@@ -248,6 +250,7 @@ export function createDshEconomy(options: DshEconomyOptions): DshEconomy {
     },
     get dataDir() { return storage().dataDir },
     shadowMode: session => negotiateFor(sessionState(session.id, session.cwd).loaded).find(item => item.mechanism === 'lightshadow')!.mode,
+    configuredShadowMode: () => loadConfig({ dataDir: configDir, env }).config.lightshadow.mode,
     journal: () => storage().journal,
     artifacts: () => storage().artifacts,
     read,
