@@ -1104,11 +1104,12 @@ export function refreshScan(dataDir: string, options: BackgroundOptions & { maxA
   // After an attempt that produced no scan (it failed), wait a minute: a failing scan must not be respawned on every poll.
   const attempt = join(evolveDir(dataDir), 'scan.attempt')
   try {
-    const last = statSync(attempt).mtimeMs
+    // The attempt's own clock reading, not the file's mtime: file times and Date.now() can disagree by a few ms.
+    const last = readJson<{ time?: number }>(attempt)?.time ?? statSync(attempt).mtimeMs
     const failed = !scan || Date.parse(scan.time) < last
     if (failed && Date.now() - last < 60_000) return false
   } catch { /* First attempt. */ }
-  try { ensurePrivateDir(evolveDir(dataDir)); writeFileSync(attempt, '', { mode: 0o600 }) } catch { return false }
+  try { ensurePrivateDir(evolveDir(dataDir)); writeFileSync(attempt, JSON.stringify({ time: Date.now() }), { mode: 0o600 }) } catch { return false }
   const pid = spawnRunner(options, ['scan'], join(evolveDir(dataDir), 'runner.log'))
   if (pid === undefined) return false
   try { writeJsonAtomic(marker, { pid, time: Date.now() }) } catch { /* Best effort. */ }
