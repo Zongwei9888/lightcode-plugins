@@ -1,18 +1,149 @@
+<div align="center">
+
+<img src="docs/assets/logo.svg" alt="LightCode logo" width="84">
+
 # LightCode
 
-LightCode makes coding agents spend fewer tokens on tool output without
-hiding evidence from them. It plugs into existing agents — [pi](https://github.com/earendil-works/pi),
-[Codex](https://github.com/openai/codex) and DeepSeek Harness — instead of
-being another agent.
+### Fewer tokens on tool output, nothing lost.
 
-> **Status: 0.2 in development.** This release line ships three mechanisms,
-> all on by default, as installable plugins for pi and DeepSeek Harness:
-> **Token Economy** (smaller tool output), **LightShadow** (recoverable
-> compaction) and **self-evolving filters** (`lc evolve`). Codex gets Token
-> Economy through a plugin, any other agent through `lc run`. Delegation
-> accounting follows in 0.3. Nothing is published to npm yet.
+Plugins for [pi](https://github.com/earendil-works/pi), DeepSeek Harness and [Codex](https://github.com/openai/codex) that shrink what the model reads,<br>make compaction recoverable, and learn filters for your own tools.
 
-## What Token Economy does
+<p>
+  <img alt="Version" src="https://img.shields.io/badge/version-0.2.0_(unreleased)-0F766E?style=flat-square">
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue?style=flat-square"></a>
+  <img alt="Node.js 22+" src="https://img.shields.io/badge/Node.js-22%2B-339933?style=flat-square&logo=node.js&logoColor=white">
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white">
+  <img alt="Runtime dependencies: 0" src="https://img.shields.io/badge/runtime_deps-0-0F766E?style=flat-square">
+</p>
+<p>
+  <img alt="pi 1.1+" src="https://img.shields.io/badge/pi-1.1%2B-111827?style=flat-square">
+  <img alt="DeepSeek Harness 0.2" src="https://img.shields.io/badge/DeepSeek_Harness-0.2_Web_%C2%B7_Desktop_%C2%B7_CLI-4D6BFE?style=flat-square">
+  <img alt="Codex 0.162+" src="https://img.shields.io/badge/Codex-0.162%2B-111827?style=flat-square">
+  <img alt="Any shell" src="https://img.shields.io/badge/any_agent-lc_run-475569?style=flat-square">
+</p>
+
+<p>
+  <a href="README.md"><img alt="English" height="28" src="https://img.shields.io/badge/English-BCDCF7?style=flat-square"></a>&nbsp;
+  <a href="docs/zh/README.md"><img alt="简体中文" height="28" src="https://img.shields.io/badge/简体中文-CDCFD4?style=flat-square"></a>
+</p>
+
+[Why](#-why-lightcode) · [Quick start](#-quick-start) · [In your agent](#%EF%B8%8F-in-your-agent) · [How it works](#-how-it-works) · [Hosts](#-hosts) · [Commands](#%EF%B8%8F-commands) · [Testing](#-how-it-is-tested) · [Development](#%EF%B8%8F-development)
+
+</div>
+
+---
+
+> **Status: 0.2 in development.** Token Economy, LightShadow and self-evolving
+> filters ship as installable plugins for pi and DeepSeek Harness, all on by
+> default. Codex gets Token Economy through a plugin, any other agent through
+> `lc run`. Delegation accounting follows in 0.3. Nothing is published to npm
+> yet; until then, [install from a checkout](#install-from-a-checkout).
+
+## 📰 News
+
+- **2026-10-15** LightShadow is tested on real ~1M-token DeepSeek sessions with each host's default compaction; DeepSeek Harness tells you when new output is worth learning from.
+- **2026-10-14** 🧬 Self-evolving filters: learn from pi's `/lightcode` panel, DeepSeek Harness's Plugins page, or `lc evolve`.
+- **2026-10-14** 🌗 LightShadow: recoverable compaction on pi and DeepSeek Harness.
+- **2026-10-13** 🧩 Installable plugins for pi and DeepSeek Harness (Web, Desktop, CLI), with an end-to-end suite against published host releases.
+
+## ✨ Why LightCode
+
+Coding agents spend most of their context on tool output: test runs, builds,
+diffs, searches, file reads. Most of it is noise the model reads once; some of
+it is evidence it needs again after the host has compacted it away.
+LightCode plugs into the agent you already use, at the seams the host offers
+for plugins, and does three things:
+
+- **Token Economy** — shows the model a smaller, deterministic version of
+  recognized output, keeping every failure, warning and total, and keeps the
+  original on your machine.
+- **LightShadow** — when the host compacts a long session, tool output is
+  saved and listed instead of lost; the agent reads any of it back with one
+  tool call.
+- **Self-evolution** — your own agent writes filters for *your* build scripts
+  and logs; LightCode adopts one only after verifying it on output the
+  learner never saw.
+
+It is not another agent and keeps everything on your machine (only a
+learning run you start sends recorded output to your own agent's model). It
+fails open: if anything goes wrong, the model gets the original output.
+
+<div align="center">
+<img src="docs/assets/architecture.svg" alt="LightCode architecture: hosts, adapters, mechanisms, foundation" width="100%">
+</div>
+
+## 🚀 Quick start
+
+| Your agent | Install |
+|---|---|
+| **pi** | `pi install npm:@lightcode/pi`, then `/lightcode` in a session |
+| **DeepSeek Harness** (Web, Desktop) | **Plugins** → **Add plugin** → `@lightcode/dsh` → **Install** → **Enable now** |
+| **DeepSeek Harness** (terminal) | `dsh plugin --profile web add @lightcode/dsh` (needs pnpm 11+) |
+| **Codex** | `codex plugin marketplace add <checkout>` → `codex plugin add lightcode@lightcode`, then trust the hooks in `/hooks` |
+| **Anything else** | `npm install -g @lightcode/cli`, then `lc run -c 'cargo test'` |
+
+Nothing to configure: Economy and LightShadow are on from the next tool call.
+`lc report` shows what was saved, `lc doctor` what each host supports.
+
+### Install from a checkout
+
+Until the packages are on npm, build them from this repository (Node.js 22
+and pnpm) and install by path:
+
+```sh
+git clone https://github.com/Zongwei9888/lightcode-plugins.git lightcode
+cd lightcode && pnpm install && pnpm build
+
+pi install "$PWD/adapters/pi"                            # pi
+dsh plugin --profile web add "$PWD/adapters/dsh"         # DeepSeek Harness (use your profile)
+npm install -g ./packages/cli                            # the lc command
+```
+
+In the DeepSeek Harness Desktop app, quit it and use its bundled `dsh` with
+`--profile desktop`. Codex installs from the checkout as a marketplace (see
+[`adapters/codex`](adapters/codex/README.md)).
+
+## 🖥️ In your agent
+
+**pi** — `/lightcode` opens a panel with the session's savings, LightShadow,
+the learned rules and the commands worth learning from. Press `l` to learn;
+the panel follows the run, and `r` rolls an adoption back.
+
+<div align="center">
+<img src="docs/assets/screenshots/pi-panel-adopted.png" alt="pi /lightcode panel after a rule was adopted" width="820">
+</div>
+
+**DeepSeek Harness** (Web and Desktop) — install from the **Plugins** page
+like any other plugin; the plugin's page has a *Self-evolution* section:
+**Learn now**, live progress, the learned rules with a switch and **Roll back**,
+and a toast when a run ends.
+
+<div align="center">
+<img src="docs/assets/screenshots/dsh-self-evolution.png" alt="DeepSeek Harness LightCode page: self-evolution with a learned rule adopted" width="900">
+</div>
+
+<details>
+<summary>More screenshots: installing, a run in progress, pi before learning, dark theme</summary>
+
+<p align="center">
+<img src="docs/assets/screenshots/dsh-install.png" alt="DeepSeek Harness Plugins page: @lightcode/dsh installed" width="900">
+<img src="docs/assets/screenshots/dsh-learning.png" alt="A learning run in progress on the DeepSeek Harness plugin page" width="900">
+<img src="docs/assets/screenshots/pi-panel-ready.png" alt="pi /lightcode panel, ready to learn" width="820">
+<img src="docs/assets/screenshots/dsh-self-evolution-dark.png" alt="The LightCode plugin page in dark theme" width="900">
+</p>
+
+</details>
+
+Screenshots come from the end-to-end suite (`pnpm e2e`), which drives the real
+DeepSeek Harness Desktop app and pi's terminal UI with a scripted model.
+
+## 🔍 How it works
+
+### Token Economy
+
+<div align="center">
+<img src="docs/assets/economy.svg" alt="pytest -v: 266 lines reduced to 23, with the failure kept in full" width="100%">
+</div>
 
 When an agent runs `pytest`, `cargo test`, `git diff`, `grep -rn`, `tsc`,
 `find`, a package install or one of ~80 other recognized commands, LightCode
@@ -41,7 +172,12 @@ The rules it never bends:
   original.
 - **Fail-open.** Any LightCode error delivers the original output.
 
-## What LightShadow does
+
+### LightShadow
+
+<div align="center">
+<img src="docs/assets/lightshadow.svg" alt="LightShadow: a long session, the checkpoint with its catalog, and a recall by line" width="100%">
+</div>
 
 Long sessions get compacted: the host asks the model to summarize older
 history and drops it. Whatever the summary leaves out is gone, including
@@ -68,7 +204,11 @@ Harness compacts:
 A checkpoint that would not be smaller, or any failure, leaves the
 compaction to the host, unchanged.
 
-## Self-evolving filters
+### Self-evolving filters
+
+<div align="center">
+<img src="docs/assets/evolution.svg" alt="A learning run: record, propose, verify, adopt, watch" width="100%">
+</div>
 
 Built-in filters cover common tools; your projects have their own: build
 scripts, test runners, linters, deploy logs. LightCode keeps the shell
@@ -130,7 +270,7 @@ held-back observations. Run directories (which copy some recorded output)
 are deleted with the originals they came from. The panel, the Plugins page and `lc rules`
 list, switch off and roll back adoptions.
 
-## Hosts
+## 🧩 Hosts
 
 | Host | Install | How | Economy | LightShadow | Learned rules |
 |---|---|---|---|---|---|
@@ -152,7 +292,7 @@ includes what its subagents saved.
 a mechanism runs in `apply`, `observe` or `off` depending on what the host
 offers; configuration can only lower that).
 
-### pi
+#### pi
 
 ```sh
 pi install npm:@lightcode/pi
@@ -163,7 +303,7 @@ The status bar shows tokens saved; `/lightcode` shows the session summary
 would change without changing anything, for both mechanisms;
 `pi config` can switch the extension off. See [`adapters/pi`](adapters/pi/README.md).
 
-### DeepSeek Harness
+#### DeepSeek Harness
 
 In the Web UI or the Desktop app: **Plugins** → **Add plugin** →
 `@lightcode/dsh` → **Install** → **Enable now**. Or from a terminal:
@@ -176,12 +316,12 @@ dsh plugin --profile web add @lightcode/dsh     # dsh plugin needs pnpm 11 or la
 Off) on the plugin's page applies to the next tool call and compaction. See
 [`adapters/dsh`](adapters/dsh/README.md).
 
-### Codex
+#### Codex
 
 See [`adapters/codex`](adapters/codex/README.md). `lc` must be on `PATH`,
 and Codex runs plugin hooks only after you trust them in `/hooks`.
 
-### Anything else
+#### Anything else
 
 ```sh
 lc run -c 'cargo test'           # runs with your shell; prints the filtered output
@@ -191,7 +331,7 @@ lc run -- git diff HEAD~3        # runs a program directly
 Exit codes and signals are passed through. Binary output, output over 32 MiB
 per stream and unrecognized output pass through untouched.
 
-## Commands
+## ⌨️ Commands
 
 ```
 lc report [--host H] [--session S] [--json]   savings, filters used, uncovered commands, LightShadow
@@ -209,7 +349,7 @@ replaced by the instruction (read `PROMPT.md`), which is also in
 `$LIGHTCODE_EVOLVE_PROMPT`. Each run keeps its workspace, the learner's log
 and the verdict under `~/.lightcode/evolve/`.
 
-## Configuration
+## ⚙️ Configuration
 
 `~/.lightcode/config.json` (or `$LIGHTCODE_HOME/config.json`):
 
@@ -237,7 +377,7 @@ off. `LIGHTCODE_ECONOMY`, `LIGHTCODE_LIGHTSHADOW` (`apply|observe|off`) and
 `LIGHTCODE_DISABLE=1` override both. An invalid setting turns Economy and
 LightShadow off (and `lc doctor` says why).
 
-## Privacy
+## 🔒 Privacy
 
 Everything stays on your machine. Saved originals can contain whatever your
 commands printed, including secrets; they are written with user-only
@@ -248,7 +388,23 @@ command output) goes to that agent's model provider, as the outputs did
 when the agent first ran them. Set `economy.evidence` to `false` to keep no
 evidence at all.
 
-## Repository
+## ✅ How it is tested
+
+| Layer | What runs |
+|---|---|
+| Unit tests | 961 tests across core, protocol, store, mechanisms, cli and the pi and DSH adapters; pi's run a real pi session with a scripted model |
+| Conformance | `conformance/economy`: every implementation must reproduce the expected projections byte for byte |
+| End to end | `pnpm e2e` installs the packed plugins from a local registry into published pi and DeepSeek Harness releases (two Web versions and the Desktop app) and drives them through their own plugin commands and UI; 51 checks locally, and on Linux and macOS in CI (all but the Desktop app) |
+| Real models | long DeepSeek sessions with each host's **default** compaction settings, until the host compacts on its own; the agent then has to quote lines it read before compaction |
+
+From the real DeepSeek runs (LightShadow checkpoint, reference count, recall):
+
+| Host | Compacted span → checkpoint | References | After compaction |
+|---|---|---|---|
+| pi | ~949k → 29.5k tokens | 624 | 2 recalls by line, every question answered correctly |
+| DeepSeek Harness | ~539k → 30.8k tokens | 589 | 2 recalls, every question answered correctly |
+
+## 🏗️ Repository
 
 ```
 packages/core        filters, learned-rule sandbox, source maps, admission, command normalization — no host dependency
@@ -269,7 +425,7 @@ with no runtime dependencies; the host's own modules stay external.
 Design: [docs/architecture.md](docs/architecture.md) · Releasing:
 [docs/releasing.md](docs/releasing.md) · 中文：[docs/zh/README.md](docs/zh/README.md)
 
-## Development
+## 🛠️ Development
 
 ```sh
 pnpm install
@@ -280,7 +436,7 @@ pnpm e2e          # install into published pi and DeepSeek Harness releases and 
 Changing a filter's output requires a new `ECONOMY_RUNTIME_VERSION` and a new
 expected file in `conformance/economy/`.
 
-## License
+## 📄 License
 
 MIT. The RTK built-in filter data in `packages/core/src/rtk/` is Apache-2.0;
 see [`third-party/rtk`](third-party/rtk/NOTICE.md).
