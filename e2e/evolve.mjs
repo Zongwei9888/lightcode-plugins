@@ -1,6 +1,6 @@
 /**
  * Self-evolution, end to end: the plugins installed in DeepSeek Harness and pi
- * record evidence, `lc evolve` (from the @lightcode/cli package on the
+ * record evidence, `lc evolve` (from the @lightcode-ai/cli package on the
  * registry) runs a scripted learner that writes a rule, verifies and adopts it,
  * and the next session on each host reads the learned projection.
  */
@@ -49,7 +49,7 @@ export async function runEvolve({ cache, root, registry, log }) {
   mkdirSync(base, { recursive: true })
   // The CLI, installed from the registry the way a user would.
   const cliPrefix = join(base, 'cli')
-  run('npm', ['install', '--global', '--prefix', cliPrefix, '--no-fund', '--no-audit', '@lightcode/cli'], { cwd: base,
+  run('npm', ['install', '--global', '--prefix', cliPrefix, '--no-fund', '--no-audit', '@lightcode-ai/cli'], { cwd: base,
     env: childEnv({ ...registry.env, npm_config_cache: join(cache, 'npm-cache') }) })
   const lc = join(cliPrefix, 'bin', 'lc')
   const mock = await startMockLlm({ commands: ['./build.sh'], toolArguments: command => ({ description: 'Build', command }) })
@@ -63,7 +63,7 @@ export async function runEvolve({ cache, root, registry, log }) {
     const env = childEnv({ ...registry.env, DSH_HOME: dshHome, PI_CODING_AGENT_DIR: agentDir, LIGHTCODE_HOME: lightcodeHome, MOCK_LLM_API_KEY: 'e2e',
       PI_SKIP_VERSION_CHECK: '1', PI_TELEMETRY: '0', PATH: `${pnpmBin}:${dshBin}:${process.env.PATH}`,
       npm_config_cache: join(cache, 'npm-cache'), npm_config_store_dir: join(cache, 'pnpm-store') })
-    run(join(dshBin, 'dsh'), ['plugin', '--profile', 'headless', 'add', '@lightcode/dsh'], { cwd: base, env })
+    run(join(dshBin, 'dsh'), ['plugin', '--profile', 'headless', 'add', '@lightcode-ai/dsh'], { cwd: base, env })
     writeFileSync(join(dshHome, 'profiles', 'headless', 'cordis.patch.yml'), `- id: llm-pi-ai
   config:
     providers:
@@ -78,7 +78,7 @@ export async function runEvolve({ cache, root, registry, log }) {
     provider: mock
     model: mock-model
 `)
-    run(join(piBin, 'pi'), ['install', 'npm:@lightcode/pi'], { cwd: base, env })
+    run(join(piBin, 'pi'), ['install', 'npm:@lightcode-ai/pi'], { cwd: base, env })
     writeFileSync(join(agentDir, 'models.json'), JSON.stringify({ providers: { mock: { baseUrl: mock.url, api: 'openai-completions', apiKey: 'e2e',
       models: [{ id: 'mock-model', contextWindow: 128000, maxTokens: 4096 }] } } }, null, 2))
     const dsh = async () => {

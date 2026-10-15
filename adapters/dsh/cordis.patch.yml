@@ -1,5 +1,5 @@
-# LightCode bundle layer, inserted when a profile installs @lightcode/dsh
-# (`dsh plugin --profile web add @lightcode/dsh`, or Plugins → Add plugin).
+# LightCode bundle layer, inserted when a profile installs @lightcode-ai/dsh
+# (`dsh plugin --profile web add @lightcode-ai/dsh`, or Plugins → Add plugin).
 #
 # The row id is the configuration namespace: the Plugins page edits `mode`
 # under it, and a profile's own cordis.patch.yml can override it, e.g.
@@ -9,4 +9,4 @@
 #       mode: observe
 - insert:
     - id: lightcode
-      name: '@lightcode/dsh'
+      name: '@lightcode-ai/dsh'

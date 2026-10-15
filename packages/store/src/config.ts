@@ -1,7 +1,7 @@
 import { readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { resolveFilterOptions } from '@lightcode/core'
-import type { MechanismMode } from '@lightcode/protocol'
+import { resolveFilterOptions } from '@lightcode-ai/core'
+import type { MechanismMode } from '@lightcode-ai/protocol'
 
 export interface EconomyConfig {
   /** Ceiling for negotiation: the host decides whether `apply` is possible. */

@@ -1,15 +1,15 @@
 # Releasing
 
-The packages users install are `@lightcode/pi`, `@lightcode/dsh` and
-`@lightcode/cli`. Each is one self-contained bundle (`scripts/bundle.mjs`) with
+The packages users install are `@lightcode-ai/pi`, `@lightcode-ai/dsh` and
+`@lightcode-ai/cli`. Each is one self-contained bundle (`scripts/bundle.mjs`) with
 no runtime dependencies, plus `LICENSE`, `LICENSE.rtk` (the bundled RTK filter
 data is Apache-2.0) and `NOTICE.md`, all generated at build time. The library
-packages (`@lightcode/core`, `protocol`, `store`, `mechanisms`) are published
+packages (`@lightcode-ai/core`, `protocol`, `store`, `mechanisms`) are published
 for people who build their own adapters; the plugins do not depend on them.
 
 ## Once
 
-- Create the `@lightcode` organization on npm (or rename the packages) and
+- Create the `lightcode-ai` organization on npm (the `@lightcode` scope belongs to someone else) and
   enable two-factor publishing.
 - Create the GitHub repository the manifests point at
   (`github.com/Zongwei9888/lightcode-plugins`), or update `repository`/`homepage` in
@@ -50,10 +50,10 @@ for people who build their own adapters; the plugins do not depend on them.
 6. Smoke-test the published packages on a clean machine or account:
 
    ```sh
-   pi install npm:@lightcode/pi
-   dsh plugin --profile web add @lightcode/dsh       # or Plugins → Add plugin
-   npm install -g @lightcode/cli && lc doctor
+   pi install npm:@lightcode-ai/pi
+   dsh plugin --profile web add @lightcode-ai/dsh       # or Plugins → Add plugin
+   npm install -g @lightcode-ai/cli && lc doctor
    ```
 
-The `pi-package` keyword lists `@lightcode/pi` in the pi package gallery; the
-`dsh-plugin` keyword marks `@lightcode/dsh` for DeepSeek Harness users.
+The `pi-package` keyword lists `@lightcode-ai/pi` in the pi package gallery; the
+`dsh-plugin` keyword marks `@lightcode-ai/dsh` for DeepSeek Harness users.

@@ -7,14 +7,14 @@ and sandbox; LightCode never re-implements them.
 ## Layers
 
 ```
-adapters      @lightcode/pi · @lightcode/dsh · adapters/codex
+adapters      @lightcode-ai/pi · @lightcode-ai/dsh · adapters/codex
               translate host events into port calls; install, configure, show receipts
-mechanisms    @lightcode/mechanisms — Economy engine, LightShadow, evolution (evidence, replay,
+mechanisms    @lightcode-ai/mechanisms — Economy engine, LightShadow, evolution (evidence, replay,
               verification), command normalization, receipts
-protocol      @lightcode/protocol — capabilities, host profiles, negotiation, journal schema
-core          @lightcode/core — filters, learned-rule sandbox, source maps, admission, normalization (pure)
-store         @lightcode/store — journal, original store, adopted rules, configuration (local files)
-cli           @lightcode/cli — lc run / hook / report / doctor / filters / show / gc / evolve / rules
+protocol      @lightcode-ai/protocol — capabilities, host profiles, negotiation, journal schema
+core          @lightcode-ai/core — filters, learned-rule sandbox, source maps, admission, normalization (pure)
+store         @lightcode-ai/store — journal, original store, adopted rules, configuration (local files)
+cli           @lightcode-ai/cli — lc run / hook / report / doctor / filters / show / gc / evolve / rules
 ```
 
 `core` has no host dependency and no I/O. The same input produces the same
@@ -131,7 +131,7 @@ so forks and resumes keep them; DSH from the journal).
 `lc evolve`, the pi panel and the DSH Plugins page perform one step
 pi_{k+1} = Verify(Propose(pi_k, E_k)) over the learned rules, which run in
 front of the fixed built-in filters. The step is `runEvolution` in
-`@lightcode/mechanisms` (learning.ts); the plugins start it through their
+`@lightcode-ai/mechanisms` (learning.ts); the plugins start it through their
 bundled runner (`evolve.js`) as a detached process, under a lock shared by all
 hosts, and read its progress from `~/.lightcode/evolve/status.json`. The same
 runner refreshes `scan.json` (what is worth learning, and each learned rule's
@@ -173,14 +173,14 @@ the agent keeps recalling.
 
 ## Packaging
 
-`@lightcode/pi`, `@lightcode/dsh` and `@lightcode/cli` are single-file
+`@lightcode-ai/pi`, `@lightcode-ai/dsh` and `@lightcode-ai/cli` are single-file
 bundles built by `scripts/bundle.mjs` from the workspace sources, with no
 runtime dependencies: the host's own modules (`@earendil-works/*`,
 `@deepseek-ai/*`) stay external and resolve from the running host. Each
 carries `LICENSE`, `LICENSE.rtk` and `NOTICE.md`.
 
 - pi loads `dist/extension.js` named by the `pi.extensions` manifest; `pi
-  install npm:@lightcode/pi`, `pi config` and `pi remove` manage it.
+  install npm:@lightcode-ai/pi`, `pi config` and `pi remove` manage it.
 - DeepSeek Harness reads `dsh.bundle.patch` (`cordis.patch.yml` inserts the
   `lightcode` row), the display metadata (`locale/*.json`, `icon.svg`) and
   the browser half `lib/client.js` (`dsh.client`), which registers the Mode

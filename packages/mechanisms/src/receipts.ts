@@ -1,5 +1,5 @@
-import { literalCommand } from '@lightcode/core'
-import type { EconomyRecord, JournalRecord } from '@lightcode/protocol'
+import { literalCommand } from '@lightcode-ai/core'
+import type { EconomyRecord, JournalRecord } from '@lightcode-ai/protocol'
 
 export interface EconomySummary {
   readonly decisions: number

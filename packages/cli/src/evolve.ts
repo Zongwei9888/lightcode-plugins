@@ -1,7 +1,7 @@
 import { resolve } from 'node:path'
-import { formatTokens, LEARNER_INSTRUCTION, LEARNERS, runEvolution, describeReport, workspaceCheck, workspaceTry } from '@lightcode/mechanisms'
-import type { EvolveContext } from '@lightcode/mechanisms'
-import { RuleStore } from '@lightcode/store'
+import { formatTokens, LEARNER_INSTRUCTION, LEARNERS, runEvolution, describeReport, workspaceCheck, workspaceTry } from '@lightcode-ai/mechanisms'
+import type { EvolveContext } from '@lightcode-ai/mechanisms'
+import { RuleStore } from '@lightcode-ai/store'
 import { cliContext, shellQuote } from './context.ts'
 import type { CliContext } from './context.ts'
 
@@ -10,7 +10,7 @@ import type { CliContext } from './context.ts'
  * the journal, write a workspace for a learner (a coding agent: pi, DeepSeek
  * Harness, Claude Code, Codex or any command), run it, verify what it left in
  * `rules-work/`, and adopt that only if verification accepts it. The work
- * itself is `runEvolution` in @lightcode/mechanisms, which the pi and DSH
+ * itself is `runEvolution` in @lightcode-ai/mechanisms, which the pi and DSH
  * plugins run too.
  */
 

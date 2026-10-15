@@ -1,5 +1,5 @@
 {
-  "name": "@lightcode/dsh",
+  "name": "@lightcode-ai/dsh",
   "version": "0.2.0",
   "description": "LightCode for DeepSeek Harness: shrinks recognized bash output (tests, builds, diffs, searches) and its own grep/glob results before the model reads them, keeping the original.",
   "license": "MIT",
@@ -71,9 +71,9 @@
   },
   "devDependencies": {
     "@deepseek-ai/schemastery": "3.18.4",
-    "@lightcode/core": "workspace:*",
-    "@lightcode/mechanisms": "workspace:*",
-    "@lightcode/protocol": "workspace:*",
-    "@lightcode/store": "workspace:*"
+    "@lightcode-ai/core": "workspace:*",
+    "@lightcode-ai/mechanisms": "workspace:*",
+    "@lightcode-ai/protocol": "workspace:*",
+    "@lightcode-ai/store": "workspace:*"
   }
 }

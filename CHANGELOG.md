@@ -61,23 +61,23 @@ filters. (0.1.0 was never published; its contents are part of this release.)
 - Switching learned rules back on restores the ones in use when they were
   switched off.
 
-- `@lightcode/core`: the deterministic output filters of the LightCode
+- `@lightcode-ai/core`: the deterministic output filters of the LightCode
   research runtime — 79 shell-output filters (16 hand-written, 63 from pinned
   RTK built-ins) plus 2 host-native search formats — source maps, the strict-shrink admission rule and command normalization,
   with no host dependency. A conformance corpus pins them byte-for-byte to
   the research runtime (`static-v10`).
-- `@lightcode/protocol`: host capability vocabulary, verified host profiles
+- `@lightcode-ai/protocol`: host capability vocabulary, verified host profiles
   and mode negotiation (`off` / `observe` / `apply`).
-- `@lightcode/store`: private journal, content-addressed original store with
+- `@lightcode-ai/store`: private journal, content-addressed original store with
   retention, and configuration (a project's file can only lower the mode).
-- `@lightcode/mechanisms`: the Economy engine (save original → journal →
+- `@lightcode-ai/mechanisms`: the Economy engine (save original → journal →
   deliver projection; fail-open) and session receipts.
-- `@lightcode/cli`: `lc run`, `lc hook codex`, `lc report`, `lc doctor`,
+- `@lightcode-ai/cli`: `lc run`, `lc hook codex`, `lc report`, `lc doctor`,
   `lc filters`, `lc show`, `lc gc`.
-- `@lightcode/pi`: pi package (`pi install npm:@lightcode/pi`) using
+- `@lightcode-ai/pi`: pi package (`pi install npm:@lightcode-ai/pi`) using
   `context_edit`, so pi's session keeps the original output; status bar,
   `/lightcode`, `--lightcode` flag. Tested on pi 1.1.0 and 1.2.0.
-- `@lightcode/dsh`: DeepSeek Harness 0.2.x bundle, installable from the
+- `@lightcode-ai/dsh`: DeepSeek Harness 0.2.x bundle, installable from the
   Plugins page or `dsh plugin add`; filters the `bash` tool in
   `tools/post-execute` before DSH's spill policy; live Mode setting on its
   Plugins page; `/lightcode`; display metadata and icon. Tested on

@@ -30,16 +30,16 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: 3.18.4
         version: 3.18.4
-      '@lightcode/core':
+      '@lightcode-ai/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@lightcode/mechanisms':
+      '@lightcode-ai/mechanisms':
         specifier: workspace:*
         version: link:../../packages/mechanisms
-      '@lightcode/protocol':
+      '@lightcode-ai/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
-      '@lightcode/store':
+      '@lightcode-ai/store':
         specifier: workspace:*
         version: link:../../packages/store
 
@@ -54,31 +54,31 @@ importers:
       '@earendil-works/pi-tui':
         specifier: 1.1.0
         version: 1.1.0
-      '@lightcode/core':
+      '@lightcode-ai/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@lightcode/mechanisms':
+      '@lightcode-ai/mechanisms':
         specifier: workspace:*
         version: link:../../packages/mechanisms
-      '@lightcode/protocol':
+      '@lightcode-ai/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
-      '@lightcode/store':
+      '@lightcode-ai/store':
         specifier: workspace:*
         version: link:../../packages/store
 
   packages/cli:
     devDependencies:
-      '@lightcode/core':
+      '@lightcode-ai/core':
         specifier: workspace:*
         version: link:../core
-      '@lightcode/mechanisms':
+      '@lightcode-ai/mechanisms':
         specifier: workspace:*
         version: link:../mechanisms
-      '@lightcode/protocol':
+      '@lightcode-ai/protocol':
         specifier: workspace:*
         version: link:../protocol
-      '@lightcode/store':
+      '@lightcode-ai/store':
         specifier: workspace:*
         version: link:../store
 
@@ -86,28 +86,28 @@ importers:
 
   packages/mechanisms:
     dependencies:
-      '@lightcode/core':
+      '@lightcode-ai/core':
         specifier: workspace:*
         version: link:../core
-      '@lightcode/protocol':
+      '@lightcode-ai/protocol':
         specifier: workspace:*
         version: link:../protocol
-      '@lightcode/store':
+      '@lightcode-ai/store':
         specifier: workspace:*
         version: link:../store
 
   packages/protocol:
     dependencies:
-      '@lightcode/core':
+      '@lightcode-ai/core':
         specifier: workspace:*
         version: link:../core
 
   packages/store:
     dependencies:
-      '@lightcode/core':
+      '@lightcode-ai/core':
         specifier: workspace:*
         version: link:../core
-      '@lightcode/protocol':
+      '@lightcode-ai/protocol':
         specifier: workspace:*
         version: link:../protocol
 

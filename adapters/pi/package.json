@@ -1,5 +1,5 @@
 {
-  "name": "@lightcode/pi",
+  "name": "@lightcode-ai/pi",
   "version": "0.2.0",
   "description": "LightCode for the pi coding agent: shrinks recognized bash output (tests, builds, diffs, searches) and its own grep/find results before the model reads them, keeping the original in the session.",
   "license": "MIT",
@@ -47,9 +47,9 @@
     "@earendil-works/pi-ai": "^1.1.0",
     "@earendil-works/pi-coding-agent": "1.1.0",
     "@earendil-works/pi-tui": "1.1.0",
-    "@lightcode/core": "workspace:*",
-    "@lightcode/mechanisms": "workspace:*",
-    "@lightcode/protocol": "workspace:*",
-    "@lightcode/store": "workspace:*"
+    "@lightcode-ai/core": "workspace:*",
+    "@lightcode-ai/mechanisms": "workspace:*",
+    "@lightcode-ai/protocol": "workspace:*",
+    "@lightcode-ai/store": "workspace:*"
   }
 }

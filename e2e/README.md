@@ -12,10 +12,10 @@ pnpm e2e dsh pi          # a subset: dsh, pi, shadow, evolve, pi-tui, web, deskt
 
 | Scenario | What it does |
 |---|---|
-| `dsh` | `dsh plugin add @lightcode/dsh`, headless sessions in apply and observe mode, the session log, `dsh plugin remove` — on every DSH version |
-| `pi` | `pi install npm:@lightcode/pi`, print-mode sessions, `--lightcode observe`, `pi remove`, and a checkout install — on every pi version |
+| `dsh` | `dsh plugin add @lightcode-ai/dsh`, headless sessions in apply and observe mode, the session log, `dsh plugin remove` — on every DSH version |
+| `pi` | `pi install npm:@lightcode-ai/pi`, print-mode sessions, `--lightcode observe`, `pi remove`, and a checkout install — on every pi version |
 | `shadow` | LightShadow on every DSH and pi version: a headless session long enough to compact, then the model recalls a compacted result; checks the checkpoint (summary, the user's words, the catalog), that the recall is exactly what the model first read, and the journal |
-| `evolve` | self-evolution across hosts: the plugins in DSH and pi record evidence, `lc evolve` from the registry's `@lightcode/cli` runs a scripted learner, verifies and adopts its rule, new DSH and pi sessions apply it, and `lc rules rollback` undoes it |
+| `evolve` | self-evolution across hosts: the plugins in DSH and pi record evidence, `lc evolve` from the registry's `@lightcode-ai/cli` runs a scripted learner, verifies and adopts its rule, new DSH and pi sessions apply it, and `lc rules rollback` undoes it |
 | `pi-tui` | pi's TUI through tmux: the status bar, the `/lightcode` panel and `/lightcode status`, learning from the panel (`l`, `y`: pi itself learns on the session's model in the background, the panel follows the run, pi announces the adoption, and the running session applies the rule to its next output), and switching the extension off and on in `pi config` |
 | `web` | the DSH Web UI in Chrome: Plugins → Add plugin → Enable, a chat and its tool cards, `/lightcode`, a long chat that compacts inside the agent preset and recalls a result, a learned rule in a new session, the *Self-evolution* section (Learn now → confirm → DSH headless learns on the profile's model, live progress, adoption with a held-out check, toast, roll back, rules off/on; screenshots in light and dark), Mode on the plugin page (applied live), bundle off/on, uninstall |
 | `desktop` | the same Plugins-page flow inside the DSH Desktop app (Electron, its bundled pnpm, `profiles/desktop`); needs `LIGHTCODE_E2E_DESKTOP_APP`, skipped otherwise |

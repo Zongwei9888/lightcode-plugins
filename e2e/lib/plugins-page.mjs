@@ -1,6 +1,6 @@
 /**
  * The DeepSeek Harness Plugins page, driven like a user: install
- * @lightcode/dsh by name, enable it, work in a chat, read `/lightcode`, change
+ * @lightcode-ai/dsh by name, enable it, work in a chat, read `/lightcode`, change
  * Mode on the plugin's page (applied live), switch the bundle off and on, and
  * uninstall it. Shared by the Web UI (`dsh web`) and the Desktop app, which
  * embeds the same client.
@@ -84,7 +84,7 @@ export async function exercisePluginsPage({ page, label, profileDir, lightcodeHo
     }
     await list.waitFor()
   }
-  const openLightCode = async () => { await openPlugins(); await page.getByRole('button', { name: 'View LightCode' }).click(); await page.getByText('@lightcode/dsh', { exact: true }).first().waitFor() }
+  const openLightCode = async () => { await openPlugins(); await page.getByRole('button', { name: 'View LightCode' }).click(); await page.getByText('@lightcode-ai/dsh', { exact: true }).first().waitFor() }
   const chat = async (name, prompt = 'Run the fixture commands.') => {
     const before = mock.requests.length
     // Start from an empty draft: under load the click can leave the previous chat on screen, and a prompt typed
@@ -136,17 +136,17 @@ export async function exercisePluginsPage({ page, label, profileDir, lightcodeHo
   // 1. Install by name from the Plugins page, then enable.
   await openPlugins()
   await page.getByRole('button', { name: 'Add plugin', exact: true }).click()
-  await page.getByPlaceholder(/for example/).fill('@lightcode/dsh')
+  await page.getByPlaceholder(/for example/).fill('@lightcode-ai/dsh')
   await page.getByRole('button', { name: 'Install', exact: true }).click()
   await page.getByRole('button', { name: /Enable now/ }).waitFor({ timeout: 180_000 })
   await shot('01-installed')
   await page.getByRole('button', { name: /Enable now/ }).click()
-  const card = page.locator('[data-plugin-package="@lightcode/dsh"]')
+  const card = page.locator('[data-plugin-package="@lightcode-ai/dsh"]')
   await card.waitFor()
   assert.match(await card.innerText(), /LightCode\s+Shrinks test, build, diff and search output/)
   const icon = await card.locator('img').first().getAttribute('src')
   assert.match(icon ?? '', /^data:image\/svg\+xml/, 'the card does not show the package icon')
-  await until(() => profile().dsh.profile.bundles.includes('@lightcode/dsh'), 'the bundle to be selected')
+  await until(() => profile().dsh.profile.bundles.includes('@lightcode-ai/dsh'), 'the bundle to be selected')
   await shot('02-card')
   log(`${label}: installed and enabled from the Plugins page ✓`)
 
@@ -287,14 +287,14 @@ export async function exercisePluginsPage({ page, label, profileDir, lightcodeHo
   await openPlugins()
   await page.getByRole('button', { name: 'Disable LightCode' }).or(card.getByRole('switch')).first().click()
   await page.getByRole('button', { name: 'Enable LightCode' }).or(card.getByRole('switch', { checked: false })).first().waitFor()
-  await until(() => !profile().dsh.profile.bundles.includes('@lightcode/dsh'), 'the bundle to be deselected')
+  await until(() => !profile().dsh.profile.bundles.includes('@lightcode-ai/dsh'), 'the bundle to be deselected')
   const disabledBefore = decisions().length
   assertUntouched(await chat('09-chat-bundle-off'), 'a switched-off bundle')
   assert.equal(decisions().length, disabledBefore, 'a switched-off bundle still filtered')
   await openPlugins()
   await page.getByRole('button', { name: 'Enable LightCode' }).or(card.getByRole('switch')).first().click()
   await page.getByRole('button', { name: 'Disable LightCode' }).or(card.getByRole('switch', { checked: true })).first().waitFor()
-  await until(() => profile().dsh.profile.bundles.includes('@lightcode/dsh'), 'the bundle to be selected again')
+  await until(() => profile().dsh.profile.bundles.includes('@lightcode-ai/dsh'), 'the bundle to be selected again')
   const again = await chat('10-chat-bundle-on')
   verifyDeliveries({ requests: again, lightcodeHome, host: 'dsh', commands: COMMAND_LIST, expect: PROJECTED })
   log(`${label}: bundle off/on ✓`)
@@ -305,7 +305,7 @@ export async function exercisePluginsPage({ page, label, profileDir, lightcodeHo
   await shot('11-uninstall-confirm')
   await page.getByRole('dialog').getByRole('button', { name: /Uninstall/ }).click()
   await card.waitFor({ state: 'detached', timeout: 120_000 })
-  await until(() => profile().dependencies?.['@lightcode/dsh'] === undefined && !profile().dsh.profile.bundles.includes('@lightcode/dsh'),
+  await until(() => profile().dependencies?.['@lightcode-ai/dsh'] === undefined && !profile().dsh.profile.bundles.includes('@lightcode-ai/dsh'),
     'the package and its bundle to leave the profile', 120_000)
   await shot('12-uninstalled')
   assert.deepEqual(pageErrors, [], `browser errors: ${pageErrors.join('\n')}`)

@@ -76,11 +76,11 @@ fails open: if anything goes wrong, the model gets the original output.
 
 | Your agent | Install |
 |---|---|
-| **pi** | `pi install npm:@lightcode/pi`, then `/lightcode` in a session |
-| **DeepSeek Harness** (Web, Desktop) | **Plugins** → **Add plugin** → `@lightcode/dsh` → **Install** → **Enable now** |
-| **DeepSeek Harness** (terminal) | `dsh plugin --profile web add @lightcode/dsh` (needs pnpm 11+) |
+| **pi** | `pi install npm:@lightcode-ai/pi`, then `/lightcode` in a session |
+| **DeepSeek Harness** (Web, Desktop) | **Plugins** → **Add plugin** → `@lightcode-ai/dsh` → **Install** → **Enable now** |
+| **DeepSeek Harness** (terminal) | `dsh plugin --profile web add @lightcode-ai/dsh` (needs pnpm 11+) |
 | **Codex** | `codex plugin marketplace add <checkout>` → `codex plugin add lightcode@lightcode`, then trust the hooks in `/hooks` |
-| **Anything else** | `npm install -g @lightcode/cli`, then `lc run -c 'cargo test'` |
+| **Anything else** | `npm install -g @lightcode-ai/cli`, then `lc run -c 'cargo test'` |
 
 Nothing to configure: Economy and LightShadow are on from the next tool call.
 `lc report` shows what was saved, `lc doctor` what each host supports.
@@ -126,7 +126,7 @@ and a toast when a run ends.
 <summary>More screenshots: installing, a run in progress, pi before learning, dark theme</summary>
 
 <p align="center">
-<img src="docs/assets/screenshots/dsh-install.png" alt="DeepSeek Harness Plugins page: @lightcode/dsh installed" width="900">
+<img src="docs/assets/screenshots/dsh-install.png" alt="DeepSeek Harness Plugins page: @lightcode-ai/dsh installed" width="900">
 <img src="docs/assets/screenshots/dsh-learning.png" alt="A learning run in progress on the DeepSeek Harness plugin page" width="900">
 <img src="docs/assets/screenshots/pi-panel-ready.png" alt="pi /lightcode panel, ready to learn" width="820">
 <img src="docs/assets/screenshots/dsh-self-evolution-dark.png" alt="The LightCode plugin page in dark theme" width="900">
@@ -274,13 +274,13 @@ list, switch off and roll back adoptions.
 
 | Host | Install | How | Economy | LightShadow | Learned rules |
 |---|---|---|---|---|---|
-| **pi** 1.1+ | `pi install npm:@lightcode/pi` | in-process extension; the projection reaches the model through `context_edit`, so pi's session keeps the original; compaction through `session_before_compact` | apply | apply | yes |
-| **DeepSeek Harness** 0.2.x | Plugins → Add plugin → `@lightcode/dsh`, or `dsh plugin --profile web add @lightcode/dsh` | in-process plugin on `tools/post-execute`; compaction through each agent preset's own compaction engine; Mode is editable on its Plugins page | apply | apply | yes |
+| **pi** 1.1+ | `pi install npm:@lightcode-ai/pi` | in-process extension; the projection reaches the model through `context_edit`, so pi's session keeps the original; compaction through `session_before_compact` | apply | apply | yes |
+| **DeepSeek Harness** 0.2.x | Plugins → Add plugin → `@lightcode-ai/dsh`, or `dsh plugin --profile web add @lightcode-ai/dsh` | in-process plugin on `tools/post-execute`; compaction through each agent preset's own compaction engine; Mode is editable on its Plugins page | apply | apply | yes |
 | **Codex** 0.162+ | `codex plugin marketplace add <checkout>` then `codex plugin add lightcode@lightcode` | plugin `PreToolUse` hook rewrites recognizable commands to `lc run -c '<command>'`; the model's history keeps the original command | apply | — (Codex lets plugins shape, not supply, compaction) | for the commands its hook wraps |
-| **Any agent / terminal** | `npm install -g @lightcode/cli` | call `lc run -c '<command>'` | apply | — | yes |
+| **Any agent / terminal** | `npm install -g @lightcode-ai/cli` | call `lc run -c '<command>'` | apply | — | yes |
 
 Learning starts from `/lightcode` in pi and from the Plugins page in DSH;
-`lc evolve` and `lc rules` (from `@lightcode/cli`) do the same in a terminal.
+`lc evolve` and `lc rules` (from `@lightcode-ai/cli`) do the same in a terminal.
 
 The pi and DeepSeek Harness plugins are tested on macOS and Linux (the DSH
 Desktop app on macOS); Windows is not tested yet. Both also filter the output
@@ -295,7 +295,7 @@ offers; configuration can only lower that).
 #### pi
 
 ```sh
-pi install npm:@lightcode/pi
+pi install npm:@lightcode-ai/pi
 ```
 
 The status bar shows tokens saved; `/lightcode` shows the session summary
@@ -306,10 +306,10 @@ would change without changing anything, for both mechanisms;
 #### DeepSeek Harness
 
 In the Web UI or the Desktop app: **Plugins** → **Add plugin** →
-`@lightcode/dsh` → **Install** → **Enable now**. Or from a terminal:
+`@lightcode-ai/dsh` → **Install** → **Enable now**. Or from a terminal:
 
 ```sh
-dsh plugin --profile web add @lightcode/dsh     # dsh plugin needs pnpm 11 or later
+dsh plugin --profile web add @lightcode-ai/dsh     # dsh plugin needs pnpm 11 or later
 ```
 
 `/lightcode` in a session shows what it saved; **Mode** (Apply / Observe /
@@ -411,9 +411,9 @@ packages/core        filters, learned-rule sandbox, source maps, admission, comm
 packages/protocol    capability vocabulary, host profiles, negotiation, journal schema
 packages/store       private journal, original store, adopted rules, configuration
 packages/mechanisms  Economy engine, LightShadow, evolution (evidence, replay, verification), receipts
-packages/cli         the lc command                      → @lightcode/cli
-adapters/pi          pi extension                        → @lightcode/pi
-adapters/dsh         DeepSeek Harness plugin             → @lightcode/dsh
+packages/cli         the lc command                      → @lightcode-ai/cli
+adapters/pi          pi extension                        → @lightcode-ai/pi
+adapters/dsh         DeepSeek Harness plugin             → @lightcode-ai/dsh
 adapters/codex       Codex plugin (hooks)
 conformance/         corpus every implementation must reproduce byte-for-byte
 e2e/                 installs the packages into published hosts and runs real sessions

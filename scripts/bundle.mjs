@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * Build the self-contained files the distributable packages ship. Each one
- * carries the LightCode packages it uses inline, so installing `@lightcode/pi`,
- * `@lightcode/dsh` or `@lightcode/cli` needs no other LightCode package; the
+ * carries the LightCode packages it uses inline, so installing `@lightcode-ai/pi`,
+ * `@lightcode-ai/dsh` or `@lightcode-ai/cli` needs no other LightCode package; the
  * host's own modules stay external and come from the running host.
  */
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -44,9 +44,9 @@ async function bundleDshClient() {
     external: ['react', 'react/jsx-runtime', '@deepseek-ai/*'],
   })
   const code = result.outputFiles[0].text
-  const wrapped = `${LICENSE_BANNER('@lightcode/dsh (browser half)')}
+  const wrapped = `${LICENSE_BANNER('@lightcode-ai/dsh (browser half)')}
 window.__ModuleLoader__.load({
-\tid: "@lightcode/dsh",
+\tid: "@lightcode-ai/dsh",
 \tfactory: (require) => {
 \t\tvar module = { exports: {} };
 \t\tvar exports = module.exports;
@@ -79,21 +79,21 @@ TypeScript code that executes them is LightCode code under the MIT license.
 `)
 }
 
-for (const [dir, name] of [['adapters/pi', '@lightcode/pi'], ['adapters/dsh', '@lightcode/dsh'], ['packages/cli', '@lightcode/cli']]) writeLegal(dir, name)
+for (const [dir, name] of [['adapters/pi', '@lightcode-ai/pi'], ['adapters/dsh', '@lightcode-ai/dsh'], ['packages/cli', '@lightcode-ai/cli']]) writeLegal(dir, name)
 // The library packages are published as they are; they carry the project license (and core the RTK one).
 for (const dir of ['packages/core', 'packages/protocol', 'packages/store', 'packages/mechanisms']) copyFileSync(at('LICENSE'), at(dir, 'LICENSE'))
 copyFileSync(at('third-party/rtk/LICENSE'), at('packages/core', 'LICENSE.rtk'))
 
 await Promise.all([
-  bundleNode({ entry: 'adapters/pi/src/extension.ts', outfile: 'adapters/pi/dist/extension.js', name: '@lightcode/pi',
+  bundleNode({ entry: 'adapters/pi/src/extension.ts', outfile: 'adapters/pi/dist/extension.js', name: '@lightcode-ai/pi',
     external: ['@earendil-works/*', 'typebox'] }),
-  bundleNode({ entry: 'adapters/dsh/src/index.ts', outfile: 'adapters/dsh/lib/index.js', name: '@lightcode/dsh',
+  bundleNode({ entry: 'adapters/dsh/src/index.ts', outfile: 'adapters/dsh/lib/index.js', name: '@lightcode-ai/dsh',
     external: ['@deepseek-ai/*'] }),
   // The learning runner each plugin starts as its own process.
-  bundleNode({ entry: 'adapters/pi/src/evolve.ts', outfile: 'adapters/pi/dist/evolve.js', name: '@lightcode/pi (learning runner)', external: [] }),
-  bundleNode({ entry: 'adapters/dsh/src/evolve.ts', outfile: 'adapters/dsh/lib/evolve.js', name: '@lightcode/dsh (learning runner)', external: [] }),
-  bundleNode({ entry: 'packages/cli/src/main.ts', outfile: 'packages/cli/dist/lc.js', name: '@lightcode/cli',
+  bundleNode({ entry: 'adapters/pi/src/evolve.ts', outfile: 'adapters/pi/dist/evolve.js', name: '@lightcode-ai/pi (learning runner)', external: [] }),
+  bundleNode({ entry: 'adapters/dsh/src/evolve.ts', outfile: 'adapters/dsh/lib/evolve.js', name: '@lightcode-ai/dsh (learning runner)', external: [] }),
+  bundleNode({ entry: 'packages/cli/src/main.ts', outfile: 'packages/cli/dist/lc.js', name: '@lightcode-ai/cli',
     external: [], executable: true }),
   bundleDshClient(),
 ])
-console.log('bundled @lightcode/pi, @lightcode/dsh (Host and browser halves), their learning runners and @lightcode/cli')
+console.log('bundled @lightcode-ai/pi, @lightcode-ai/dsh (Host and browser halves), their learning runners and @lightcode-ai/cli')

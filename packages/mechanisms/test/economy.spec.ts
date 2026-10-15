@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { compileLearnedRules, nativeGrepRecords, sha256 } from '@lightcode/core'
-import type { LearnedRuleSet } from '@lightcode/core'
-import type { ArtifactPort, ArtifactRef, EconomyRecord, JournalRecord } from '@lightcode/protocol'
-import { DEFAULT_CONFIG } from '@lightcode/store'
+import { compileLearnedRules, nativeGrepRecords, sha256 } from '@lightcode-ai/core'
+import type { LearnedRuleSet } from '@lightcode-ai/core'
+import type { ArtifactPort, ArtifactRef, EconomyRecord, JournalRecord } from '@lightcode-ai/protocol'
+import { DEFAULT_CONFIG } from '@lightcode-ai/store'
 import { EconomyEngine, normalizeShellCommand, summarizeEconomy } from '../src/index.ts'
 import type { EconomyEngineOptions } from '../src/index.ts'
 

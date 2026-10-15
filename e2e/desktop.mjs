@@ -1,7 +1,7 @@
 /**
  * The DeepSeek Harness Desktop app, end to end: the Plugins page flow of
  * lib/plugins-page.mjs inside the real Electron window, with Desktop's own
- * bundled pnpm installing @lightcode/dsh into `$DSH_HOME/profiles/desktop`.
+ * bundled pnpm installing @lightcode-ai/dsh into `$DSH_HOME/profiles/desktop`.
  *
  * Desktop is not distributed through npm, so this scenario needs an unpacked
  * application: set LIGHTCODE_E2E_DESKTOP_APP to `DeepSeek Harness.app`.

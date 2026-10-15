@@ -34,18 +34,18 @@ itself supports (22.19+ or 24+). `dsh plugin` needs pnpm 11 or later.
 ## Install
 
 **From the Web UI or Desktop app**: open **Plugins** in the sidebar, choose
-**Add plugin**, enter `@lightcode/dsh` and **Install**, then **Enable now**.
+**Add plugin**, enter `@lightcode-ai/dsh` and **Install**, then **Enable now**.
 
 **From a terminal**:
 
 ```sh
-dsh plugin --profile web add @lightcode/dsh
+dsh plugin --profile web add @lightcode-ai/dsh
 ```
 
 Use the profile you run (`web` for `dsh web`, `headless` for
 `dsh headless`, …). The Desktop app manages its own profile: install from its
 **Plugins** page (it brings its own pnpm), or quit it and run its bundled
-`dsh plugin --profile desktop add @lightcode/dsh`. A downloaded tarball or a checkout works the same way:
+`dsh plugin --profile desktop add @lightcode-ai/dsh`. A downloaded tarball or a checkout works the same way:
 `dsh plugin --profile web add ./lightcode-dsh-0.2.0.tgz` or
 `dsh plugin --profile web add /absolute/path/to/lightcode/adapters/dsh`
 (after `pnpm install && pnpm build` in the checkout).
@@ -108,7 +108,7 @@ this setting further but never raise it; see the
 - The session log and the tool card show the text the model read. The
   original is kept in `$LIGHTCODE_HOME` (default `~/.lightcode`; when that is
   not writable, `$TMPDIR/lightcode-<uid>`); with the
-  [`lc` command](https://www.npmjs.com/package/@lightcode/cli),
+  [`lc` command](https://www.npmjs.com/package/@lightcode-ai/cli),
   `lc report --host dsh` summarizes savings and `lc show <sha256>` prints an
   original.
 - Edits to LightCode's own configuration files apply to the next tool call.
@@ -154,14 +154,14 @@ compactions, cut results and recalls.
 - a switch for the learned rules and **Roll back**.
 
 In a session, `/lightcode learn | cancel | rules | rollback | off | on` do
-the same, and `lc evolve --learner dsh` (from `@lightcode/cli`) runs it from
+the same, and `lc evolve --learner dsh` (from `@lightcode-ai/cli`) runs it from
 a terminal. Running sessions use adopted rules from their next output on. See
 the [main README](https://github.com/Zongwei9888/lightcode-plugins#self-evolving-filters).
 
 ## Remove
 
 **Plugins** → LightCode → uninstall, or
-`dsh plugin --profile web remove @lightcode/dsh`. Saved originals expire on
+`dsh plugin --profile web remove @lightcode-ai/dsh`. Saved originals expire on
 their own; delete `~/.lightcode` to remove them at once.
 
 ---
@@ -175,8 +175,8 @@ LightCode 是 DeepSeek Harness（DSH）的插件，在模型读取之前精简�
 
 需要 DSH **0.2.x**（已在 0.2.0-rc.2 和 0.2.1-alpha.2 上测试：Web 界面和命令行覆盖 macOS 与 Linux，桌面版覆盖 macOS，包括官方签名的 0.2.0-rc.2 安装包和 0.2.1-alpha.2 源码构建；Windows 尚未测试）；`dsh plugin` 需要 pnpm 11 及以上。
 
-**安装**：侧边栏 **插件** → **添加插件** → 输入 `@lightcode/dsh` → **安装** →
-**立即启用**；或在终端执行 `dsh plugin --profile web add @lightcode/dsh`。
+**安装**：侧边栏 **插件** → **添加插件** → 输入 `@lightcode-ai/dsh` → **安装** →
+**立即启用**；或在终端执行 `dsh plugin --profile web add @lightcode-ai/dsh`。
 
 **使用**：装好即生效。在会话里输入 `/lightcode` 查看本会话省下的 token、压缩和找回情况，以及正在用的学到的规则。
 
@@ -189,4 +189,4 @@ DSH 自带的 `grep`、`glob` 工具的完整结果做无损排版（去掉每�
 保存后下一次工具调用即生效，无需重启。
 
 **卸载**：**插件** → LightCode → 卸载，或
-`dsh plugin --profile web remove @lightcode/dsh`。
+`dsh plugin --profile web remove @lightcode-ai/dsh`。

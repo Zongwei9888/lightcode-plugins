@@ -1,7 +1,7 @@
-import { createPolicy, decideNativeProjection, decideShellProjection, ECONOMY_RUNTIME_VERSION, estimateTokens as defaultEstimate, rewriteCommand, sha256 } from '@lightcode/core'
-import type { EconomyPolicy, LearnedRuleSet, NativeResult, ShellResult, TokenEstimator } from '@lightcode/core'
-import type { ArtifactPort, EconomyFailure, EconomyRecord, JournalPort, TextMeasure } from '@lightcode/protocol'
-import type { EconomyConfig } from '@lightcode/store'
+import { createPolicy, decideNativeProjection, decideShellProjection, ECONOMY_RUNTIME_VERSION, estimateTokens as defaultEstimate, rewriteCommand, sha256 } from '@lightcode-ai/core'
+import type { EconomyPolicy, LearnedRuleSet, NativeResult, ShellResult, TokenEstimator } from '@lightcode-ai/core'
+import type { ArtifactPort, EconomyFailure, EconomyRecord, JournalPort, TextMeasure } from '@lightcode-ai/protocol'
+import type { EconomyConfig } from '@lightcode-ai/store'
 
 export interface EconomyEngineOptions {
   readonly host: string

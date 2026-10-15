@@ -13,9 +13,9 @@ import type { TSchema } from '@earendil-works/pi-ai'
 import {
   RECALL_TOOL_DESCRIPTION, RECALL_TOOL_NAME, SHADOW_SUMMARY_INSTRUCTION, callLabel, checkpointAdmitted, checkpointRecord, planShadow, recallObservation,
   renderCheckpoint, renderRecall,
-} from '@lightcode/mechanisms'
-import type { ShadowMessage } from '@lightcode/mechanisms'
-import type { ArtifactPort, EconomyRecord, JournalPort, JournalRecord, ShadowReference } from '@lightcode/protocol'
+} from '@lightcode-ai/mechanisms'
+import type { ShadowMessage } from '@lightcode-ai/mechanisms'
+import type { ArtifactPort, EconomyRecord, JournalPort, JournalRecord, ShadowReference } from '@lightcode-ai/protocol'
 
 type AgentMessage = SessionBeforeCompactEvent['preparation']['messagesToSummarize'][number]
 

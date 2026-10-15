@@ -3,9 +3,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
-import { sha256 } from '@lightcode/core'
-import type { EconomyRecord, JournalRecord, ShadowRecallRecord } from '@lightcode/protocol'
-import { FileArtifactStore, FileJournal, RuleStore, removeTree } from '@lightcode/store'
+import { sha256 } from '@lightcode-ai/core'
+import type { EconomyRecord, JournalRecord, ShadowRecallRecord } from '@lightcode-ai/protocol'
+import { FileArtifactStore, FileJournal, RuleStore, removeTree } from '@lightcode-ai/store'
 import {
   acquireRunLock, cancelEvolution, checkpointRecord, disabledRules, evolveContext, outcomeSentence, readEvolveStatus, readRunStatus, releaseRunLock, reviewActiveRules,
   pruneRuns, refreshScan, ruleChanges, ruleUse, runEvolution, scanEvidence, startEvolution, takeAnnouncement, takeReadyNotice, writeRunStatus,

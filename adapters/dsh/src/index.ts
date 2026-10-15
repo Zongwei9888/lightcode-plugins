@@ -10,8 +10,8 @@
  * Plugins page, where a learning run starts, and `/lightcode learn`.
  */
 import Schema from '@deepseek-ai/schemastery'
-import type { MechanismMode } from '@lightcode/protocol'
-import { formatTokens, outcomeSentence, readEvolveStatus } from '@lightcode/mechanisms'
+import type { MechanismMode } from '@lightcode-ai/protocol'
+import { formatTokens, outcomeSentence, readEvolveStatus } from '@lightcode-ai/mechanisms'
 import { HOST, INLINE_LIMIT_CHARS, createDshEconomy } from './economy.ts'
 import type { HostContext, Volatile } from './host.ts'
 import { createDshLearning } from './learning.ts'
@@ -137,7 +137,7 @@ export function apply(ctx: HostContext, config: Config): void {
   }
   ctx.inject(['commands'], inner => {
     inner.effect(() => inner.commands.register({
-      definitionId: '@lightcode/dsh/lightcode',
+      definitionId: '@lightcode-ai/dsh/lightcode',
       name: 'lightcode',
       description: 'LightCode: tokens saved in this session; /lightcode learn | cancel | rules | rollback | off | on',
       handler: invocation => {

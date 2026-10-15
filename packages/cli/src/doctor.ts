@@ -1,5 +1,5 @@
-import { economyCoverage, ECONOMY_RUNTIME_VERSION, RTK_REVISION } from '@lightcode/core'
-import { HOST_PROFILES, V0_2_SPECS, negotiate } from '@lightcode/protocol'
+import { economyCoverage, ECONOMY_RUNTIME_VERSION, RTK_REVISION } from '@lightcode-ai/core'
+import { HOST_PROFILES, V0_2_SPECS, negotiate } from '@lightcode-ai/protocol'
 import { cliContext, onPath } from './context.ts'
 
 export const VERSION = '0.2.0'

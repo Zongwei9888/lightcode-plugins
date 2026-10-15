@@ -1,8 +1,8 @@
 /**
  * A throwaway npm registry (verdaccio) that serves the freshly packed
  * LightCode packages under their real names and proxies everything else to
- * the public registry, so `pi install npm:@lightcode/pi` and DSH's
- * "Add plugin → @lightcode/dsh" run exactly as they will after publishing.
+ * the public registry, so `pi install npm:@lightcode-ai/pi` and DSH's
+ * "Add plugin → @lightcode-ai/dsh" run exactly as they will after publishing.
  */
 import { spawn, spawnSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -33,7 +33,7 @@ uplinks:
     url: ${upstream}
     timeout: 60s
 packages:
-  '@lightcode/*':
+  '@lightcode-ai/*':
     access: $all
     publish: $all
     unpublish: $all

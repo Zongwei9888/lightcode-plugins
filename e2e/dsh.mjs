@@ -1,5 +1,5 @@
 /**
- * DeepSeek Harness, end to end: install @lightcode/dsh from a registry with
+ * DeepSeek Harness, end to end: install @lightcode-ai/dsh from a registry with
  * `dsh plugin add` exactly as a user would, run real headless sessions against
  * the scripted model, and check what the model received, what the session log
  * kept and what LightCode stored. Then observe mode and removal.
@@ -76,13 +76,13 @@ export async function runDsh({ cache, root, registry, log }) {
       PATH: `${pnpmBin}:${bin}:${process.env.PATH}`, npm_config_cache: join(cache, 'npm-cache'), npm_config_store_dir: join(cache, 'pnpm-store') })
     try {
       // 1. Install like a user: the package name, resolved from the registry.
-      const install = run(dsh, ['plugin', '--profile', 'headless', 'add', '@lightcode/dsh'], { cwd: base, env: envFor(join(base, 'lc-install')) })
+      const install = run(dsh, ['plugin', '--profile', 'headless', 'add', '@lightcode-ai/dsh'], { cwd: base, env: envFor(join(base, 'lc-install')) })
       const profileDir = join(dshHome, 'profiles', 'headless')
       const manifest = JSON.parse(readFileSync(join(profileDir, 'package.json'), 'utf8'))
-      assert.ok(manifest.dsh.profile.bundles.includes('@lightcode/dsh'), `bundle not selected:\n${install.stdout}${install.stderr}`)
-      assert.match(manifest.dependencies['@lightcode/dsh'], /^[~^]?\d+\.\d+\.\d+/, 'not installed from the registry')
+      assert.ok(manifest.dsh.profile.bundles.includes('@lightcode-ai/dsh'), `bundle not selected:\n${install.stdout}${install.stderr}`)
+      assert.match(manifest.dependencies['@lightcode-ai/dsh'], /^[~^]?\d+\.\d+\.\d+/, 'not installed from the registry')
       const dump = run(dsh, ['--profile', 'headless', '--dump-config'], { cwd: base, env: envFor(join(base, 'lc-install')) }).stdout
-      assert.match(dump, /# == @lightcode\/dsh\n- id: lightcode\n {2}name: '@lightcode\/dsh'/)
+      assert.match(dump, /# == @lightcode-ai\/dsh\n- id: lightcode\n {2}name: '@lightcode-ai\/dsh'/)
 
       // 2. Apply mode: the model reads projections; the session log keeps what it read.
       writeFileSync(join(profileDir, 'cordis.patch.yml'), profilePatch(mock.url))
@@ -103,10 +103,10 @@ export async function runDsh({ cache, root, registry, log }) {
 
       // 4. Remove: the layer goes away and nothing is filtered or recorded.
       writeFileSync(join(profileDir, 'cordis.patch.yml'), profilePatch(mock.url))
-      run(dsh, ['plugin', '--profile', 'headless', 'remove', '@lightcode/dsh'], { cwd: base, env: envFor(join(base, 'lc-removed')) })
+      run(dsh, ['plugin', '--profile', 'headless', 'remove', '@lightcode-ai/dsh'], { cwd: base, env: envFor(join(base, 'lc-removed')) })
       const after = JSON.parse(readFileSync(join(profileDir, 'package.json'), 'utf8'))
-      assert.ok(!after.dsh.profile.bundles.includes('@lightcode/dsh'))
-      assert.equal(after.dependencies?.['@lightcode/dsh'], undefined)
+      assert.ok(!after.dsh.profile.bundles.includes('@lightcode-ai/dsh'))
+      assert.equal(after.dependencies?.['@lightcode-ai/dsh'], undefined)
       const removed = await session({ dsh, env: envFor(join(base, 'lc-removed')), work, mock, lightcodeHome: join(base, 'lc-removed') })
       assert.deepEqual(journal(join(base, 'lc-removed'), 'dsh'), [])
       assert.equal(delivered(removed.requests).length, COMMAND_LIST.length)

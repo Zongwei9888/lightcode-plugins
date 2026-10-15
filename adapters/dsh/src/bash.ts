@@ -1,4 +1,4 @@
-import type { ShellResult } from '@lightcode/core'
+import type { ShellResult } from '@lightcode-ai/core'
 import type { BashForegroundValue, ContentBlock } from './host.ts'
 
 const STDERR_HEADER = '[stderr]\n'

@@ -1,5 +1,5 @@
 {
-  "name": "@lightcode/core",
+  "name": "@lightcode-ai/core",
   "version": "0.2.0",
   "description": "Host-independent LightCode logic: deterministic tool-output filters, source maps and admission rules.",
   "license": "MIT",

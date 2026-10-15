@@ -1,6 +1,6 @@
-import { estimateTokens as defaultEstimate } from '@lightcode/core'
-import type { TokenEstimator } from '@lightcode/core'
-import type { ArtifactPort, ShadowCheckpointRecord, ShadowReference } from '@lightcode/protocol'
+import { estimateTokens as defaultEstimate } from '@lightcode-ai/core'
+import type { TokenEstimator } from '@lightcode-ai/core'
+import type { ArtifactPort, ShadowCheckpointRecord, ShadowReference } from '@lightcode-ai/protocol'
 
 /**
  * LightShadow: recoverable history compaction. When the host compacts an

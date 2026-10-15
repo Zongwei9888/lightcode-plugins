@@ -8,7 +8,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { jsx, jsxs } from 'react/jsx-runtime'
 import { Button, StateDot, Switch, Tag, TextShimmer, Toast } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { EvolveOutcome, EvolveRunStatus } from '@lightcode/mechanisms'
+import type { EvolveOutcome, EvolveRunStatus } from '@lightcode-ai/mechanisms'
 import { api, formatTokens } from './api.ts'
 import type { LearningPayload, ReadyCommand } from './api.ts'
 import type { Copy } from './locales.ts'
@@ -245,7 +245,7 @@ export const POLL_RUNNING_MS = 1500
 export const POLL_IDLE_MS = 5000
 
 export function EvolveSection(props: SectionProps): unknown {
-  if (props.subject && (props.subject.kind === 'item' || props.subject.pkg?.name !== '@lightcode/dsh')) return null
+  if (props.subject && (props.subject.kind === 'item' || props.subject.pkg?.name !== '@lightcode-ai/dsh')) return null
   return jsx(EvolveLive, { t: props.t })
 }
 

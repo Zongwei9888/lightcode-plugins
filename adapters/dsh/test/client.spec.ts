@@ -65,7 +65,7 @@ function mount() {
 describe('DSH browser half', () => {
   it('registers under the package name and asks only for shared modules', () => {
     const { id, exports, requested } = load()
-    expect(id).toBe('@lightcode/dsh')
+    expect(id).toBe('@lightcode-ai/dsh')
     expect(exports.inject).toEqual(['slots', 'locale', 'configForms'])
     expect(typeof exports.apply).toBe('function')
     expect([...new Set(requested)].sort()).toEqual(['@deepseek-ai/dsh-client-ui-primitives', 'react', 'react/jsx-runtime'])
@@ -77,7 +77,7 @@ describe('DSH browser half', () => {
     expect(mounted.registrations).toHaveLength(0)
     mounted.serve()
     expect(mounted.registrations.map(item => item.options)).toEqual([
-      expect.objectContaining({ name: 'plugins.bundle.config', key: '@lightcode/dsh', locale: 'lightcode.settings' }),
+      expect.objectContaining({ name: 'plugins.bundle.config', key: '@lightcode-ai/dsh', locale: 'lightcode.settings' }),
       { name: 'plugins.detail.section', id: 'lightcode.evolve', order: 10, locale: 'lightcode.settings' },
       { name: 'shell.overlay', id: 'lightcode.evolve-toast', order: 50, locale: 'lightcode.settings' },
     ])

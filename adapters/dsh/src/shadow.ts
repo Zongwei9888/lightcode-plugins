@@ -20,9 +20,9 @@
 import {
   RECALL_TOOL_DESCRIPTION, RECALL_TOOL_NAME, SHADOW_SUMMARY_INSTRUCTION, callLabel, checkpointRecord, cutNote, externalizeCut,
   planShadow, recallObservation, referenceIndex, renderCheckpoint, renderRecall,
-} from '@lightcode/mechanisms'
-import type { RecallResult, ShadowMessage, ShadowPlan } from '@lightcode/mechanisms'
-import type { ArtifactPort, EconomyRecord, JournalPort, JournalRecord, MechanismMode, ShadowReference } from '@lightcode/protocol'
+} from '@lightcode-ai/mechanisms'
+import type { RecallResult, ShadowMessage, ShadowPlan } from '@lightcode-ai/mechanisms'
+import type { ArtifactPort, EconomyRecord, JournalPort, JournalRecord, MechanismMode, ShadowReference } from '@lightcode-ai/protocol'
 import type { ContentBlock, HostSession } from './host.ts'
 
 /** DSH's pruner marker (`PRUNE_MARKER` of the pruner package, 0.2.x). */

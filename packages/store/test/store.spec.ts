@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { FileArtifactStore, FileJournal, collectDaily, dataDirs, loadConfig, pathSegment, readJournals, resolveDataDir, writableDataDir } from '../src/index.ts'
-import type { EconomyRecord } from '@lightcode/protocol'
+import type { EconomyRecord } from '@lightcode-ai/protocol'
 
 const dirs: string[] = []
 const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'lightcode-store-')); dirs.push(dir); return dir }

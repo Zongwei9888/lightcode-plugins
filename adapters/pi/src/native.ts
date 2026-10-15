@@ -1,6 +1,6 @@
 import type { ToolResultEvent } from '@earendil-works/pi-coding-agent'
-import { nativeGrepRecords, nativePathLines } from '@lightcode/core'
-import type { FilterCandidate, NativeResult } from '@lightcode/core'
+import { nativeGrepRecords, nativePathLines } from '@lightcode-ai/core'
+import type { FilterCandidate, NativeResult } from '@lightcode-ai/core'
 
 /**
  * pi's own search tools: `grep` prints `path:line: text` rows, `find` one path

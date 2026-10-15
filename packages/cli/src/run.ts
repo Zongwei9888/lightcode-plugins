@@ -1,9 +1,9 @@
 import { spawn } from 'node:child_process'
 import { basename } from 'node:path'
 import { constants } from 'node:os'
-import { EconomyEngine } from '@lightcode/mechanisms'
-import { RuleStore, collectDaily } from '@lightcode/store'
-import type { ShellResult } from '@lightcode/core'
+import { EconomyEngine } from '@lightcode-ai/mechanisms'
+import { RuleStore, collectDaily } from '@lightcode-ai/store'
+import type { ShellResult } from '@lightcode-ai/core'
 import { cliContext, shellQuote } from './context.ts'
 
 export interface RunOptions {

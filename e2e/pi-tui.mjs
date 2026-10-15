@@ -92,7 +92,7 @@ export async function runPiTui({ cache, root, registry, log }) {
     } finally { config.close() }
   }
   try {
-    run(pi, ['install', 'npm:@lightcode/pi'], { cwd: base, env })
+    run(pi, ['install', 'npm:@lightcode-ai/pi'], { cwd: base, env })
 
     // 1. A TUI session: the status bar shows the savings, the /lightcode panel and report explain them.
     const session = terminal('lightcode-pi-tui', { cwd: work, env: vars, command: [pi, '--provider', 'mock', '--model', 'mock-model'] })

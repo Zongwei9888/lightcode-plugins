@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import type { MechanismMode } from '@lightcode/protocol'
+import type { MechanismMode } from '@lightcode-ai/protocol'
 import { createDshEconomy } from '../src/economy.ts'
 import type { PostToolDecision, ToolExecution } from '../src/host.ts'
 import { bashResult, pytestOutput } from './render.ts'

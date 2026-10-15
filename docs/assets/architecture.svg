@@ -21,12 +21,12 @@
     <rect x="40" y="70" width="262" height="96" rx="14" class="card"/>
     <text x="62" y="104" class="t">pi</text>
     <text x="62" y="128" class="s">terminal UI · print mode</text>
-    <text x="62" y="150" class="m">pi install npm:@lightcode/pi</text>
+    <text x="62" y="150" class="m" style="font-size:11.5px">pi install npm:@lightcode-ai/pi</text>
 
     <rect x="320" y="70" width="320" height="96" rx="14" class="card"/>
     <text x="342" y="104" class="t">DeepSeek Harness</text>
     <text x="342" y="128" class="s">Web · Desktop · headless</text>
-    <text x="342" y="150" class="m">Plugins → Add plugin → @lightcode/dsh</text>
+    <text x="342" y="150" class="m" style="font-size:11.5px">Plugins → Add plugin → @lightcode-ai/dsh</text>
 
     <rect x="658" y="70" width="240" height="96" rx="14" class="card"/>
     <text x="680" y="104" class="t">Codex</text>
@@ -54,10 +54,10 @@
   <!-- adapters -->
   <rect x="40" y="230" width="1120" height="62" rx="14" fill="#F1F5F9" stroke="#CBD5E1" stroke-width="1.5"/>
   <text x="62" y="267" class="h">ADAPTERS</text>
-  <text x="170" y="267" class="m" style="fill:#334155">@lightcode/pi</text>
-  <text x="330" y="267" class="m" style="fill:#334155">@lightcode/dsh</text>
+  <text x="170" y="267" class="m" style="fill:#334155">@lightcode-ai/pi</text>
+  <text x="330" y="267" class="m" style="fill:#334155">@lightcode-ai/dsh</text>
   <text x="500" y="267" class="m" style="fill:#334155">adapters/codex</text>
-  <text x="670" y="267" class="m" style="fill:#334155">@lightcode/cli (lc)</text>
+  <text x="670" y="267" class="m" style="fill:#334155">@lightcode-ai/cli (lc)</text>
   <text x="870" y="267" class="s">capability negotiation: apply · observe · off</text>
 
   <line x1="600" y1="294" x2="600" y2="324" stroke="#94A3B8" stroke-width="1.6" marker-end="url(#a)"/>

@@ -1,5 +1,5 @@
 {
-  "name": "@lightcode/protocol",
+  "name": "@lightcode-ai/protocol",
   "version": "0.2.0",
   "description": "LightCode host capability vocabulary, mechanism negotiation and journal record schemas.",
   "license": "MIT",
@@ -29,7 +29,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@lightcode/core": "workspace:*"
+    "@lightcode-ai/core": "workspace:*"
   },
   "sideEffects": false
 }

@@ -1,5 +1,5 @@
 {
-  "name": "@lightcode/cli",
+  "name": "@lightcode-ai/cli",
   "version": "0.2.0",
   "description": "The lc command: run any command with LightCode filtering, the Codex hook, savings reports and diagnostics.",
   "license": "MIT",
@@ -37,9 +37,9 @@
     "test": "vitest run"
   },
   "devDependencies": {
-    "@lightcode/core": "workspace:*",
-    "@lightcode/protocol": "workspace:*",
-    "@lightcode/store": "workspace:*",
-    "@lightcode/mechanisms": "workspace:*"
+    "@lightcode-ai/core": "workspace:*",
+    "@lightcode-ai/protocol": "workspace:*",
+    "@lightcode-ai/store": "workspace:*",
+    "@lightcode-ai/mechanisms": "workspace:*"
   }
 }

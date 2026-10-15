@@ -1,8 +1,8 @@
 import { chmodSync, cpSync, existsSync, lstatSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
 import { randomBytes } from 'node:crypto'
-import { compileLearnedRules, parseRuleIndex, ruleDirectoryHash, RuleDirectoryError } from '@lightcode/core'
-import type { LearnedRuleSet, RuleFile } from '@lightcode/core'
+import { compileLearnedRules, parseRuleIndex, ruleDirectoryHash, RuleDirectoryError } from '@lightcode-ai/core'
+import type { LearnedRuleSet, RuleFile } from '@lightcode-ai/core'
 import { ensurePrivateDir } from './paths.ts'
 
 /**

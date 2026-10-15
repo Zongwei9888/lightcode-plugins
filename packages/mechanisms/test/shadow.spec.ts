@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { sha256 } from '@lightcode/core'
-import type { ArtifactPort, ArtifactRef, ShadowReference } from '@lightcode/protocol'
+import { sha256 } from '@lightcode-ai/core'
+import type { ArtifactPort, ArtifactRef, ShadowReference } from '@lightcode-ai/protocol'
 import {
   boundedExcerpt, callLabel, CATALOG_EXCERPTS, catalogIds, checkpointAdmitted, checkpointRecord, cutNote, externalizeCut, parseCheckpoint, planShadow, recallObservation,
   referenceIndex, renderCheckpoint, renderRecall,

@@ -34,7 +34,7 @@ sessions:
   saving; above it Codex's cap still applies, and the projection means more
   of the result fits inside it.
 - `lc` must be on the `PATH` of the shell Codex uses
-  (`npm install -g @lightcode/cli`, then `lc doctor`).
+  (`npm install -g @lightcode-ai/cli`, then `lc doctor`).
 - Long-running commands show their output when they finish, not while they
   run.
 - Wrapped commands run inside Codex's sandbox. With `workspace-write`,

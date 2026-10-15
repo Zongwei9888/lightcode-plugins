@@ -28,7 +28,7 @@ export async function runShadow({ cache, root, registry, log, hosts }) {
       const env = childEnv({ ...registry.env, DSH_HOME: dshHome, LIGHTCODE_HOME: lightcodeHome, MOCK_LLM_API_KEY: 'e2e',
         PATH: `${pnpmBin}:${bin}:${process.env.PATH}`, npm_config_cache: join(cache, 'npm-cache'), npm_config_store_dir: join(cache, 'pnpm-store') })
       try {
-        run(dsh, ['plugin', '--profile', 'headless', 'add', '@lightcode/dsh'], { cwd: base, env })
+        run(dsh, ['plugin', '--profile', 'headless', 'add', '@lightcode-ai/dsh'], { cwd: base, env })
         // A 60k-token window, compaction at 30% of it, a 3k-token tail: the session above must compact.
         writeFileSync(join(dshHome, 'profiles', 'headless', 'cordis.patch.yml'), `- id: llm-pi-ai
   config:
@@ -83,7 +83,7 @@ export async function runShadow({ cache, root, registry, log, hosts }) {
       const env = childEnv({ ...registry.env, PI_CODING_AGENT_DIR: agentDir, LIGHTCODE_HOME: lightcodeHome,
         PI_SKIP_VERSION_CHECK: '1', PI_TELEMETRY: '0', npm_config_cache: join(cache, 'npm-cache') })
       try {
-        run(pi, ['install', 'npm:@lightcode/pi'], { cwd: base, env })
+        run(pi, ['install', 'npm:@lightcode-ai/pi'], { cwd: base, env })
         // Compact once the context passes 40k − 12k tokens, keeping about 3k recent tokens.
         const settingsFile = join(agentDir, 'settings.json')
         const settings = JSON.parse(run('cat', [settingsFile]).stdout)

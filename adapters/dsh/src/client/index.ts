@@ -16,7 +16,7 @@ import { LightCodeConfig } from './page.ts'
 import type { ConfigState } from './page.ts'
 
 /** The package name: the key of its bundle page. */
-const PACKAGE = '@lightcode/dsh'
+const PACKAGE = '@lightcode-ai/dsh'
 /** The profile entry the bundle patch inserts; its id is the configuration namespace. */
 const ENTRY = 'lightcode'
 /** Dictionary namespace owned by this plugin. */

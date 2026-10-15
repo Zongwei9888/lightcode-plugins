@@ -1,6 +1,6 @@
-import { createPolicy, decideShellProjection, estimateTokens as defaultEstimate, sha256 } from '@lightcode/core'
-import type { EconomyPolicy, LearnedRuleSet, ShellResult, TokenEstimator } from '@lightcode/core'
-import type { ArtifactPort, EconomyRecord, JournalRecord } from '@lightcode/protocol'
+import { createPolicy, decideShellProjection, estimateTokens as defaultEstimate, sha256 } from '@lightcode-ai/core'
+import type { EconomyPolicy, LearnedRuleSet, ShellResult, TokenEstimator } from '@lightcode-ai/core'
+import type { ArtifactPort, EconomyRecord, JournalRecord } from '@lightcode-ai/protocol'
 
 /**
  * Evidence-guided self-evolution of the filter policy: pi_{k+1} = Verify(Propose(pi_k, E_k)).

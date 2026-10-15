@@ -1,4 +1,4 @@
-import type { EconomyFilterName, EconomyMatchDetail, EconomyPassReason, EconomyTransformation, CommandRewriteRule } from '@lightcode/core'
+import type { EconomyFilterName, EconomyMatchDetail, EconomyPassReason, EconomyTransformation, CommandRewriteRule } from '@lightcode-ai/core'
 
 /**
  * LightCode's own records. They live in LightCode's private journal, never in

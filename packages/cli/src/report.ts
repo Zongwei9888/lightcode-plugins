@@ -1,6 +1,6 @@
-import { collectSubagents, formatTokens, summarizeEconomy, summarizeShadow } from '@lightcode/mechanisms'
-import type { EconomySummary, ShadowSummary } from '@lightcode/mechanisms'
-import type { JournalRecord } from '@lightcode/protocol'
+import { collectSubagents, formatTokens, summarizeEconomy, summarizeShadow } from '@lightcode-ai/mechanisms'
+import type { EconomySummary, ShadowSummary } from '@lightcode-ai/mechanisms'
+import type { JournalRecord } from '@lightcode-ai/protocol'
 import { cliContext } from './context.ts'
 
 export function formatSummary(summary: EconomySummary, scope: string): string {

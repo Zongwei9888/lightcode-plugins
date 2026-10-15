@@ -58,11 +58,11 @@
 
 | 你的 Agent | 安装 |
 |---|---|
-| **pi** | `pi install npm:@lightcode/pi`，会话里输入 `/lightcode` |
-| **DeepSeek Harness**（网页版、桌面版） | **插件** → **添加插件** → `@lightcode/dsh` → **安装** → **立即启用** |
-| **DeepSeek Harness**（终端） | `dsh plugin --profile web add @lightcode/dsh`（需要 pnpm 11+） |
+| **pi** | `pi install npm:@lightcode-ai/pi`，会话里输入 `/lightcode` |
+| **DeepSeek Harness**（网页版、桌面版） | **插件** → **添加插件** → `@lightcode-ai/dsh` → **安装** → **立即启用** |
+| **DeepSeek Harness**（终端） | `dsh plugin --profile web add @lightcode-ai/dsh`（需要 pnpm 11+） |
 | **Codex** | `codex plugin marketplace add <仓库>` → `codex plugin add lightcode@lightcode`，再在 `/hooks` 里信任钩子 |
-| **其他** | `npm install -g @lightcode/cli`，然后 `lc run -c 'cargo test'` |
+| **其他** | `npm install -g @lightcode-ai/cli`，然后 `lc run -c 'cargo test'` |
 
 无需配置：Economy 和 LightShadow 从下一次工具调用起生效。`lc report` 查看省了多少，`lc doctor` 查看每个宿主支持什么。
 
@@ -99,7 +99,7 @@ DeepSeek Harness 桌面版：先退出应用，再用它自带的 `dsh` 加 `--p
 <summary>更多截图：安装、学习进行中、学习前的 pi 面板、深色主题</summary>
 
 <p align="center">
-<img src="../assets/screenshots/dsh-install.png" alt="DeepSeek Harness 插件页：@lightcode/dsh 安装完成" width="900">
+<img src="../assets/screenshots/dsh-install.png" alt="DeepSeek Harness 插件页：@lightcode-ai/dsh 安装完成" width="900">
 <img src="../assets/screenshots/dsh-learning.png" alt="DeepSeek Harness 插件页：学习进行中" width="900">
 <img src="../assets/screenshots/pi-panel-ready.png" alt="pi 的 /lightcode 面板，可以开始学习" width="820">
 <img src="../assets/screenshots/dsh-self-evolution-dark.png" alt="深色主题下的 LightCode 插件页" width="900">
@@ -172,12 +172,12 @@ lc evolve --learner pi          # 也可以是 dsh、claude、codex 或任意命
 
 | 宿主 | 安装 | 接入方式 | Economy | LightShadow | 学到的规则 |
 |---|---|---|---|---|---|
-| **pi** 1.1+ | `pi install npm:@lightcode/pi` | 进程内扩展；通过 `context_edit` 交付投影，pi 会话保留原文；压缩走 `session_before_compact` | 应用 | 应用 | 支持 |
-| **DeepSeek Harness** 0.2.x | 插件 → 添加插件 → `@lightcode/dsh`，或 `dsh plugin --profile web add @lightcode/dsh` | 进程内插件（`tools/post-execute`）；压缩接入每个 agent 预设自己的压缩模块；插件页可切换模式 | 应用 | 应用 | 支持 |
+| **pi** 1.1+ | `pi install npm:@lightcode-ai/pi` | 进程内扩展；通过 `context_edit` 交付投影，pi 会话保留原文；压缩走 `session_before_compact` | 应用 | 应用 | 支持 |
+| **DeepSeek Harness** 0.2.x | 插件 → 添加插件 → `@lightcode-ai/dsh`，或 `dsh plugin --profile web add @lightcode-ai/dsh` | 进程内插件（`tools/post-execute`）；压缩接入每个 agent 预设自己的压缩模块；插件页可切换模式 | 应用 | 应用 | 支持 |
 | **Codex** 0.162+ | `codex plugin marketplace add <仓库>`，再 `codex plugin add lightcode@lightcode` | 插件的 `PreToolUse` 钩子把可识别的命令改写为 `lc run -c '<命令>'`；模型历史里仍是原命令 | 应用 | —（Codex 不允许插件接管压缩） | 仅限钩子改写的命令 |
-| **任何 Agent / 终端** | `npm install -g @lightcode/cli` | 直接调用 `lc run -c '<命令>'` | 应用 | — | 支持 |
+| **任何 Agent / 终端** | `npm install -g @lightcode-ai/cli` | 直接调用 `lc run -c '<命令>'` | 应用 | — | 支持 |
 
-`lc evolve` 和 `lc rules` 随 `@lightcode/cli` 提供。
+`lc evolve` 和 `lc rules` 随 `@lightcode-ai/cli` 提供。
 
 pi 和 DeepSeek Harness 插件已在 macOS 和 Linux 上测试（DSH 桌面版在 macOS 上测试）；Windows 尚未测试。两个插件在子 agent 里同样生效（DSH 的内置 `subagent` / `subagent_fork`；pi 上每个子 agent 单独起 `pi` 进程的子 agent 扩展），会话的 `/lightcode` 会把子 agent 省下的一起算上。
 
@@ -185,11 +185,11 @@ pi 和 DeepSeek Harness 插件已在 macOS 和 Linux 上测试（DSH 桌面版�
 
 #### pi
 
-`pi install npm:@lightcode/pi` 安装。状态栏显示本会话省下的 token，`/lightcode` 查看明细，`pi --lightcode observe` 本次只记录不改动，`pi config` 可关闭扩展。详见 [adapters/pi](../../adapters/pi/README.md)。
+`pi install npm:@lightcode-ai/pi` 安装。状态栏显示本会话省下的 token，`/lightcode` 查看明细，`pi --lightcode observe` 本次只记录不改动，`pi config` 可关闭扩展。详见 [adapters/pi](../../adapters/pi/README.md)。
 
 #### DeepSeek Harness
 
-Web 界面或桌面版：侧边栏 **插件** → **添加插件** → 输入 `@lightcode/dsh` → **安装** → **立即启用**；或终端执行 `dsh plugin --profile web add @lightcode/dsh`（`dsh plugin` 需要 pnpm 11 及以上）。会话里输入 `/lightcode` 查看省下的 token；插件详情页的 **模式**（精简 / 只记录 / 关闭）保存后对下一次工具调用生效，无需重启。详见 [adapters/dsh](../../adapters/dsh/README.md)。
+Web 界面或桌面版：侧边栏 **插件** → **添加插件** → 输入 `@lightcode-ai/dsh` → **安装** → **立即启用**；或终端执行 `dsh plugin --profile web add @lightcode-ai/dsh`（`dsh plugin` 需要 pnpm 11 及以上）。会话里输入 `/lightcode` 查看省下的 token；插件详情页的 **模式**（精简 / 只记录 / 关闭）保存后对下一次工具调用生效，无需重启。详见 [adapters/dsh](../../adapters/dsh/README.md)。
 
 ## ⌨️ 常用命令
 

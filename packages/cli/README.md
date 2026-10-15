@@ -1,7 +1,7 @@
 # lc — the LightCode command
 
 ```sh
-npm install -g @lightcode/cli
+npm install -g @lightcode-ai/cli
 lc doctor
 ```
 

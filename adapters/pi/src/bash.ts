@@ -1,5 +1,5 @@
 import type { ToolResultEvent } from '@earendil-works/pi-coding-agent'
-import type { ShellResult } from '@lightcode/core'
+import type { ShellResult } from '@lightcode-ai/core'
 
 /**
  * pi's bash result as LightCode sees it. The model-facing text is the merged

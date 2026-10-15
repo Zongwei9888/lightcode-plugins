@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { compileLearnedRules, createPolicy, sha256 } from '@lightcode/core'
-import type { ArtifactPort, EconomyRecord } from '@lightcode/protocol'
+import { compileLearnedRules, createPolicy, sha256 } from '@lightcode-ai/core'
+import type { ArtifactPort, EconomyRecord } from '@lightcode-ai/protocol'
 import { checkRequirements, collectEvidence, commandHead, defaultRequirements, verifyRules } from '../src/index.ts'
 
 const artifacts = (texts: string[]): ArtifactPort => {

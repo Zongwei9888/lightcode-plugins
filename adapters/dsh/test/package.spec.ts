@@ -9,7 +9,7 @@ describe('DSH bundle package', () => {
   it('declares a bundle whose patch mounts the package root', () => {
     expect(manifest.dsh.bundle.patch).toBe('./cordis.patch.yml')
     const patch = readFileSync(at('cordis.patch.yml'), 'utf8')
-    expect(patch).toMatch(/- insert:\n\s+- id: lightcode\n\s+name: '@lightcode\/dsh'\n/)
+    expect(patch).toMatch(/- insert:\n\s+- id: lightcode\n\s+name: '@lightcode-ai\/dsh'\n/)
   })
   it('ships display metadata in both languages and a small self-contained icon', () => {
     for (const lang of ['en', 'zh']) {
@@ -40,6 +40,6 @@ describe('DSH bundle package', () => {
     const host = readFileSync(at('lib/index.js'), 'utf8')
     const imports = [...host.matchAll(/^import\s.*?from\s+["']([^"']+)["']/gm)].map(match => match[1]!)
     expect(imports.filter(specifier => !specifier.startsWith('node:')).sort()).toEqual(['@deepseek-ai/schemastery'])
-    expect(host).not.toMatch(/from\s+["']@lightcode\//)
+    expect(host).not.toMatch(/from\s+["']@lightcode-ai\//)
   })
 })

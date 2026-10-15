@@ -4,8 +4,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
-import { FileJournal, removeTree } from '@lightcode/store'
-import type { EconomyRecord } from '@lightcode/protocol'
+import { FileJournal, removeTree } from '@lightcode-ai/store'
+import type { EconomyRecord } from '@lightcode-ai/protocol'
 import { parseDuration } from '../src/evolve.ts'
 
 const main = fileURLToPath(new URL('../src/main.ts', import.meta.url))

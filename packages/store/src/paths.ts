@@ -1,7 +1,7 @@
 import { lstatSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { sha256 } from '@lightcode/core'
+import { sha256 } from '@lightcode-ai/core'
 
 /** `$LIGHTCODE_HOME`, else `~/.lightcode`. Everything LightCode writes stays under it. */
 export function resolveDataDir(env: NodeJS.ProcessEnv = process.env): string {

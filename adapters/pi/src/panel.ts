@@ -6,8 +6,8 @@
  * state, so tests can check it without a terminal.
  */
 import { matchesKey, truncateToWidth, visibleWidth } from '@earendil-works/pi-tui'
-import { formatTokens, outcomeSentence } from '@lightcode/mechanisms'
-import type { EconomySummary, EvolveStatus, ShadowSummary } from '@lightcode/mechanisms'
+import { formatTokens, outcomeSentence } from '@lightcode-ai/mechanisms'
+import type { EconomySummary, EvolveStatus, ShadowSummary } from '@lightcode-ai/mechanisms'
 
 /** The members of pi's Theme the panel uses. */
 export interface PanelTheme {

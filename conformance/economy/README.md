@@ -3,7 +3,7 @@
 `corpus.json` holds tool outputs; `expected.<runtime-version>.json` holds the
 exact projection every LightCode implementation must produce for them
 (`null` = the output must pass through unchanged). Any host adapter that
-filters through `@lightcode/core` must reproduce these bytes and source maps.
+filters through `@lightcode-ai/core` must reproduce these bytes and source maps.
 
 - `captured/*` — real outputs of git, grep, find, ls, pytest, tsc, cargo and
   `node --test`, recorded in a throwaway sandbox by `capture-inputs.mjs`.

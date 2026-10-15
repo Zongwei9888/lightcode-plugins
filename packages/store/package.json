@@ -1,5 +1,5 @@
 {
-  "name": "@lightcode/store",
+  "name": "@lightcode-ai/store",
   "version": "0.2.0",
   "description": "Local LightCode data: private journal, original-output store and configuration.",
   "license": "MIT",
@@ -29,8 +29,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@lightcode/core": "workspace:*",
-    "@lightcode/protocol": "workspace:*"
+    "@lightcode-ai/core": "workspace:*",
+    "@lightcode-ai/protocol": "workspace:*"
   },
   "sideEffects": false
 }

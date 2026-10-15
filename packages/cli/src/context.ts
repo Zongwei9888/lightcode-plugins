@@ -1,6 +1,6 @@
-import { FileArtifactStore, FileJournal, dataDirs, loadConfig, readJournals, resolveDataDir, writableDataDir } from '@lightcode/store'
-import type { LoadedConfig } from '@lightcode/store'
-import type { JournalRecord } from '@lightcode/protocol'
+import { FileArtifactStore, FileJournal, dataDirs, loadConfig, readJournals, resolveDataDir, writableDataDir } from '@lightcode-ai/store'
+import type { LoadedConfig } from '@lightcode-ai/store'
+import type { JournalRecord } from '@lightcode-ai/protocol'
 
 export interface CliContext {
   /** Where configuration lives (`$LIGHTCODE_HOME` or `~/.lightcode`). */
@@ -41,4 +41,4 @@ export function cliContext(options: { cwd?: string; env?: NodeJS.ProcessEnv } = 
   }
 }
 
-export { onPath, shellQuote } from '@lightcode/mechanisms'
+export { onPath, shellQuote } from '@lightcode-ai/mechanisms'

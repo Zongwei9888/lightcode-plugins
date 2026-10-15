@@ -1,5 +1,5 @@
 /**
- * pi, end to end: `pi install npm:@lightcode/pi` from a registry exactly as a
+ * pi, end to end: `pi install npm:@lightcode-ai/pi` from a registry exactly as a
  * user would, real print-mode sessions against the scripted model, then the
  * `--lightcode observe` flag, removal, and the checkout install used in
  * development. Checks what the model received, what pi's session file kept
@@ -54,11 +54,11 @@ export async function runPi({ cache, root, registry, log, checkout }) {
       PI_SKIP_VERSION_CHECK: '1', PI_TELEMETRY: '0', npm_config_cache: join(cache, 'npm-cache') })
     try {
       // 1. Install like a user, from the registry.
-      run(pi, ['install', 'npm:@lightcode/pi'], { cwd: base, env: envFor(join(base, 'lc-install')) })
+      run(pi, ['install', 'npm:@lightcode-ai/pi'], { cwd: base, env: envFor(join(base, 'lc-install')) })
       const settings = JSON.parse(readFileSync(join(agentDir, 'settings.json'), 'utf8'))
-      assert.ok(JSON.stringify(settings.packages).includes('npm:@lightcode/pi'), 'package not recorded in settings.json')
+      assert.ok(JSON.stringify(settings.packages).includes('npm:@lightcode-ai/pi'), 'package not recorded in settings.json')
       const listed = run(pi, ['list'], { cwd: base, env: envFor(join(base, 'lc-install')) }).stdout
-      assert.match(listed, /@lightcode\/pi/)
+      assert.match(listed, /@lightcode-ai\/pi/)
 
       // 2. A session: the model reads projections; pi's session file keeps every original.
       const lcApply = join(base, 'lc-apply')
@@ -87,8 +87,8 @@ export async function runPi({ cache, root, registry, log, checkout }) {
       log(`pi ${version}: --lightcode observe ✓`)
 
       // 4. Remove.
-      run(pi, ['remove', 'npm:@lightcode/pi'], { cwd: base, env: envFor(join(base, 'lc-install')) })
-      assert.doesNotMatch(JSON.stringify(JSON.parse(readFileSync(join(agentDir, 'settings.json'), 'utf8')).packages ?? []), /@lightcode\/pi/)
+      run(pi, ['remove', 'npm:@lightcode-ai/pi'], { cwd: base, env: envFor(join(base, 'lc-install')) })
+      assert.doesNotMatch(JSON.stringify(JSON.parse(readFileSync(join(agentDir, 'settings.json'), 'utf8')).packages ?? []), /@lightcode-ai\/pi/)
       const lcRemoved = join(base, 'lc-removed')
       const plain = await session({ pi, env: { ...envFor(lcRemoved), PI_OFFLINE: '1' }, work, mock, sessionDir: join(base, 'sessions-removed') })
       assert.deepEqual(journal(lcRemoved, 'pi'), [])

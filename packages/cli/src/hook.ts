@@ -1,5 +1,5 @@
-import { mayProject } from '@lightcode/core'
-import { normalizeShellCommand } from '@lightcode/mechanisms'
+import { mayProject } from '@lightcode-ai/core'
+import { normalizeShellCommand } from '@lightcode-ai/mechanisms'
 import { cliContext, onPath, shellQuote } from './context.ts'
 
 /** Codex hook input fields LightCode reads (see the Codex hooks schema). */

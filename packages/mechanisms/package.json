@@ -1,5 +1,5 @@
 {
-  "name": "@lightcode/mechanisms",
+  "name": "@lightcode-ai/mechanisms",
   "version": "0.2.0",
   "description": "LightCode mechanisms over host capability ports: Token Economy, command normalization and receipts.",
   "license": "MIT",
@@ -29,9 +29,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@lightcode/core": "workspace:*",
-    "@lightcode/protocol": "workspace:*",
-    "@lightcode/store": "workspace:*"
+    "@lightcode-ai/core": "workspace:*",
+    "@lightcode-ai/protocol": "workspace:*",
+    "@lightcode-ai/store": "workspace:*"
   },
   "sideEffects": false
 }

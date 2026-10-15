@@ -1,6 +1,6 @@
 import { appendFileSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { JournalPort, JournalRecord } from '@lightcode/protocol'
+import type { JournalPort, JournalRecord } from '@lightcode-ai/protocol'
 import { ensurePrivateDir, pathSegment } from './paths.ts'
 
 const UNBOUND = '_unbound'

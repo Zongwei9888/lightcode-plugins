@@ -110,7 +110,7 @@ describe('self-evolution section', () => {
   it('appears only on LightCode\'s own page', () => {
     expect(EvolveSection({ t, subject: { kind: 'bundle', pkg: { name: 'other-plugin' } } })).toBeNull()
     expect(EvolveSection({ t, subject: { kind: 'item' } })).toBeNull()
-    expect(EvolveSection({ t, subject: { kind: 'bundle', pkg: { name: '@lightcode/dsh' } } })).not.toBeNull()
+    expect(EvolveSection({ t, subject: { kind: 'bundle', pkg: { name: '@lightcode-ai/dsh' } } })).not.toBeNull()
   })
 
   it('words outcomes and toasts in both languages', () => {

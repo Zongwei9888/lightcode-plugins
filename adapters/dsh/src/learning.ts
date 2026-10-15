@@ -8,9 +8,9 @@ import { randomBytes } from 'node:crypto'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { cancelEvolution, LEARNER_INSTRUCTION, nodeBinary, onPath, readEvolveStatus, refreshScan, startEvolution, takeAnnouncement, takeReadyNotice } from '@lightcode/mechanisms'
-import type { BackgroundOptions, EvolveRunStatus, EvolveStatus } from '@lightcode/mechanisms'
-import { RuleStore, ensurePrivateDir, loadConfig } from '@lightcode/store'
+import { cancelEvolution, LEARNER_INSTRUCTION, nodeBinary, onPath, readEvolveStatus, refreshScan, startEvolution, takeAnnouncement, takeReadyNotice } from '@lightcode-ai/mechanisms'
+import type { BackgroundOptions, EvolveRunStatus, EvolveStatus } from '@lightcode-ai/mechanisms'
+import { RuleStore, ensurePrivateDir, loadConfig } from '@lightcode-ai/store'
 
 export type Learner = { readonly argv: readonly string[]; readonly shell?: boolean; readonly label: string } | { readonly unavailable: string }
 
