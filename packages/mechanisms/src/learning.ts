@@ -341,7 +341,8 @@ export function takeReadyNotice(dataDir: string, host: string): readonly Opportu
   if (!fresh.length) return undefined
   const next = { ...told, ...Object.fromEntries(ready.map(item => [item.command, item.leftTokens])) }
   try { writeJsonAtomic(readyNoticeFile(dataDir), { ...all, [host]: { after, told: next } }) } catch { return undefined }
-  return ready
+  // What is new comes first: the toast names only the first few.
+  return [...fresh, ...ready.filter(item => !fresh.includes(item))]
 }
 
 // ——— The workspace ———

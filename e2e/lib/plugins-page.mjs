@@ -87,7 +87,14 @@ export async function exercisePluginsPage({ page, label, profileDir, lightcodeHo
   const openLightCode = async () => { await openPlugins(); await page.getByRole('button', { name: 'View LightCode' }).click(); await page.getByText('@lightcode/dsh', { exact: true }).first().waitFor() }
   const chat = async (name, prompt = 'Run the fixture commands.') => {
     const before = mock.requests.length
-    await page.getByRole('button', { name: 'New session' }).first().click()
+    // Start from an empty draft: under load the click can leave the previous chat on screen, and a prompt typed
+    // there would continue it.
+    const previous = page.getByText('done', { exact: true })
+    for (let attempt = 0; ; attempt++) {
+      await page.getByRole('button', { name: 'New session' }).first().click()
+      if (await previous.first().waitFor({ state: 'hidden', timeout: 20_000 }).then(() => true, () => false)) break
+      if (attempt === 2) throw new Error('New session kept showing the previous chat')
+    }
     // A fresh session can re-render under the composer just after the click, losing the Enter: then the text is
     // still in the composer and is sent again. Once the composer is empty the prompt was submitted, however long
     // it takes to reach the model (a slow CI machine): wait for it in this session rather than starting another.
@@ -110,7 +117,7 @@ export async function exercisePluginsPage({ page, label, profileDir, lightcodeHo
     // The turn ends when the model answers "done". Wait for that answer itself: a "done" already on screen can
     // belong to an earlier chat (under load the prompt can land in the previous session).
     await until(() => mock.replies.slice(before).some(message => ['done', 'no catalog', 'no recall tool'].includes(message?.content)), 'the model to finish the chat', 600_000)
-    const done = page.getByText('done', { exact: true })
+    const done = page.getByText('done', { exact: true }).last()
     // Under load the app can leave the view on a fresh draft while the chat runs: open the newest session then.
     if (!await done.waitFor({ timeout: 60_000 }).then(() => true, () => false)) {
       await page.getByText('LightCode e2e', { exact: true }).first().click()
@@ -198,8 +205,9 @@ export async function exercisePluginsPage({ page, label, profileDir, lightcodeHo
   writeLinkScript(workspace)
   mock.setScript({ commands: ['./link.sh', './link.sh', './link.sh'], toolArguments: command => ({ description: `Fixture: ${command}`, command }) })
   try { await chat('05e-chat-evidence') } finally { mock.setScript(fixture) }
-  // Wherever the person is, a toast says once that the new output is worth learning from.
-  await page.getByText('LightCode can learn from your', { exact: false }).first().waitFor({ timeout: 200_000 })
+  // Wherever the person is, a toast says once that the new output is worth learning from. Output of the earlier
+  // chats (the long one's seq) can be announced first, in a toast of its own.
+  await page.getByText(/LightCode can learn from your .*\.\/link\.sh/).first().waitFor({ timeout: 300_000 })
   await shot('05e2-evolve-ready-toast')
   const told = JSON.parse(readFileSync(join(lightcodeHome, 'evolve', 'ready-notice.json'), 'utf8')).dsh.told
   assert.ok(told['./link.sh'] > 0, `the notice did not cover ./link.sh: ${JSON.stringify(told)}`)

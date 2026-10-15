@@ -158,6 +158,9 @@ describe('run status', () => {
     expect(takeReadyNotice(home, 'dsh')).toBeUndefined()
     scan([{ command: 'cargo test', cases: 9, leftTokens: 6100 }, { command: 'pytest', cases: 3, leftTokens: 2500 }])
     expect(takeReadyNotice(home, 'dsh')?.map(item => item.command)).toEqual(['cargo test', 'pytest'])
+    // A command newly worth learning from comes first: the toast names only the first few.
+    scan([{ command: 'cargo test', cases: 9, leftTokens: 6100 }, { command: 'pytest', cases: 3, leftTokens: 2500 }, { command: './link.sh', cases: 3, leftTokens: 2200 }])
+    expect(takeReadyNotice(home, 'dsh')?.map(item => item.command)).toEqual(['./link.sh', 'cargo test', 'pytest'])
     // A run finished after this scan: its evidence is what that run learned from.
     writeRunStatus(home, { schemaVersion: 1, runId: 'r-9', host: 'dsh', learner: 'dsh', pid: process.pid, startedAt: '2026-10-14T00:00:00.000Z',
       finishedAt: new Date(Date.now() + 1000).toISOString(), phase: 'done', outcome: { result: 'rejected' } })

@@ -46,7 +46,8 @@ filters. (0.1.0 was never published; its contents are part of this release.)
   plugin's Plugins page (Web and Desktop) with **Learn now**, live progress,
   the learned rules with a switch and **Roll back**, a toast when a run
   ends, and one when recorded output becomes worth learning from (the scan
-  runs again two minutes after new output, otherwise every ten); the learner is DSH headless on the default model and the profile's
+  runs again two minutes after new output, otherwise every ten; commands
+  newly worth learning from are named first); the learner is DSH headless on the default model and the profile's
   providers. Both run learning as a separate process (one at a time across
   hosts, 20 minutes at most, cancellable); running sessions use adopted rules
   from their next output on. `/lightcode learn | cancel | rules | rollback |
