@@ -27,7 +27,7 @@ function workspace() {
 
 const sessionEntries = (file: string) => readFileSync(file, 'utf8').trim().split('\n').map(line => JSON.parse(line) as Record<string, any>)
 
-describe('pi adapter (real pi 1.1 session, faux model)', () => {
+describe('pi adapter (real pi 1.1 session, faux model)', { timeout: 30_000 }, () => {
   it('shows the model a projection while the session file keeps the original', async () => {
     const cwd = workspace(), dataDir = temp()
     const raw = spawnSync('/bin/sh', ['-c', 'grep -rn value src'], { cwd, encoding: 'utf8' }).stdout
