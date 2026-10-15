@@ -107,6 +107,9 @@ export async function exercisePluginsPage({ page, label, profileDir, lightcodeHo
       }
       if (attempt === 2) throw new Error(`the prompt was not sent: ${prompt}`)
     }
+    // The turn ends when the model answers "done". Wait for that answer itself: a "done" already on screen can
+    // belong to an earlier chat (under load the prompt can land in the previous session).
+    await until(() => mock.replies.slice(before).some(message => ['done', 'no catalog', 'no recall tool'].includes(message?.content)), 'the model to finish the chat', 600_000)
     const done = page.getByText('done', { exact: true })
     // Under load the app can leave the view on a fresh draft while the chat runs: open the newest session then.
     if (!await done.waitFor({ timeout: 60_000 }).then(() => true, () => false)) {

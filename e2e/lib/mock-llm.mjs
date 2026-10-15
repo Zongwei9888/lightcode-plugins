@@ -13,11 +13,13 @@ import { createServer } from 'node:http'
 /**
  * `respond`, when given, answers first; returning undefined falls back to the script.
  * @param {{ commands: string[], toolArguments?: (command: string) => Record<string, unknown>, respond?: (request: any) => any }} script
- * @returns {Promise<{ url: string, requests: any[], close: () => Promise<void>, setScript: (s: typeof script) => void }>}
+ * @returns {Promise<{ url: string, requests: any[], replies: any[], close: () => Promise<void>, setScript: (s: typeof script) => void }>}
  */
 export async function startMockLlm(script) {
   let current = script
   const requests = []
+  /** What each request in `requests` was answered with, at the same index. */
+  const replies = []
   const server = createServer((req, res) => {
     let body = ''
     req.on('data', chunk => { body += chunk })
@@ -30,6 +32,7 @@ export async function startMockLlm(script) {
       try { request = JSON.parse(body) } catch { res.writeHead(400).end(); return }
       requests.push(request)
       const message = reply(request, current)
+      replies.push(message)
       if (request.stream) stream(res, message, request)
       else json(res, { id: `cmpl-${requests.length}`, object: 'chat.completion', created: now(), model: request.model,
         choices: [{ index: 0, message: { role: 'assistant', ...message }, finish_reason: message.tool_calls ? 'tool_calls' : 'stop' }],
@@ -41,6 +44,7 @@ export async function startMockLlm(script) {
   return {
     url: `http://127.0.0.1:${port}/v1`,
     requests,
+    replies,
     setScript: next => { current = next },
     get script() { return current },
     close: () => new Promise(resolve => { server.closeAllConnections?.(); server.close(() => resolve()) }),
