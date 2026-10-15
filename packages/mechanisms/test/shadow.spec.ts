@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { sha256 } from '@lightcode/core'
 import type { ArtifactPort, ArtifactRef, ShadowReference } from '@lightcode/protocol'
 import {
-  boundedExcerpt, checkpointAdmitted, checkpointRecord, cutNote, externalizeCut, parseCheckpoint, planShadow, recallObservation,
+  boundedExcerpt, callLabel, CATALOG_EXCERPTS, catalogIds, checkpointAdmitted, checkpointRecord, cutNote, externalizeCut, parseCheckpoint, planShadow, recallObservation,
   referenceIndex, renderCheckpoint, renderRecall,
 } from '../src/index.ts'
 import type { ShadowMessage } from '../src/index.ts'
@@ -111,6 +111,46 @@ describe('LightShadow plan', () => {
     expect(checkpointAdmitted('x'.repeat(plan.segmentTokens * 4), plan)).toBe(false)
   })
 
+  it('names the call that produced each result, and lists every result of a long session in the catalog', () => {
+    expect(callLabel('{"command":"cat src/a.ts","timeout":30}')).toBe('cat src/a.ts')
+    expect(callLabel({ path: 'src/b.ts', offset: 10 })).toBe('src/b.ts')
+    expect(callLabel({ query: 'needle', limit: 5 })).toBe('needle')
+    expect(callLabel({ a: 1 })).toBe('{"a":1}')
+    expect(callLabel({ command: 'echo   one\n  two' })).toBe('echo one two')
+    expect(callLabel('{}')).toBeUndefined()
+    expect(callLabel(undefined)).toBeUndefined()
+    expect([...callLabel({ command: 'x'.repeat(500) })!]).toHaveLength(160)
+    // 600 reads of distinct files, the way a long walk through a codebase goes.
+    const artifacts = new MemoryArtifacts()
+    const reads: ShadowMessage[] = [{ role: 'user', text: 'Read the sources.' }]
+    for (let i = 0; i < 600; i++) {
+      reads.push({ role: 'assistant', text: `bash {"command":"cat src/file${i}.ts"}` })
+      reads.push({ role: 'tool', text: log(120, `file${i}`), toolName: 'bash', callId: `c${i}`, call: `cat src/file${i}.ts` })
+    }
+    const plan = planShadow(reads, { artifacts })
+    expect(plan.references).toHaveLength(600)
+    expect(plan.references[0]).toMatchObject({ call: 'cat src/file0.ts' })
+    const text = renderCheckpoint('summary', plan)
+    expect(catalogIds(text)).toHaveLength(600)
+    // Older ones by their call alone; the newest in full.
+    expect(text).toContain(`observation_id: ${plan.references[0]!.id} | call: "cat src/file0.ts"\n`)
+    expect(text).toContain(`observation_id: ${plan.references[599]!.id} | tool: bash | call: "cat src/file599.ts" | bytes: `)
+    // Only the newest keep their excerpt: the catalog stays a fraction of what it replaces.
+    expect(text.split('\n').filter(line => line.includes('| excerpt: '))).toHaveLength(CATALOG_EXCERPTS)
+    expect(text).toContain('| excerpt: "file599 0: value 0')
+    expect(text).not.toContain('| excerpt: "file0 0: value 0')
+    expect(checkpointAdmitted(text, plan)).toBe(true)
+    expect(Buffer.byteLength(text) / plan.segmentTokens).toBeLessThan(0.5)
+    expect(plan.residual[2]!.text).toContain('call: cat src/file0.ts')
+    // A tight budget keeps the newest that fit.
+    // A small segment (a small window) still lists hundreds by their call.
+    expect(planShadow(reads.slice(0, 201), { artifacts }).references).toHaveLength(100)
+    const tight = planShadow(reads, { artifacts, catalogTokens: 3000 })
+    expect(tight.references.length).toBeGreaterThan(CATALOG_EXCERPTS)
+    expect(tight.references.length).toBeLessThan(600)
+    expect(tight.references.at(-1)).toMatchObject({ call: 'cat src/file599.ts' })
+  })
+
   it('bounds excerpts in bytes without splitting characters', () => {
     const text = `${'中'.repeat(400)}\nmiddle\n${'文'.repeat(400)}`
     const excerpt = boundedExcerpt(text, 100)
@@ -130,7 +170,7 @@ describe('recall', () => {
 
   it('returns small results whole and a bounded window of a large one around the query', () => {
     const { artifacts, big, reference, lookup } = setup()
-    expect(recallObservation({ observation_id: reference.id }, { lookup, artifacts })).toMatchObject({ ok: false, error: expect.stringMatching(/pass a query/) })
+    expect(recallObservation({ observation_id: reference.id }, { lookup, artifacts })).toMatchObject({ ok: false, error: expect.stringMatching(/pass a line number, or a query/) })
     const window = recallObservation({ observation_id: reference.id, query: 'line 1000:' }, { lookup, artifacts })
     expect(window.ok).toBe(true)
     if (!window.ok) return
@@ -140,6 +180,32 @@ describe('recall', () => {
     expect(renderRecall(reference.id, window)).toMatch(/^\[o-[a-f0-9]{12}: lines \d+-\d+ of 2001\]/)
     const whole = recallObservation({ observation_id: reference.id, query: 'KeyError' }, { lookup, artifacts, windowBytes: 1_000_000 })
     expect(whole).toEqual({ ok: true, text: big, complete: true })
+  })
+
+  it('reads a large result around a line number', () => {
+    const { artifacts, reference, lookup } = setup()
+    for (const line of [1500, '1500']) {
+      const window = recallObservation({ observation_id: reference.id, line }, { lookup, artifacts })
+      expect(window).toMatchObject({ ok: true, complete: false, totalLines: 2001 })
+      if (!window.ok) return
+      // Line 1500 of the result is "line 1499: ..." (the log counts from 0).
+      expect(window.text).toContain('>  1500\tline 1499: value 10493')
+      expect(window.text).toContain('   1501\tline 1500: value 10500')
+      expect(renderRecall(reference.id, window)).toMatch(/^\[o-[a-f0-9]{12}: lines \d+-\d+ of 2001, numbered; line 1500 is marked >\]\n/)
+      expect(window.lines![0]).toBeLessThanOrEqual(1500)
+      expect(window.lines![1]).toBeGreaterThanOrEqual(1500)
+      expect(Buffer.byteLength(window.text)).toBeLessThanOrEqual(8192)
+    }
+    expect(recallObservation({ observation_id: reference.id, line: 1 }, { lookup, artifacts })).toMatchObject({ ok: true, lines: [1, expect.any(Number)] })
+    // A small result asked by line comes back whole and numbered.
+    const small = recallObservation({ observation_id: reference.id, line: 2 }, { lookup, artifacts, windowBytes: 1_000_000 })
+    expect(small).toMatchObject({ ok: true, lines: [1, 2001], numbered: 2 })
+    if (small.ok) expect(small.text.split('\n')[1]).toBe('>     2\tline 1: value 7')
+    expect(recallObservation({ observation_id: reference.id, line: 2001 }, { lookup, artifacts })).toMatchObject({ ok: true, lines: [expect.any(Number), 2001] })
+    for (const line of [0, 2002, 3.5, 'x']) {
+      expect(recallObservation({ observation_id: reference.id, line }, { lookup, artifacts })).toMatchObject({ ok: false })
+    }
+    expect(recallObservation({ observation_id: reference.id, line: 0 }, { lookup, artifacts })).toMatchObject({ error: expect.stringMatching(/from 1 to 2001/) })
   })
 
   it('reads the original Economy shortened, and refuses unknown or expired references', () => {
@@ -171,5 +237,26 @@ describe('cut externalization', () => {
     expect(cutNote(reference, 1234)).toContain(`observation_id ${reference.id}`)
     artifacts.corrupt = true
     expect(externalizeCut('other', { artifacts })).toBeUndefined()
+  })
+
+  it('compacts a cut result into a reference to its complete text, so a line recall reads the real line', () => {
+    const artifacts = new MemoryArtifacts()
+    const full = log(500)
+    const cut = externalizeCut(full, { artifacts, tool: 'tool' })!
+    const seen = full.slice(0, 4096) + cutNote(cut, full.length - 5120) + full.slice(-1024)
+    const known = new Map([[cut.id, cut]])
+    const plan = planShadow([
+      { role: 'user', text: 'Read it.' },
+      { role: 'tool', text: seen, toolName: 'bash', callId: 'c7', call: 'cat big.log' },
+    ], { artifacts, knownReference: id => known.get(id) })
+    expect(plan.references).toEqual([expect.objectContaining({ id: cut.id, sha256: cut.sha256, tool: 'bash', callId: 'c7', call: 'cat big.log' })])
+    expect(plan.residual[1]!.text).toContain(`observation_id: ${cut.id}`)
+    const index = referenceIndex([checkpointRecord({ host: 'h', sessionId: 's', time: 't' }, { kind: 'lightshadow', plan, checkpointTokens: 1 })])
+    const window = recallObservation({ observation_id: cut.id, line: 300 }, { lookup: id => index.get(id), artifacts })
+    expect(window).toMatchObject({ ok: true, totalLines: 501 })
+    if (window.ok) expect(window.text).toContain('>   300\tline 299: value 2093')
+    // Without the complete text (expired), the result is kept as the model saw it.
+    const plain = planShadow([{ role: 'tool', text: seen, toolName: 'bash', callId: 'c7' }], { artifacts, knownReference: () => undefined })
+    expect(plain.references[0]!.sha256).toBe(sha256(seen))
   })
 })

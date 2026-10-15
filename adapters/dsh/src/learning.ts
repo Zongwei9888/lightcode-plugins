@@ -8,7 +8,7 @@ import { randomBytes } from 'node:crypto'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { cancelEvolution, LEARNER_INSTRUCTION, nodeBinary, onPath, readEvolveStatus, refreshScan, startEvolution, takeAnnouncement } from '@lightcode/mechanisms'
+import { cancelEvolution, LEARNER_INSTRUCTION, nodeBinary, onPath, readEvolveStatus, refreshScan, startEvolution, takeAnnouncement, takeReadyNotice } from '@lightcode/mechanisms'
 import type { BackgroundOptions, EvolveRunStatus, EvolveStatus } from '@lightcode/mechanisms'
 import { RuleStore, ensurePrivateDir, loadConfig } from '@lightcode/store'
 
@@ -145,6 +145,20 @@ export function createDshLearning(options: DshLearningOptions) {
     return { ok: false, active }
   }
 
+  /**
+   * What the toast shows once: a run that ended, or else commands now worth
+   * learning from. The scan behind the second is redone in its own process
+   * (see `refreshScan`: two minutes after new output, else every ten).
+   */
+  const announcement = (): { run: EvolveRunStatus | null; ready: ReturnType<typeof takeReadyNotice> | null } => {
+    const run = takeAnnouncement(configDir, HOST)
+    if (run) return { run, ready: null }
+    const runnerOptions = background()
+    if ('unavailable' in runnerOptions) return { run: null, ready: null }
+    try { refreshScan(configDir, runnerOptions) } catch { /* Next poll. */ }
+    return { run: null, ready: takeReadyNotice(configDir, HOST) ?? null }
+  }
+
   const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } })
   const guard = (handle: (request: Request) => Promise<Response> | Response) => async (request: Request) => {
     try { return await handle(request) } catch (error) { return json({ ok: false, error: String((error as Error)?.message ?? error) }, 500) }
@@ -161,7 +175,7 @@ export function createDshLearning(options: DshLearningOptions) {
     { path: ROUTES.cancel, methods: ['POST'] as const, requestBody: 'buffered' as const, fetch: guard(() => json({ ok: cancelEvolution(configDir) })) },
     { path: ROUTES.rules, methods: ['POST'] as const, requestBody: 'buffered' as const, fetch: guard(async request => json(rules((await body(request)).action))) },
     { path: ROUTES.announcement, methods: ['POST'] as const, requestBody: 'buffered' as const,
-      fetch: guard(() => { const run: EvolveRunStatus | undefined = takeAnnouncement(configDir, HOST); return json({ run: run ?? null }) }) },
+      fetch: guard(() => json(announcement())) },
   ]
 
   return { status, start, cancel: () => cancelEvolution(configDir), rules, routes, learner }

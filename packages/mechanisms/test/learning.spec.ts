@@ -8,7 +8,7 @@ import type { EconomyRecord, JournalRecord, ShadowRecallRecord } from '@lightcod
 import { FileArtifactStore, FileJournal, RuleStore, removeTree } from '@lightcode/store'
 import {
   acquireRunLock, cancelEvolution, checkpointRecord, disabledRules, evolveContext, outcomeSentence, readEvolveStatus, readRunStatus, releaseRunLock, reviewActiveRules,
-  pruneRuns, refreshScan, ruleChanges, ruleUse, runEvolution, scanEvidence, startEvolution, takeAnnouncement, writeRunStatus,
+  pruneRuns, refreshScan, ruleChanges, ruleUse, runEvolution, scanEvidence, startEvolution, takeAnnouncement, takeReadyNotice, writeRunStatus,
 } from '../src/index.ts'
 
 const runner = fileURLToPath(new URL('./fixtures/runner.ts', import.meta.url))
@@ -139,6 +139,31 @@ describe('run status', () => {
     expect(takeAnnouncement(home, 'pi')).toMatchObject({ runId: 'r-2', outcome: { result: 'adopted' } })
     expect(takeAnnouncement(home, 'pi')).toBeUndefined()
     expect(takeAnnouncement(home, 'dsh')).toMatchObject({ runId: 'r-2' })
+  })
+
+  it('mentions commands worth learning from once, again when their tokens double, and afresh after a run', () => {
+    const home = temp()
+    const scan = (opportunities: { command: string; cases: number; leftTokens: number }[], time = new Date().toISOString()) => {
+      mkdirSync(join(home, 'evolve'), { recursive: true })
+      writeFileSync(join(home, 'evolve', 'scan.json'), JSON.stringify({ schemaVersion: 1, time, evidence: 9, newEvidence: 9, leftTokens: 0, opportunities,
+        ready: opportunities.some(item => item.cases >= 3 && item.leftTokens >= 2000), rules: [], disabled: [] }))
+    }
+    scan([{ command: 'cargo test', cases: 2, leftTokens: 9000 }])
+    expect(takeReadyNotice(home, 'dsh')).toBeUndefined()
+    scan([{ command: 'cargo test', cases: 4, leftTokens: 3000 }, { command: 'ls', cases: 5, leftTokens: 500 }])
+    expect(takeReadyNotice(home, 'dsh')).toEqual([{ command: 'cargo test', cases: 4, leftTokens: 3000 }])
+    expect(takeReadyNotice(home, 'dsh')).toBeUndefined()
+    expect(takeReadyNotice(home, 'pi')).toHaveLength(1)
+    scan([{ command: 'cargo test', cases: 6, leftTokens: 5000 }])
+    expect(takeReadyNotice(home, 'dsh')).toBeUndefined()
+    scan([{ command: 'cargo test', cases: 9, leftTokens: 6100 }, { command: 'pytest', cases: 3, leftTokens: 2500 }])
+    expect(takeReadyNotice(home, 'dsh')?.map(item => item.command)).toEqual(['cargo test', 'pytest'])
+    // A run finished after this scan: its evidence is what that run learned from.
+    writeRunStatus(home, { schemaVersion: 1, runId: 'r-9', host: 'dsh', learner: 'dsh', pid: process.pid, startedAt: '2026-10-14T00:00:00.000Z',
+      finishedAt: new Date(Date.now() + 1000).toISOString(), phase: 'done', outcome: { result: 'rejected' } })
+    expect(takeReadyNotice(home, 'dsh')).toBeUndefined()
+    scan([{ command: 'cargo test', cases: 3, leftTokens: 2100 }], new Date(Date.now() + 2000).toISOString())
+    expect(takeReadyNotice(home, 'dsh')).toEqual([{ command: 'cargo test', cases: 3, leftTokens: 2100 }])
   })
 })
 

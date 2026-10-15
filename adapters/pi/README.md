@@ -95,7 +95,8 @@ LightCode supplies the summary through `session_before_compact`:
 - the summary is followed by your messages, verbatim, and a catalog of the
   references; pi's own file tracking is kept;
 - `lightcode_recall` becomes available to the model: it returns a result
-  exactly as the model read it, a window of up to 8 KB around a string, or
+  exactly as the model read it, a window of up to 8 KB around a string or a
+  line number (numbered, the asked line marked), or
   the complete original when Economy had shortened it. The references are
   stored in pi's compaction entry, so `/fork` and `/resume` keep them.
 

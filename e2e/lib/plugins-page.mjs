@@ -107,7 +107,12 @@ export async function exercisePluginsPage({ page, label, profileDir, lightcodeHo
       }
       if (attempt === 2) throw new Error(`the prompt was not sent: ${prompt}`)
     }
-    await page.getByText('done', { exact: true }).waitFor({ timeout: 240_000 })
+    const done = page.getByText('done', { exact: true })
+    // Under load the app can leave the view on a fresh draft while the chat runs: open the newest session then.
+    if (!await done.waitFor({ timeout: 60_000 }).then(() => true, () => false)) {
+      await page.getByText('LightCode e2e', { exact: true }).first().click()
+      await done.waitFor({ timeout: 180_000 })
+    }
     await shot(name)
     return mock.requests.slice(before)
   }
@@ -190,6 +195,12 @@ export async function exercisePluginsPage({ page, label, profileDir, lightcodeHo
   writeLinkScript(workspace)
   mock.setScript({ commands: ['./link.sh', './link.sh', './link.sh'], toolArguments: command => ({ description: `Fixture: ${command}`, command }) })
   try { await chat('05e-chat-evidence') } finally { mock.setScript(fixture) }
+  // Wherever the person is, a toast says once that the new output is worth learning from.
+  await page.getByText('LightCode can learn from your', { exact: false }).first().waitFor({ timeout: 200_000 })
+  await shot('05e2-evolve-ready-toast')
+  const told = JSON.parse(readFileSync(join(lightcodeHome, 'evolve', 'ready-notice.json'), 'utf8')).dsh.told
+  assert.ok(told['./link.sh'] > 0, `the notice did not cover ./link.sh: ${JSON.stringify(told)}`)
+  log(`${label}: "worth learning" toast ✓`)
   await openLightCode()
   const section = page.locator('[data-lightcode-evolve]')
   await section.first().waitFor()

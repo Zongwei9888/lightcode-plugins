@@ -11,7 +11,7 @@ import { compact } from '@earendil-works/pi-coding-agent'
 import type { ExtensionAPI, ExtensionContext, SessionBeforeCompactEvent, SessionEntry } from '@earendil-works/pi-coding-agent'
 import type { TSchema } from '@earendil-works/pi-ai'
 import {
-  RECALL_TOOL_DESCRIPTION, RECALL_TOOL_NAME, SHADOW_SUMMARY_INSTRUCTION, checkpointAdmitted, checkpointRecord, planShadow, recallObservation,
+  RECALL_TOOL_DESCRIPTION, RECALL_TOOL_NAME, SHADOW_SUMMARY_INSTRUCTION, callLabel, checkpointAdmitted, checkpointRecord, planShadow, recallObservation,
   renderCheckpoint, renderRecall,
 } from '@lightcode/mechanisms'
 import type { ShadowMessage } from '@lightcode/mechanisms'
@@ -42,7 +42,8 @@ const RECALL_PARAMETERS = {
   type: 'object',
   properties: {
     observation_id: { type: 'string', description: 'An observation_id from the observation catalog, such as o-1a2b3c4d5e6f.' },
-    query: { type: 'string', description: 'An exact string the result contains; needed for results over 8 KB.' },
+    query: { type: 'string', description: 'An exact string the result contains; for results over 8 KB, this or line.' },
+    line: { type: 'integer', minimum: 1, description: 'A 1-based line number to read around; for results over 8 KB, this or query.' },
     original: { type: 'boolean', description: 'Read the complete output LightCode shortened before you first read it.' },
   },
   required: ['observation_id'],
@@ -60,12 +61,28 @@ const textOf = (content: unknown): string | undefined => {
   return text
 }
 
+/** pi's messages as LightShadow reads them; a tool result carries the label of the call that produced it. */
+export function shadowMessages(messages: readonly AgentMessage[]): ShadowMessage[] {
+  const calls = new Map<string, string>()
+  return messages.map(message => {
+    const value = message as unknown as { role: string; content?: unknown }
+    if (value.role === 'assistant' && Array.isArray(value.content)) {
+      for (const block of value.content as { type?: string; id?: string; arguments?: unknown }[]) {
+        const label = block.type === 'toolCall' && typeof block.id === 'string' ? callLabel(block.arguments) : undefined
+        if (label) calls.set(block.id!, label)
+      }
+    }
+    return shadowMessage(message, calls)
+  })
+}
+
 /** pi's message as LightShadow reads it. Only all-text tool results can become references. */
-export function shadowMessage(message: AgentMessage): ShadowMessage {
+export function shadowMessage(message: AgentMessage, calls?: ReadonlyMap<string, string>): ShadowMessage {
   const value = message as unknown as { role: string; content?: unknown; toolCallId?: string; toolName?: string }
   if (value.role === 'toolResult') {
     const text = textOf(value.content)
-    if (text !== undefined) return { role: 'tool', text, ...value.toolName ? { toolName: value.toolName } : {}, ...value.toolCallId ? { callId: value.toolCallId } : {} }
+    const call = value.toolCallId ? calls?.get(value.toolCallId) : undefined
+    if (text !== undefined) return { role: 'tool', text, ...value.toolName ? { toolName: value.toolName } : {}, ...value.toolCallId ? { callId: value.toolCallId } : {}, ...call ? { call } : {} }
   }
   if (value.role === 'user') {
     const text = typeof value.content === 'string' ? value.content
@@ -114,7 +131,7 @@ export function registerLightShadow(pi: ExtensionAPI, options: PiShadowOptions):
     // Declared to the model only once a checkpoint lists something to recall.
     defaultActive: false,
     async execute(toolCallId, params, _signal, _onUpdate, ctx) {
-      const args = params as { observation_id?: unknown; query?: unknown; original?: unknown }
+      const args = params as { observation_id?: unknown; query?: unknown; line?: unknown; original?: unknown }
       const references = branchReferences(ctx.sessionManager.getBranch())
       const result = recallObservation(args, { lookup: id => references.get(id), artifacts: options.artifacts })
       const id = typeof args.observation_id === 'string' ? args.observation_id.trim() : ''
@@ -149,7 +166,7 @@ export function registerLightShadow(pi: ExtensionAPI, options: PiShadowOptions):
       }
       const summarized = preparation.messagesToSummarize
       const prefix = preparation.turnPrefixMessages
-      const plan = planShadow([...summarized, ...prefix].map(shadowMessage), {
+      const plan = planShadow(shadowMessages([...summarized, ...prefix]), {
         artifacts: options.artifacts, knownReference: id => known.get(id), originalOf: id => originals.get(id),
         ...preparation.previousSummary === undefined ? {} : { prior: preparation.previousSummary },
       })
@@ -167,15 +184,24 @@ export function registerLightShadow(pi: ExtensionAPI, options: PiShadowOptions):
         : Object.fromEntries(Object.entries(auth.headers).filter((entry): entry is [string, string] => typeof entry[1] === 'string'))
       // The previous checkpoint's summary only: its user messages and catalog are carried in `plan`.
       const previousSummary = preparation.previousSummary === undefined ? undefined : plan.residualPrior
-      const result = await summarize({
+      const run = (instructions: string | undefined) => summarize({
         ...preparation,
         // The summarizer reads the tool results in full, so the summary keeps their findings (with references
         // only, agents re-ran commands instead of recalling); the checkpoint keeps references to them.
         messagesToSummarize: summarized,
         turnPrefixMessages: prefix,
         ...previousSummary === undefined ? {} : { previousSummary },
-      }, routed, auth.apiKey, headers, [event.customInstructions, SHADOW_SUMMARY_INSTRUCTION].filter(Boolean).join('\n\n'),
-      event.signal, ctx.thinkingLevel)
+      }, routed, auth.apiKey, headers, instructions, event.signal, ctx.thinkingLevel)
+      let result: Awaited<ReturnType<typeof summarize>>
+      try {
+        result = await run([event.customInstructions, SHADOW_SUMMARY_INSTRUCTION].filter(Boolean).join('\n\n'))
+      } catch (error) {
+        // A summary that ran past pi's output budget (a real DeepSeek run hit it once in a ~1M-token span) fails
+        // compact(): summarize again with pi's own instructions, as pi's fallback would, and keep the references.
+        if (event.signal.aborted) return undefined
+        options.onError?.(error)
+        result = await run(event.customInstructions)
+      }
       if (event.signal.aborted) return undefined
       const text = renderCheckpoint(result.summary, plan)
       if (!checkpointAdmitted(text, plan)) {
@@ -193,7 +219,7 @@ export function registerLightShadow(pi: ExtensionAPI, options: PiShadowOptions):
       if (event.signal.aborted) return undefined
       options.onError?.(error)
       append({ ...checkpointRecord(base, { kind: 'standard', plan: { references: [], contract: [], segmentTokens: 0 }, checkpointTokens: 0,
-        reason: 'error' }) })
+        reason: 'error', error }) })
       return undefined
     }
   })

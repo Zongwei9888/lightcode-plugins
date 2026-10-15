@@ -12,13 +12,21 @@ filters. (0.1.0 was never published; its contents are part of this release.)
   findings; the checkpoint keeps
   the user's messages verbatim and lists the references; `lightcode_recall`
   reads any of them again (exactly, or a window of up to 8 KB around a
-  string, or the complete original Economy shortened). A checkpoint that is
+  string or around a line, numbered, or the complete original Economy
+  shortened). A checkpoint that is
   not smaller, or any failure, leaves the compaction to the host. On pi
   through `session_before_compact` (references also stored in the compaction
   entry); on DeepSeek Harness by wrapping `summarize` of each preset's
   compaction engine, and the tool-result pruner keeps the complete text of
   results it cuts. `lightshadow.mode`, `LIGHTCODE_LIGHTSHADOW`; `/lightcode`,
-  `lc report` and `lc doctor` report it.
+  `lc report` and `lc doctor` report it. Each reference names the call that
+  produced it (command or path), and the catalog lists every reference of a
+  long session within 8% of the span's tokens (only the newest 40 in full,
+  older ones by their call), instead of the newest 200. A result DeepSeek
+  Harness's pruner had cut is referenced by its complete text. On pi, a
+  summary that fails (it ran past pi's output budget once in a real ~1M-token
+  span) is redone with pi's own instructions and the references are kept; a
+  checkpoint that falls back records the error in the journal.
 - Self-evolving filters: the engine keeps the original of every complete
   shell output as evidence (`economy.evidence`), with its stream layout.
   `lc evolve --learner pi|dsh|claude|codex|<command>` writes a workspace
@@ -36,8 +44,9 @@ filters. (0.1.0 was never published; its contents are part of this release.)
   bar follows a run, and pi announces its result; the learner is pi on the
   session's model. DeepSeek Harness: a *Self-evolution* section on the
   plugin's Plugins page (Web and Desktop) with **Learn now**, live progress,
-  the learned rules with a switch and **Roll back**, and a toast when a run
-  ends; the learner is DSH headless on the default model and the profile's
+  the learned rules with a switch and **Roll back**, a toast when a run
+  ends, and one when recorded output becomes worth learning from (the scan
+  runs again two minutes after new output, otherwise every ten); the learner is DSH headless on the default model and the profile's
   providers. Both run learning as a separate process (one at a time across
   hosts, 20 minutes at most, cancellable); running sessions use adopted rules
   from their next output on. `/lightcode learn | cancel | rules | rollback |

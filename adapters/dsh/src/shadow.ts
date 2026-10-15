@@ -18,7 +18,7 @@
  * log) stays DSH's. `lightcode_recall` reads a reference again.
  */
 import {
-  RECALL_TOOL_DESCRIPTION, RECALL_TOOL_NAME, SHADOW_SUMMARY_INSTRUCTION, checkpointRecord, cutNote, externalizeCut,
+  RECALL_TOOL_DESCRIPTION, RECALL_TOOL_NAME, SHADOW_SUMMARY_INSTRUCTION, callLabel, checkpointRecord, cutNote, externalizeCut,
   planShadow, recallObservation, referenceIndex, renderCheckpoint, renderRecall,
 } from '@lightcode/mechanisms'
 import type { RecallResult, ShadowMessage, ShadowPlan } from '@lightcode/mechanisms'
@@ -91,6 +91,7 @@ const describeBlocks = (blocks: readonly ContentBlock[]) =>
 /** DSH messages as LightShadow reads them; the system head is no part of the segment. */
 export function shadowMessages(messages: readonly HostMessage[]): { segment: ShadowMessage[]; indexes: number[] } {
   const names = new Map<string, string>()
+  const calls = new Map<string, string>()
   const segment: ShadowMessage[] = []
   const indexes: number[] = []
   for (const [index, message] of messages.entries()) {
@@ -102,6 +103,8 @@ export function shadowMessages(messages: readonly HostMessage[]): { segment: Sha
         if (block.type === 'text' && typeof block.text === 'string') parts.push(block.text)
         else if (block.type === 'tool-call' && typeof block.id === 'string') {
           names.set(block.id, String(block.name))
+          const label = callLabel(block.arguments)
+          if (label) calls.set(block.id, label)
           parts.push(`${String(block.name)} ${String(block.arguments ?? '')}`)
         }
       }
@@ -109,8 +112,9 @@ export function shadowMessages(messages: readonly HostMessage[]): { segment: Sha
     } else if (message.role === 'tool') {
       const text = texts(message.content)
       const name = message.toolCallId === undefined ? undefined : names.get(message.toolCallId)
+      const call = message.toolCallId === undefined ? undefined : calls.get(message.toolCallId)
       item = text === undefined ? { role: 'other', text: describeBlocks(message.content) }
-        : { role: 'tool', text, ...name ? { toolName: name } : {}, ...message.toolCallId ? { callId: message.toolCallId } : {} }
+        : { role: 'tool', text, ...name ? { toolName: name } : {}, ...message.toolCallId ? { callId: message.toolCallId } : {}, ...call ? { call } : {} }
     } else if (message.role === 'user') {
       const text = message.content.filter(block => block.type === 'text').map(block => String(block.text)).join('\n')
       const kind = message.source?.kind
@@ -195,7 +199,7 @@ export function createDshShadow(options: DshShadowOptions): DshShadow {
       } catch (error) {
         if (signal?.aborted) throw error
         options.warn?.(`LightCode LightShadow: ${String(error)}; using DSH's own compaction`)
-        append(checkpointRecord(base(), { kind: 'standard', plan: { references: [], contract: [], segmentTokens: 0 }, checkpointTokens: 0, reason: 'error' }))
+        append(checkpointRecord(base(), { kind: 'standard', plan: { references: [], contract: [], segmentTokens: 0 }, checkpointTokens: 0, reason: 'error', error }))
         return original(input, agent, signal)
       }
       // DSH's own errors (rate limits, overflow) go to DSH's recovery unchanged.
@@ -270,7 +274,7 @@ export function createDshShadow(options: DshShadowOptions): DshShadow {
     },
     recall(session, args, callId) {
       const index = referenceIndex(options.read(session.id))
-      const input = (args ?? {}) as { observation_id?: unknown; query?: unknown; original?: unknown }
+      const input = (args ?? {}) as { observation_id?: unknown; query?: unknown; line?: unknown; original?: unknown }
       const result = recallObservation(input, { lookup: id => index.get(id), artifacts: options.artifacts() })
       const id = typeof input.observation_id === 'string' ? input.observation_id.trim() : ''
       const text = renderRecall(id, result)

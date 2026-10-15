@@ -7,6 +7,7 @@ import type { LearningPayload } from '../learning.ts'
 
 export type { LearningPayload }
 export type RulesAction = 'off' | 'on' | 'rollback'
+export interface ReadyCommand { readonly command: string; readonly cases: number; readonly leftTokens: number }
 
 async function call<T>(path: string, init?: { method: 'POST'; body?: unknown }): Promise<T> {
   const response = await fetch(`api/lightcode/${path}`, {
@@ -23,7 +24,8 @@ export const api = {
   learn: () => call<{ ok: true; runId: string } | { ok: false; error: string }>('learn', { method: 'POST' }),
   cancel: () => call<{ ok: boolean }>('cancel', { method: 'POST' }),
   rules: (action: RulesAction) => call<{ ok: boolean; active: string | null }>('rules', { method: 'POST', body: { action } }),
-  announcement: () => call<{ run: LearningPayload['evolve']['run'] | null }>('announcement', { method: 'POST' }),
+  /** Shown once each: a run that ended, or commands now worth learning from. */
+  announcement: () => call<{ run: LearningPayload['evolve']['run'] | null; ready?: ReadyCommand[] | null }>('announcement', { method: 'POST' }),
 }
 
 /** 1234 → "1.2k", as the terminal hosts print it. */

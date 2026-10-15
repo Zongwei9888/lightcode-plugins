@@ -16,9 +16,10 @@ import type { ArtifactPort, ShadowCheckpointRecord, ShadowReference } from '@lig
 export interface ShadowMessage {
   readonly role: 'user' | 'assistant' | 'tool' | 'summary' | 'other'
   readonly text: string
-  /** Tool results: the tool's name and call ID. */
+  /** Tool results: the tool's name and call ID, and the call's arguments as `callLabel` renders them. */
   readonly toolName?: string
   readonly callId?: string
+  readonly call?: string
 }
 
 export interface ShadowOptions {
@@ -30,6 +31,8 @@ export interface ShadowOptions {
   readonly minimumSavedTokens?: number
   /** At most this many references per checkpoint, newest kept. */
   readonly maxReferences?: number
+  /** Token budget of the catalog; by default 8% of the segment, between 4k and 40k. Oldest references are left out past it. */
+  readonly catalogTokens?: number
   /** Bound on the exact user messages carried in the checkpoint. */
   readonly maxContractBytes?: number
   /** References of earlier checkpoints, by ID, to carry forward when their catalog is in the segment. */
@@ -54,6 +57,9 @@ export interface ShadowPlan {
 }
 
 export const SHADOW_EXCERPT_BYTES = 320
+/** The newest references are listed in full (tool, call, size, excerpt); older ones by the call that produced them. */
+export const CATALOG_EXCERPTS = 40
+const CALL_LABEL_CHARS = 160
 export const SHADOW_RECALL_WINDOW_BYTES = 8192
 export const RECALL_TOOL_NAME = 'lightcode_recall'
 
@@ -64,10 +70,11 @@ export const SHADOW_SUMMARY_INSTRUCTION = [
   'without re-running anything: the findings from the tool results (facts, file paths with line numbers, values,',
   'errors, what passed and what failed) and the decisions made. Do not paste whole files, logs or test output;',
   'say what they showed. Do not list observation IDs. The user\'s messages are kept word for word after the summary.',
+  'Keep it concise: a short line per finding, so the summary fits well within your output limit.',
 ].join(' ')
 
 export const RECALL_TOOL_DESCRIPTION = 'Read again a tool result that context compaction removed, exactly as you first saw it. '
-  + 'Its observation_id is listed in the observation catalog of the compacted summary. Results larger than 8 KB need a query: '
+  + 'Its observation_id is listed in the observation catalog of the compacted summary, next to the call (command or path) that produced it. Results larger than 8 KB need a line number (you get the lines around it) or a query: '
   + 'an exact string they contain (a symbol, path or error message); you get the lines around its first match. '
   + 'Set original to true for the complete output LightCode shortened before you first read it, when the catalog marks one.'
 
@@ -101,8 +108,36 @@ function fit(points: readonly string[], maxBytes: number): string[] {
   return out
 }
 
+/**
+ * One line naming what produced a tool result: the shell command, else the
+ * path read or written, else the arguments as JSON, at most 160 characters.
+ */
+export function callLabel(args: unknown): string | undefined {
+  let value = args
+  if (typeof value === 'string') { try { value = JSON.parse(value) } catch { /* Plain text arguments. */ } }
+  let label: string | undefined
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const fields = value as Record<string, unknown>
+    const named = ['command', 'cmd', 'path', 'file_path', 'filePath', 'file', 'pattern', 'query', 'url']
+      .map(key => fields[key]).find((item): item is string => typeof item === 'string' && item.trim() !== '')
+    label = named ?? JSON.stringify(value)
+  } else if (typeof value === 'string') label = value
+  if (!label) return undefined
+  const line = label.replace(/\s+/gu, ' ').trim()
+  if (!line || line === '{}') return undefined
+  const points = [...line]
+  return points.length <= CALL_LABEL_CHARS ? line : `${points.slice(0, CALL_LABEL_CHARS - 1).join('')}…`
+}
+
+/** A recent reference in full; an older one by its call alone (or its tool, when the call is unknown), so long sessions fit. */
+function catalogLine(ref: ShadowReference, recent: boolean): string {
+  if (!recent) return `observation_id: ${ref.id} | ${ref.call ? `call: ${quote(ref.call)}` : `tool: ${ref.tool}`}${ref.original ? ' | original' : ''}`
+  return `observation_id: ${ref.id} | tool: ${ref.tool}${ref.call ? ` | call: ${quote(ref.call)}` : ''} | bytes: ${ref.bytes}`
+    + `${ref.original ? ` | original: ${ref.original.bytes} bytes` : ''}${ref.excerpt ? ` | excerpt: ${quote(ref.excerpt)}` : ''}`
+}
+
 function marker(reference: ShadowReference): string {
-  return ['[recoverable observation]', `observation_id: ${reference.id}`, `tool: ${reference.tool}`, `bytes: ${reference.bytes}`,
+  return ['[recoverable observation]', `observation_id: ${reference.id}`, `tool: ${reference.tool}`, ...reference.call ? [`call: ${reference.call}`] : [], `bytes: ${reference.bytes}`,
     reference.excerpt ? `excerpt:\n${reference.excerpt}` : ''].filter(Boolean).join('\n')
 }
 
@@ -128,7 +163,7 @@ function quote(text: string): string {
 export function planShadow(segment: readonly ShadowMessage[], options: ShadowOptions): ShadowPlan {
   const estimate = options.estimateTokens ?? defaultEstimate
   const minimumSaved = Math.max(1, options.minimumSavedTokens ?? 16)
-  const maxReferences = options.maxReferences ?? 200
+  const maxReferences = options.maxReferences ?? 2000
   const byId = new Map<string, ShadowReference>()
   const residual: ShadowMessage[] = []
   const users: string[] = []
@@ -156,6 +191,20 @@ export function planShadow(segment: readonly ShadowMessage[], options: ShadowOpt
     }
     if (message.role === 'user') users.push(message.text)
     if (message.role === 'tool' && message.text !== '') {
+      // A result the host cut earlier, whose complete text LightCode kept: the reference is that text,
+      // so a recall reads it whole (with its own line numbers), not the head and tail the model saw.
+      const cutId = CUT_NOTE_ID.exec(message.text)?.[1]
+      const cut = cutId ? options.knownReference?.(cutId) : undefined
+      if (cut && options.artifacts.read(cut.sha256) !== undefined) {
+        const reference: ShadowReference = { ...cut, tool: message.toolName ?? cut.tool, callId: message.callId ?? cut.callId, ...message.call ? { call: message.call } : {} }
+        const replacement = marker(reference)
+        if (estimate(message.text) - estimate(replacement) >= minimumSaved) {
+          byId.delete(reference.id)
+          byId.set(reference.id, reference)
+          residual.push({ ...message, text: replacement })
+          continue
+        }
+      }
       const ref = options.artifacts.save(message.text)
       // The stored text must read back as what the model read; otherwise the result stays in place.
       if (options.artifacts.read(ref.sha256) === message.text) {
@@ -163,6 +212,7 @@ export function planShadow(segment: readonly ShadowMessage[], options: ShadowOpt
         const reference: ShadowReference = {
           id: referenceId(ref.sha256), sha256: ref.sha256, bytes: ref.bytes, tool: message.toolName ?? 'tool', callId: message.callId ?? null,
           excerpt: boundedExcerpt(message.text, options.excerptBytes),
+          ...message.call ? { call: message.call } : {},
           ...original && original.sha256 !== ref.sha256 ? { original } : {},
         }
         const replacement = marker(reference)
@@ -176,9 +226,23 @@ export function planShadow(segment: readonly ShadowMessage[], options: ShadowOpt
     }
     residual.push(message)
   }
-  const references = [...byId.values()].slice(-maxReferences)
+  const references = withinCatalogBudget([...byId.values()].slice(-maxReferences),
+    options.catalogTokens ?? Math.min(40_000, Math.max(4_000, Math.floor(segmentTokens * 0.08))), estimate)
   const { contract, omitted } = boundContract(users, options.maxContractBytes ?? 32_768)
   return { residual, references, contract, contractOmitted: omitted, segmentTokens, ...residualPrior === undefined ? {} : { residualPrior } }
+}
+
+/** The newest references whose catalog lines fit `budget` tokens (the newest `CATALOG_EXCERPTS` in full, older ones by their call). */
+function withinCatalogBudget(references: readonly ShadowReference[], budget: number, estimate: TokenEstimator): ShadowReference[] {
+  let total = 0
+  let first = references.length
+  for (let i = references.length - 1; i >= 0; i--) {
+    const cost = estimate(catalogLine(references[i]!, references.length - i <= CATALOG_EXCERPTS)) + 1
+    if (total + cost > budget && first < references.length) break
+    total += cost
+    first = i
+  }
+  return references.slice(first)
 }
 
 /** The first message (usually the task) and as many of the latest as fit. */
@@ -237,9 +301,8 @@ export function parseCheckpoint(text: string): { summary: string; contract: stri
 export function renderCheckpoint(summary: string, plan: Pick<ShadowPlan, 'contract' | 'contractOmitted' | 'references'>): string {
   const catalog = plan.references.length ? [
     CATALOG_OPEN,
-    'Tool results removed from this conversation. Read one again with the recall tool and its observation_id.',
-    ...plan.references.map(ref => `observation_id: ${ref.id} | tool: ${ref.tool} | bytes: ${ref.bytes}${ref.original ? ` | original: ${ref.original.bytes} bytes` : ''}`
-      + `${ref.excerpt ? ` | excerpt: ${quote(ref.excerpt)}` : ''}`),
+    'Tool results removed from this conversation, oldest first, each with the call that produced it. Read one again with the recall tool and its observation_id.',
+    ...plan.references.map((ref, i) => catalogLine(ref, plan.references.length - i <= CATALOG_EXCERPTS)),
     CATALOG_CLOSE,
   ].join('\n') : ''
   const contract = plan.contract.length ? [CONTRACT_HEADING, ...plan.contract.map(text => `- ${quote(text)}`),
@@ -264,13 +327,22 @@ export function serializeResidual(messages: readonly ShadowMessage[]): string {
 export function checkpointRecord(base: { host: string; sessionId: string | null; time: string }, fields: {
   kind: ShadowCheckpointRecord['kind']; plan: Pick<ShadowPlan, 'references' | 'contract' | 'segmentTokens'>; checkpointTokens: number
   reason?: ShadowCheckpointRecord['reason']
+  error?: unknown
 }): ShadowCheckpointRecord {
   return {
     schemaVersion: 1, type: 'shadow/checkpoint', ...base, kind: fields.kind,
     references: fields.kind === 'standard' ? [] : fields.plan.references,
     userMessages: fields.plan.contract.length, segmentTokens: fields.plan.segmentTokens, checkpointTokens: fields.checkpointTokens,
     ...fields.reason ? { reason: fields.reason } : {},
+    ...fields.error === undefined ? {} : { error: describeError(fields.error) },
   }
+}
+
+/** An error in one line of at most 300 characters, for the journal. */
+function describeError(error: unknown): string {
+  const text = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
+  const line = text.replace(/\s+/gu, ' ').trim()
+  return line.length <= 300 ? line : `${line.slice(0, 299)}…`
 }
 
 /**
@@ -285,26 +357,34 @@ export function externalizeCut(text: string, options: { artifacts: ArtifactPort;
     excerpt: boundedExcerpt(text) }
 }
 
+/** The reference a cut note names (see `cutNote`). */
+const CUT_NOTE_ID = /LightCode kept the complete output: call \S+ with observation_id (o-[a-f0-9]{12})\b/u
+
 /** The note that replaces the host's own cut marker. */
 export function cutNote(reference: ShadowReference, removedChars: number): string {
   return `\n\n[... ${removedChars} characters removed here to save context; LightCode kept the complete output: `
-    + `call ${RECALL_TOOL_NAME} with observation_id ${reference.id} and a query (an exact string it contains) to read any part of it ...]\n\n`
+    + `call ${RECALL_TOOL_NAME} with observation_id ${reference.id} and a line number or a query (an exact string it contains) to read any part of it ...]\n\n`
 }
 
 export interface RecallArguments {
   readonly observation_id?: unknown
   readonly query?: unknown
+  /** 1-based line to centre the window on, instead of a query. */
+  readonly line?: unknown
   readonly original?: unknown
 }
 
 export type RecallResult =
-  | { readonly ok: true; readonly text: string; readonly complete: boolean; readonly lines?: readonly [number, number]; readonly totalLines?: number }
+  | { readonly ok: true; readonly text: string; readonly complete: boolean; readonly lines?: readonly [number, number]; readonly totalLines?: number
+      /** Asked by line: each line of `text` starts with its number and a tab, the asked one marked with `>`. */
+      readonly numbered?: number }
   | { readonly ok: false; readonly error: string }
 
 /**
  * The recall tool. Only references in this session's checkpoints are
  * reachable. A stored result up to `windowBytes` comes back whole; a larger
- * one needs a query and returns the lines around its first literal match.
+ * one needs a line number or a query, and returns the lines around that line
+ * or around the query's first literal match.
  */
 export function recallObservation(args: RecallArguments, options: {
   readonly lookup: (id: string) => ShadowReference | undefined
@@ -321,31 +401,44 @@ export function recallObservation(args: RecallArguments, options: {
   const text = options.artifacts.read(hash)
   if (text === undefined) return { ok: false, error: `${id} is no longer stored (LightCode keeps originals for a limited number of days)` }
   const windowBytes = options.windowBytes ?? SHADOW_RECALL_WINDOW_BYTES
-  if (bytes(text) <= windowBytes) return { ok: true, text, complete: true }
   const query = typeof args.query === 'string' ? args.query : ''
-  if (!query) return { ok: false, error: `${id} has ${bytes(text)} bytes; pass a query: an exact string it contains (a symbol, path or error message)` }
+  const line = typeof args.line === 'number' ? args.line : typeof args.line === 'string' && /^\s*\d+\s*$/u.test(args.line) ? Number(args.line) : undefined
+  // A small result comes back whole, unless a line is asked for: then numbered, so it need not be counted out.
+  if (bytes(text) <= windowBytes && line === undefined) return { ok: true, text, complete: true }
   const lines = text.split('\n')
-  const hit = lines.findIndex(line => line.includes(query))
-  if (hit < 0) return { ok: false, error: `${JSON.stringify(query)} does not occur in ${id}; try a shorter exact string` }
+  if (line === undefined && !query) {
+    return { ok: false, error: `${id} has ${bytes(text)} bytes and ${lines.length} lines; pass a line number, or a query: an exact string it contains (a symbol, path or error message)` }
+  }
+  if (line !== undefined && !(Number.isInteger(line) && line >= 1 && line <= lines.length)) {
+    return { ok: false, error: `${id} has ${lines.length} lines; pass a line from 1 to ${lines.length}` }
+  }
+  const hit = line !== undefined ? line - 1 : lines.findIndex(item => item.includes(query))
+  if (hit < 0) return { ok: false, error: `${JSON.stringify(query)} does not occur in ${id}; try a shorter exact string, or a line number` }
   // Grow the window around the match one line at a time, alternating sides.
-  let start = hit, end = hit + 1, size = bytes(lines[hit]!)
+  // Numbered lines carry 8 more bytes each (marker, number, tab).
+  const extra = line === undefined ? 0 : 8
+  let start = hit, end = hit + 1, size = bytes(lines[hit]!) + extra
   if (size > windowBytes) {
     const clipped = Buffer.from(lines[hit]!, 'utf8').subarray(0, windowBytes).toString('utf8').replace(/�$/u, '')
     return { ok: true, text: clipped, complete: false, lines: [hit + 1, hit + 1], totalLines: lines.length }
   }
   for (let grew = true; grew;) {
     grew = false
-    if (start > 0 && size + bytes(lines[start - 1]!) + 1 <= windowBytes) { start--; size += bytes(lines[start]!) + 1; grew = true }
-    if (end < lines.length && size + bytes(lines[end]!) + 1 <= windowBytes) { size += bytes(lines[end]!) + 1; end++; grew = true }
+    if (start > 0 && size + bytes(lines[start - 1]!) + extra + 1 <= windowBytes) { start--; size += bytes(lines[start]!) + extra + 1; grew = true }
+    if (end < lines.length && size + bytes(lines[end]!) + extra + 1 <= windowBytes) { size += bytes(lines[end]!) + extra + 1; end++; grew = true }
   }
-  return { ok: true, text: lines.slice(start, end).join('\n'), complete: false, lines: [start + 1, end], totalLines: lines.length }
+  if (line === undefined) return { ok: true, text: lines.slice(start, end).join('\n'), complete: false, lines: [start + 1, end], totalLines: lines.length }
+  // Asked by line: number the lines, so the one asked for need not be counted out.
+  const numberedText = lines.slice(start, end).map((item, i) => `${start + i + 1 === line ? '>' : ' '}${String(start + i + 1).padStart(6)}\t${item}`).join('\n')
+  return { ok: true, text: numberedText, complete: false, lines: [start + 1, end], totalLines: lines.length, numbered: line }
 }
 
 /** How a recall result reads to the model. */
 export function renderRecall(id: string, result: RecallResult): string {
   if (!result.ok) return `recall failed: ${result.error}`
   if (result.complete) return result.text
-  return `[${id}: lines ${result.lines![0]}-${result.lines![1]} of ${result.totalLines}]\n${result.text}`
+  const numbered = result.numbered === undefined ? '' : `, numbered; line ${result.numbered} is marked >`
+  return `[${id}: lines ${result.lines![0]}-${result.lines![1]} of ${result.totalLines}${numbered}]\n${result.text}`
 }
 
 /** Fold every checkpoint record into a lookup of reachable references (later records win). */

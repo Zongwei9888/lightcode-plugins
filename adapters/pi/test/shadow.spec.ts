@@ -35,7 +35,7 @@ function fakeSummarizer(summary = 'We ran seq and grep while fixing retry_backof
 const catalogId = (messages: { role: string; content: unknown }[]) => {
   for (const message of messages) {
     const text = typeof message.content === 'string' ? message.content : textOf(message.content)
-    const match = /observation_id: (o-[a-f0-9]{12}) \| tool: bash \| bytes: (\d+)(?! \| original)/.exec(text)
+    const match = /observation_id: (o-[a-f0-9]{12}) \| tool: bash \| call: "[^"\n]+" \| bytes: (\d+)(?! \| original)/.exec(text)
     if (match) return match[1]!
   }
   return undefined
@@ -117,7 +117,7 @@ describe('LightShadow on pi (real pi 1.1 session, faux model)', () => {
     })
     expect((run.compaction as { summary: string }).summary).not.toContain('<lightcode-observation-catalog>')
     expect((new FileJournal(dataDir).read({ host: 'pi', sessionId: run.sessionId }) as ShadowCheckpointRecord[])
-      .filter(record => record.type === 'shadow/checkpoint')).toMatchObject([{ kind: 'standard', reason: 'error' }])
+      .filter(record => record.type === 'shadow/checkpoint')).toMatchObject([{ kind: 'standard', reason: 'error', error: 'Error: provider down' }])
 
     const off = temp()
     const fake = fakeSummarizer()
@@ -127,6 +127,26 @@ describe('LightShadow on pi (real pi 1.1 session, faux model)', () => {
     })
     expect(fake.calls).toHaveLength(0)
     expect((new FileJournal(off).read({ host: 'pi', sessionId: quiet.sessionId })).filter(record => record.type === 'shadow/checkpoint')).toEqual([])
+  })
+
+  it('summarizes again with pi\'s own instructions when the first summary fails, and keeps the references', async () => {
+    const cwd = workspace(), dataDir = temp()
+    const fake = fakeSummarizer()
+    let first = true
+    const flaky: Summarize = async (...args) => {
+      if (first) { first = false; fake.calls.push({ prep: args[0], instructions: args[4] }); throw new Error('Summarization failed: length') }
+      return fake.summarize(...args)
+    }
+    const run = await runPiWithCompaction({
+      cwd, extension: createLightCodeExtension({ dataDir, env: {}, summarize: flaky }),
+      before: ['seq 1 3000'], after: [() => fauxAssistantMessage('done')],
+    })
+    expect(fake.calls).toHaveLength(2)
+    expect(fake.calls[0]!.instructions).toContain('findings')
+    expect(fake.calls[1]!.instructions ?? '').not.toContain('findings')
+    expect((run.compaction as { summary: string }).summary).toContain('<lightcode-observation-catalog>')
+    expect((new FileJournal(dataDir).read({ host: 'pi', sessionId: run.sessionId }) as ShadowCheckpointRecord[])
+      .filter(record => record.type === 'shadow/checkpoint')).toMatchObject([{ kind: 'lightshadow' }])
   })
 
   it('records what a checkpoint would keep in observe mode and leaves pi\'s compaction unchanged', async () => {

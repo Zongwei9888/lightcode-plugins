@@ -51,13 +51,17 @@ Harness compacts:
 - the host's own summarizer reads the span as usual and is asked to keep the
   findings the agent needs to carry on (paths, line numbers, values,
   errors), not whole files or logs;
-- every tool result in the span is saved and replaced by a reference with a
-  short excerpt (the first and last lines, at most 320 bytes);
+- every tool result in the span is saved and replaced by a reference naming
+  the call that produced it (the command or path) and a short excerpt (the
+  first and last lines, at most 320 bytes);
 - the checkpoint that replaces the span is that summary, **your messages
-  word for word**, and a catalog of the references;
+  word for word**, and a catalog of the references: every one of a long
+  session, by its call, within a budget of 8% of the span (the newest 40
+  with their excerpts);
 - the model can read any of them again with the `lightcode_recall` tool:
-  exactly what it read before, or a window of up to 8 KB around a string it
-  asks for, or the complete original when Token Economy had shortened it;
+  exactly what it read before, or a window of up to 8 KB around a string or
+  a line number it asks for (numbered lines, the asked one marked), or the
+  complete original when Token Economy had shortened it;
 - on DeepSeek Harness, a long result its pruner cuts to a head and tail keeps
   its complete text too, and the cut names the observation to recall.
 
@@ -78,7 +82,8 @@ when you ask:
 - **DeepSeek Harness (Web and Desktop):** Plugins → LightCode has a
   *Self-evolution* section with the same: **Learn now** (DSH headless is the
   learner, on your default model), live progress, the learned rules with a
-  switch and **Roll back**, and a toast when a run ends.
+  switch and **Roll back**; a toast when there is new output worth learning
+  from, and when a run ends.
 - **Anywhere:** `lc evolve --learner pi` (or `dsh`, `claude`, `codex`, any command).
 
 A run never blocks a session: it is a separate process, one at a time across

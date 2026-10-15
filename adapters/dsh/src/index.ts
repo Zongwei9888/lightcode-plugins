@@ -78,7 +78,8 @@ export function apply(ctx: HostContext, config: Config): void {
         type: 'object',
         properties: {
           observation_id: { type: 'string', description: 'An observation_id from the observation catalog, such as o-1a2b3c4d5e6f.' },
-          query: { type: 'string', description: 'An exact string the result contains; needed for results over 8 KB.' },
+          query: { type: 'string', description: 'An exact string the result contains; for results over 8 KB, this or line.' },
+          line: { type: 'integer', minimum: 1, description: 'A 1-based line number to read around; for results over 8 KB, this or query.' },
           original: { type: 'boolean', description: 'Read the complete output LightCode shortened before you first read it.' },
         },
         required: ['observation_id'],

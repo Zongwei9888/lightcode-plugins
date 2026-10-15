@@ -86,8 +86,14 @@ LightShadow changes what the span becomes:
 
 1. **Externalize.** Each tool result in the span is saved to the artifact
    store, read back to verify, and replaced by a reference: `o-` plus 12 hex
-   digits of the text's sha256, the tool, the size and an excerpt (first two
-   and last two non-empty lines, at most 320 bytes), when that saves tokens.
+   digits of the text's sha256, the tool, the call that produced it (the
+   command, the path read, or the arguments, one line of at most 160
+   characters), the size and an excerpt (first two and last two non-empty
+   lines, at most 320 bytes), when that saves tokens. The catalog lists the
+   newest references whose lines fit 8% of the span's tokens (4k to 40k), the
+   newest 40 with their excerpts; in a real DeepSeek session on DSH that
+   compacted 470k tokens, an earlier cap of 200 references had left the
+   first ~360 reads saved but unnamed, so the agent could not ask for them.
    A result Economy shortened also names its complete original.
 2. **Summarize the span** with the host's own summarizer and model (pi's
    `compact()`, DSH's `BasicCompactionEngine.summarize`), with tool results

@@ -102,6 +102,8 @@ export interface ShadowReference {
   readonly callId: string | null
   /** At most 320 bytes: the first two and last two non-empty lines. */
   readonly excerpt: string
+  /** What produced it, in one line of at most 160 characters: the command, the path read, or the call's arguments. */
+  readonly call?: string
   /** The complete output, when Economy delivered a shortened projection of it. */
   readonly original?: ArtifactRef
 }
@@ -120,6 +122,8 @@ export interface ShadowCheckpointRecord extends JournalBase {
   readonly segmentTokens: number
   readonly checkpointTokens: number
   readonly reason?: 'checkpoint-not-smaller' | 'observe' | 'error'
+  /** With `reason: 'error'`: what failed, in at most 300 characters. */
+  readonly error?: string
 }
 
 /** A `recall` call: which reference, and whether it was found. */

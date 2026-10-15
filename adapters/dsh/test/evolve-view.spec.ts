@@ -8,7 +8,7 @@ vi.mock('react/jsx-runtime', () => ({ jsx: (type: unknown, props: Record<string,
 vi.mock('react', () => ({ useState: (v: unknown) => [v, () => {}], useEffect: () => {}, useRef: (current: unknown) => ({ current }) }))
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({ Button: 'Button', StateDot: 'StateDot', Switch: 'Switch', Tag: 'Tag', TextShimmer: 'TextShimmer', Toast: 'Toast' }))
 
-const { EvolveSection, EvolveView, outcomeText, toastText } = await import('../src/client/evolve.ts')
+const { EvolveSection, EvolveView, outcomeText, readyText, toastText } = await import('../src/client/evolve.ts')
 const { en, zh } = await import('../src/client/locales.ts')
 type ViewProps = Parameters<typeof EvolveView>[0]
 
@@ -124,6 +124,10 @@ describe('self-evolution section', () => {
     expect(toastText(t, run)).toBe('LightCode learned compile-progress (+2.6k tokens)')
     expect(toastText(zt, run)).toBe('LightCode 学到了 compile-progress（+2.6k tokens）')
     expect(toastText(t, { ...run, outcome: { result: 'nothing-to-learn' } })).toBeUndefined()
+    const ready = [{ command: 'cargo test', cases: 4, leftTokens: 5200 }, { command: 'pytest', cases: 3, leftTokens: 2400 }]
+    expect(readyText(t, ready)).toBe('LightCode can learn from your cargo test, pytest output (~7.6k tokens to save). Start it in Plugins → LightCode.')
+    expect(readyText(zt, ready)).toBe('LightCode 可以从 cargo test, pytest 的输出中学习了（约可省 7.6k tokens），在 插件 → LightCode 里开始。')
+    expect(readyText(t, [])).toBeUndefined()
     expect(Object.keys(zh).sort()).toEqual(Object.keys(en).sort())
   })
 })

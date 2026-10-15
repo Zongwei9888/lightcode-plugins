@@ -86,6 +86,20 @@ async function until<T>(read: () => Promise<T | undefined>, timeoutMs = 30_000):
 }
 
 describe('DSH self-evolution routes', () => {
+  it('tells the browser once when recorded output is worth learning from', async () => {
+    evidence()
+    testing.learning = { runner, runnerNodeArgs: ['--conditions=source'], learner: () => ({ argv: ['true'], shell: true, label: 'DSH · test' }) }
+    const host = mount()
+    // The first poll starts a scan in its own process; a later poll reports what it found, once.
+    const notice = await until(async () => {
+      const value = await host.post(ROUTES.announcement) as { run: unknown; ready: { command: string; cases: number }[] | null }
+      expect(value.run).toBeNull()
+      return value.ready ?? undefined
+    })
+    expect(notice).toEqual([expect.objectContaining({ command: './build.sh', cases: 3 })])
+    expect(await host.post(ROUTES.announcement)).toEqual({ run: null, ready: null })
+  })
+
   it('serves status, starts a run, follows it to adoption, and announces it once', async () => {
     evidence()
     testing.learning = { runner, runnerNodeArgs: ['--conditions=source'], learner: () => ({ argv: [`sh ${learnerScript()}`], shell: true, label: 'DSH · test' }) }
@@ -103,7 +117,8 @@ describe('DSH self-evolution routes', () => {
     expect(done.evolve.run).toMatchObject({ host: 'dsh', learner: 'DSH · test', outcome: { result: 'adopted', rules: ['compile-progress'] } })
     expect(done.evolve.rules.rules).toEqual([{ id: 'compile-progress', transformation: 'noise-removal' }])
     expect(await host.post(ROUTES.announcement)).toMatchObject({ run: { outcome: { result: 'adopted' } } })
-    expect(await host.post(ROUTES.announcement)).toEqual({ run: null })
+    // The scan from before the run counted the evidence it just learned from: no "worth learning" notice.
+    expect(await host.post(ROUTES.announcement)).toEqual({ run: null, ready: null })
 
     // Switching off and on, and rolling back, as the page's controls do.
     expect(await host.post(ROUTES.rules, { action: 'off' })).toEqual({ ok: true, active: null })

@@ -10,7 +10,7 @@ import { jsx, jsxs } from 'react/jsx-runtime'
 import { Button, StateDot, Switch, Tag, TextShimmer, Toast } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { EvolveOutcome, EvolveRunStatus } from '@lightcode/mechanisms'
 import { api, formatTokens } from './api.ts'
-import type { LearningPayload } from './api.ts'
+import type { LearningPayload, ReadyCommand } from './api.ts'
 import type { Copy } from './locales.ts'
 
 export type Translate = (key: keyof Copy, params?: Record<string, string | number>) => string
@@ -313,19 +313,31 @@ export function toastText(t: Translate, run: EvolveRunStatus): string | undefine
   return t('toastFinished', { tag: t(`result.${outcome.result}` as keyof Copy), result: outcomeText(t, outcome) })
 }
 
+/** Text of the toast for commands newly worth learning from. */
+export function readyText(t: Translate, ready: readonly ReadyCommand[]): string | undefined {
+  if (!ready.length) return undefined
+  const shown = ready.slice(0, 3).map(item => item.command)
+  return t('toastReady', { commands: shown.join(', '), tokens: formatTokens(ready.reduce((sum, item) => sum + item.leftTokens, 0)) })
+}
+
+type Notice = { readonly key: string; readonly text: string; readonly success: boolean }
+
 export function EvolveToast({ t }: { t: Translate }): unknown {
-  const [run, setRun] = useState<EvolveRunStatus | undefined>(undefined)
+  const [notice, setNotice] = useState<Notice | undefined>(undefined)
   useEffect(() => {
     let alive = true
     let timer: ReturnType<typeof setTimeout> | undefined
     const poll = async () => {
-      try { const { run: next } = await api.announcement(); if (alive && next && toastText(t, next)) setRun(next) } catch { /* The Host is away; try later. */ }
+      try {
+        const { run, ready } = await api.announcement()
+        const text = run ? toastText(t, run) : ready ? readyText(t, ready) : undefined
+        if (alive && text) setNotice({ key: run ? run.runId : `ready:${Date.now()}`, text, success: run?.outcome?.result === 'adopted' })
+      } catch { /* The Host is away; try later. */ }
       if (alive) timer = setTimeout(() => { void poll() }, ANNOUNCE_MS)
     }
     timer = setTimeout(() => { void poll() }, 1500)
     return () => { alive = false; if (timer) clearTimeout(timer) }
   }, [])
-  if (!run) return null
-  const content = toastText(t, run)!
-  return jsx(Toast, { key: run.runId, text: content, holdMs: 6000, ...run.outcome?.result === 'adopted' ? { tone: 'success' } : {}, onDone: () => setRun(undefined) })
+  if (!notice) return null
+  return jsx(Toast, { key: notice.key, text: notice.text, holdMs: notice.key.startsWith('ready:') ? 9000 : 6000, ...notice.success ? { tone: 'success' } : {}, onDone: () => setNotice(undefined) })
 }

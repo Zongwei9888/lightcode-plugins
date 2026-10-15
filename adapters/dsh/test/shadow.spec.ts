@@ -66,7 +66,7 @@ describe('LightShadow on DSH', () => {
     const { segment, indexes } = shadowMessages([...span().messages, { role: 'user', content: text('old'), source: { kind: 'compact-checkpoint' } }])
     expect(indexes).toEqual([1, 2, 3, 4, 5])
     expect(segment.map(item => item.role)).toEqual(['user', 'assistant', 'tool', 'other', 'summary'])
-    expect(segment[2]).toMatchObject({ toolName: 'bash', callId: 'call-1', text: big })
+    expect(segment[2]).toMatchObject({ toolName: 'bash', callId: 'call-1', text: big, call: 'seq 3000' })
   })
 
   it('wraps each engine once and turns the span into a recoverable checkpoint', async () => {
@@ -87,7 +87,7 @@ describe('LightShadow on DSH', () => {
     expect(checkpoint).toContain('We ran seq 3000.')
     expect(checkpoint).toContain('"Fix the KeyError. Keep the API."')
     expect(checkpoint).not.toContain('background job finished')
-    const id = /observation_id: (o-[a-f0-9]{12})/.exec(checkpoint)![1]!
+    const id = /observation_id: (o-[a-f0-9]{12}) \| tool: bash \| call: "seq 3000" \| bytes: /.exec(checkpoint)![1]!
     expect(read('s1').filter(record => record.type === 'shadow/checkpoint')).toMatchObject([{ kind: 'lightshadow', userMessages: 1 }])
 
     const recalled = shadow.recall({ id: 's1' }, { observation_id: id, query: '2999' }, 'c9')
@@ -137,6 +137,19 @@ describe('LightShadow on DSH', () => {
     await expect(host.engine.summarize(span(), agent as never)).rejects.toThrow('provider down')
     expect(attempts).toBe(1)
     expect(warnings).toEqual([])
+  })
+
+  it('uses DSH\'s own summary when preparing the checkpoint fails, and records why', async () => {
+    const host = fakeHost(), data = temp()
+    const journal = new FileJournal(data)
+    const broken = { save: () => { throw new Error('disk full') }, read: () => undefined }
+    const shadow = createDshShadow({ host: 'dsh', mode: () => 'apply', journal: () => journal, artifacts: () => broken, read: id => journal.read({ host: 'dsh', sessionId: id }) as JournalRecord[] })
+    shadow.discover(host.events)
+    const result = await host.engine.summarize(span(), agent as never)
+    expect(host.calls[0]!.messages).toEqual(span().messages)
+    expect(result.summary).toEqual(text('We ran seq 3000.'))
+    expect(journal.read({ host: 'dsh', sessionId: 's1' }).filter(record => record.type === 'shadow/checkpoint'))
+      .toMatchObject([{ kind: 'standard', reason: 'error', error: 'Error: disk full' }])
   })
 
   it('prices with DSH\'s token meter when the agent offers it, and skips the summary call that could not fit', async () => {

@@ -148,7 +148,9 @@ compactions, cut results and recalls.
   the providers of your profile). It reads up to 40 recorded outputs, so they
   go to that model's provider;
 - the run's steps (prepare, learn, verify) and the learner's checks, live,
-  with **Cancel**; a toast anywhere in the app when it ends;
+  with **Cancel**; a toast anywhere in the app when it ends, and once when
+  recorded output becomes worth learning from (again only when the tokens to
+  save on a command have doubled, or after the next run);
 - a switch for the learned rules and **Roll back**.
 
 In a session, `/lightcode learn | cancel | rules | rollback | off | on` do

@@ -163,6 +163,7 @@ const statusFile = (dataDir: string) => join(evolveDir(dataDir), 'status.json')
 const lockFile = (dataDir: string) => join(evolveDir(dataDir), 'run.lock')
 const scanFile = (dataDir: string) => join(evolveDir(dataDir), 'scan.json')
 const announcedFile = (dataDir: string) => join(evolveDir(dataDir), 'announced.json')
+const readyNoticeFile = (dataDir: string) => join(evolveDir(dataDir), 'ready-notice.json')
 const historyFile = (dataDir: string) => join(evolveDir(dataDir), 'history.jsonl')
 
 function writeJsonAtomic(path: string, value: unknown): void {
@@ -314,6 +315,33 @@ export function takeAnnouncement(dataDir: string, host: string): EvolveRunStatus
   if (seen[host] === run.runId) return undefined
   try { writeJsonAtomic(announcedFile(dataDir), { ...seen, [host]: run.runId }) } catch { return undefined }
   return run
+}
+
+type Opportunity = EvolveScan['opportunities'][number]
+interface ReadyNoticeState { readonly [host: string]: { readonly after: string | null; readonly told: Readonly<Record<string, number>> } }
+
+/**
+ * The commands worth learning from that a host has not mentioned yet, once:
+ * a command is mentioned again only when the tokens left on it have doubled,
+ * and everything starts over after the next learning run (whose evidence is
+ * newer). Nothing while a run is going.
+ */
+export function takeReadyNotice(dataDir: string, host: string): readonly Opportunity[] | undefined {
+  const scan = readScan(dataDir)
+  if (!scan?.ready) return undefined
+  if (learnerRunning(dataDir)) return undefined
+  const run = readRunStatus(dataDir)
+  // A scan from before the last run still counts the evidence that run learned from.
+  if (run?.finishedAt && Date.parse(scan.time) < Date.parse(run.finishedAt)) return undefined
+  const ready = scan.opportunities.filter(item => item.cases >= READY_CASES && item.leftTokens >= READY_TOKENS)
+  const all = readJson<ReadyNoticeState>(readyNoticeFile(dataDir)) ?? {}
+  const after = run?.runId ?? null
+  const told = all[host]?.after === after ? all[host]!.told : {}
+  const fresh = ready.filter(item => told[item.command] === undefined || item.leftTokens >= 2 * told[item.command]!)
+  if (!fresh.length) return undefined
+  const next = { ...told, ...Object.fromEntries(ready.map(item => [item.command, item.leftTokens])) }
+  try { writeJsonAtomic(readyNoticeFile(dataDir), { ...all, [host]: { after, told: next } }) } catch { return undefined }
+  return ready
 }
 
 // ——— The workspace ———
@@ -1042,10 +1070,34 @@ export function startEvolution(dataDir: string, options: BackgroundOptions & {
   return { runId }
 }
 
-/** Refresh the evidence scan in its own process when it is older than `maxAgeMs` (and none is running). */
+/** A scan this recent is not redone, even when there is new output. */
+const SCAN_MIN_AGE_MS = 2 * 60_000
+
+/** Whether a host recorded output after `time` (a journal file was written since). */
+export function recordedSince(dataDir: string, time: string): boolean {
+  const since = Date.parse(time)
+  const root = join(dataDir, 'journal')
+  let hosts: string[]
+  try { hosts = readdirSync(root) } catch { return false }
+  for (const host of hosts) {
+    let names: string[]
+    try { names = readdirSync(join(root, host)) } catch { continue }
+    for (const name of names) {
+      try { if (statSync(join(root, host, name)).mtimeMs > since) return true } catch { /* Gone. */ }
+    }
+  }
+  return false
+}
+
+/**
+ * Refresh the evidence scan in its own process when it is older than
+ * `maxAgeMs`, or older than two minutes with output recorded since (and no
+ * scan is running).
+ */
 export function refreshScan(dataDir: string, options: BackgroundOptions & { maxAgeMs?: number }): boolean {
   const scan = readScan(dataDir)
-  if (scan && Date.now() - Date.parse(scan.time) < (options.maxAgeMs ?? 10 * 60_000)) return false
+  const age = scan ? Date.now() - Date.parse(scan.time) : Infinity
+  if (scan && age < (options.maxAgeMs ?? 10 * 60_000) && (age < SCAN_MIN_AGE_MS || !recordedSince(dataDir, scan.time))) return false
   const marker = join(evolveDir(dataDir), 'scan.lock')
   const held = readJson<{ pid?: number; time?: number }>(marker)
   if (held?.pid !== undefined && processAlive(held.pid) && Date.now() - (held.time ?? 0) < 5 * 60_000) return false
