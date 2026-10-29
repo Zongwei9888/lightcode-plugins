@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { COMMANDS } from './fixture.mjs'
-import { BUILD_LEARNED, adoptRules, linkLearnerCommand, writeBuildScript, writeLinkScript } from './rules.mjs'
+import { adoptRules, assertLearned, linkLearnerCommand, writeBuildScript, writeLinkScript } from './rules.mjs'
 import { SHADOW_PROMPT, checkpointRequest, readBack, seqCommands, shadowScript } from './shadow-script.mjs'
 import { toolResults } from './mock-llm.mjs'
 import { delivered, journal, verifyDeliveries } from './verify.mjs'
@@ -193,7 +193,7 @@ export async function exercisePluginsPage({ page, label, profileDir, lightcodeHo
   mock.setScript({ commands: ['./build.sh'], toolArguments: command => ({ description: `Fixture: ${command}`, command }) })
   let built
   try { built = await chat('05d-chat-learned-rule') } finally { mock.setScript(fixture) }
-  assert.equal(toolResults(built.at(-1)).at(-1)?.text, BUILD_LEARNED, 'the learned rule did not apply')
+  assertLearned(toolResults(built.at(-1)).at(-1)?.text)
   const learned = decisions().at(-1)
   assert.equal(learned.rule, 'build-progress')
   assert.equal(learned.learnedRulesHash, adopted)

@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, rmSync, statSync, utimesSync, writeFileSync } f
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { FileArtifactStore, FileJournal, collectDaily, dataDirs, loadConfig, pathSegment, readJournals, resolveDataDir, writableDataDir } from '../src/index.ts'
+import { FileArtifactStore, FileJournal, collectDaily, dataDirs, fallbackDataDir, loadConfig, pathSegment, readJournals, resolveDataDir, writableDataDir } from '../src/index.ts'
 import type { EconomyRecord } from '@lightcode-ai/protocol'
 
 const dirs: string[] = []
@@ -30,11 +30,21 @@ describe('data directories', () => {
     const blocked = join(temp(), 'file-not-dir')
     writeFileSync(blocked, '')
     const env = { LIGHTCODE_HOME: join(blocked, 'home'), TMPDIR: tmp }
-    expect(dataDirs(env)).toEqual([join(blocked, 'home'), join(tmp, `lightcode-${process.getuid!()}`)])
-    expect(writableDataDir(env)).toBe(join(tmp, `lightcode-${process.getuid!()}`))
+    const fallback = dataDirs(env)[1]!
+    expect(dataDirs(env)[0]).toBe(join(blocked, 'home'))
+    expect(fallback.startsWith(join(tmp, `lightcode-${process.getuid!()}-`)) && /-[a-f0-9]{12}$/.test(fallback)).toBe(true)
+    expect(writableDataDir(env)).toBe(fallback)
     expect(statSync(writableDataDir(env)!).mode & 0o777).toBe(0o700)
     const ok = temp()
     expect(writableDataDir({ LIGHTCODE_HOME: ok, TMPDIR: tmp })).toBe(ok)
+  })
+  it('gives each LIGHTCODE_HOME its own fallback; the default home keeps the per-user one', () => {
+    const tmp = temp()
+    expect(fallbackDataDir({ TMPDIR: tmp })).toBe(join(tmp, `lightcode-${process.getuid!()}`))
+    const a = fallbackDataDir({ TMPDIR: tmp, LIGHTCODE_HOME: '/x/a' }), b = fallbackDataDir({ TMPDIR: tmp, LIGHTCODE_HOME: '/x/b' })
+    expect(a).not.toBe(b)
+    expect(a).not.toBe(fallbackDataDir({ TMPDIR: tmp }))
+    expect(fallbackDataDir({ TMPDIR: tmp, LIGHTCODE_HOME: '/x/a/' })).toBe(a)
   })
   it('reads journals from every location and filters by session alone', () => {
     const a = temp(), b = temp()

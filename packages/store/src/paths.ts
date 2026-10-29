@@ -23,9 +23,13 @@ export function pathSegment(value: string): string {
 /**
  * Second location for hosts that sandbox shell commands (Codex workspace-write
  * allows `$TMPDIR` but not `~/.lightcode`): a per-user directory in TMPDIR.
+ * A `$LIGHTCODE_HOME` gets its own, so a separate home (a test, a second
+ * profile) never reads what sessions of another home kept there.
  */
 export function fallbackDataDir(env: NodeJS.ProcessEnv = process.env): string {
-  return join(resolve(env.TMPDIR?.trim() || tmpdir()), `lightcode-${process.getuid?.() ?? 'user'}`)
+  const configured = env.LIGHTCODE_HOME?.trim()
+  const scope = configured ? `-${sha256(resolve(configured)).slice(0, 12)}` : ''
+  return join(resolve(env.TMPDIR?.trim() || tmpdir()), `lightcode-${process.getuid?.() ?? 'user'}${scope}`)
 }
 
 /** Every location LightCode may have written to, primary first. Readers look in all of them. */

@@ -86,6 +86,10 @@ allows it (in full on five, assisted on three), and self-evolving filters. (0.1.
   `lc report` and learning count it.
 - A compaction whose span has no tool result to keep records `standard`
   with reason `nothing-recallable` instead of an empty catalog.
+- A `LIGHTCODE_HOME` gets its own sandbox fallback directory in `$TMPDIR`
+  (`lightcode-<uid>-<hash>`); before, every home shared one, so a separate
+  home (a test, a second profile) read journals other homes' sandboxed
+  sessions kept there.
 - CodeBuddy: an automatic (emergency) compaction's summary, stored as a user
   row with `input_text` and no inner `<summary>`, is rewritten like a
   `/compact` one; before, LightShadow skipped it. The mod starts `lc` through

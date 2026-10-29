@@ -10,6 +10,7 @@ import { join } from 'node:path'
 import { ensureTool, VERSIONS } from './lib/hosts.mjs'
 import { startMockLlm, toolResults } from './lib/mock-llm.mjs'
 import { childEnv, run, runAsync } from './lib/run.mjs'
+import { assertLearned } from './lib/rules.mjs'
 import { journal } from './lib/verify.mjs'
 
 const PROGRESS = Array.from({ length: 120 }, (_, i) => `[${String(i + 1).padStart(3)}/120] Compiling module_${i}`).join('\n')
@@ -112,8 +113,8 @@ export async function runEvolve({ cache, root, registry, log }) {
 
     // 3. New sessions on both hosts read the learned projection.
     const learnedDsh = await dsh(), learnedPi = await pi()
-    assert.equal(learnedDsh, LEARNED)
-    assert.ok(learnedPi.startsWith(LEARNED), learnedPi)
+    assertLearned(learnedDsh, LEARNED)
+    assertLearned(learnedPi, LEARNED)
     for (const host of ['dsh', 'pi']) {
       const last = journal(lightcodeHome, host).filter(record => record.type === 'economy/decision').at(-1)
       assert.equal(last.filter, 'learned-rule')
