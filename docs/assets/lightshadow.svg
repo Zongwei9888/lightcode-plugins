@@ -24,7 +24,7 @@
   <rect x="58" y="312" width="248" height="10" rx="5" fill="#F59E0B"/>
   <text x="58" y="346" class="s">context near the window: the host</text>
   <text x="58" y="364" class="s">compacts (summarizes and drops history)</text>
-  <text x="58" y="400" class="s" style="fill:#B91C1C">Without LightCode: whatever the</text>
+  <text x="58" y="400" class="s" style="fill:#B91C1C">Without TokenWise: whatever the</text>
   <text x="58" y="418" class="s" style="fill:#B91C1C">summary leaves out is gone.</text>
 
   <line x1="346" y1="260" x2="384" y2="260" stroke="#0F766E" stroke-width="2.2" marker-end="url(#a)"/>
@@ -68,12 +68,12 @@
     <text x="846" y="310" fill="#94A3B8">exactly what it read before,</text>
     <text x="846" y="328" fill="#94A3B8">or a window around a line or an</text>
     <text x="846" y="346" fill="#94A3B8">exact string, or the complete</text>
-    <text x="846" y="364" fill="#94A3B8">original Token Economy shortened</text>
+    <text x="846" y="364" fill="#94A3B8">original TokenWise shortened</text>
   </g>
   <text x="846" y="412" font-size="13" fill="#CCFBF1">Up to 8 KB per recall; the</text>
   <text x="846" y="432" font-size="13" fill="#CCFBF1">original stays on disk, not in context.</text>
 
   <text x="40" y="506" class="b">Real DeepSeek session, pi defaults:</text>
-  <text x="40" y="530" class="s">The host compacted at turn 53; LightShadow turned 949k tokens into a 29.5k checkpoint with 624 references.</text>
+  <text x="40" y="530" class="s">The host compacted at turn 53; TokenWise turned 949k tokens into a 29.5k checkpoint with 624 references.</text>
   <text x="40" y="550" class="s">Asked afterwards for exact lines it had read before compaction, the agent recalled them and answered correctly.</text>
 </svg>

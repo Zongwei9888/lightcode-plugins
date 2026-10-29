@@ -1,25 +1,20 @@
 <div align="center">
 
-<img src="../assets/logo.svg" alt="LightCode logo" width="84">
+<img src="../assets/logo.svg" alt="TokenWise logo" width="84">
 
-# LightCode
+# TokenWise
 
-### 工具输出少花 token，证据一点不丢。
+### Make Every Token Count for Your Agent
 
-给 [pi](https://github.com/earendil-works/pi)、DeepSeek Harness 和 [Codex](https://github.com/openai/codex) 用的插件：精简模型要读的输出，<br>让历史压缩可以找回，并为你自己的工具学习新的过滤规则。
+装进你正在用的编程 agent 的插件：让模型少读工具输出，<br>
+agent 压缩历史时不丢东西，并在使用中学会你自己的工具。
 
 <p>
   <img alt="Version" src="https://img.shields.io/badge/version-0.3.0_(unreleased)-0F766E?style=flat-square">
   <a href="../../LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue?style=flat-square"></a>
   <img alt="Node.js 22+" src="https://img.shields.io/badge/Node.js-22%2B-339933?style=flat-square&logo=node.js&logoColor=white">
-  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white">
   <img alt="Runtime dependencies: 0" src="https://img.shields.io/badge/runtime_deps-0-0F766E?style=flat-square">
-</p>
-<p>
-  <img alt="pi 1.1+" src="https://img.shields.io/badge/pi-1.1%2B-111827?style=flat-square">
-  <img alt="DeepSeek Harness 0.2" src="https://img.shields.io/badge/DeepSeek_Harness-0.2_Web_%C2%B7_Desktop_%C2%B7_CLI-4D6BFE?style=flat-square">
-  <img alt="Codex 0.162+" src="https://img.shields.io/badge/Codex-0.162%2B-111827?style=flat-square">
-  <img alt="Any shell" src="https://img.shields.io/badge/any_agent-lc_run-475569?style=flat-square">
+  <img alt="8 agents" src="https://img.shields.io/badge/agents-8_%2B_any_shell-111827?style=flat-square">
 </p>
 
 <p>
@@ -27,240 +22,198 @@
   <a href="README.md"><img alt="简体中文" height="28" src="https://img.shields.io/badge/简体中文-BCDCF7?style=flat-square"></a>
 </p>
 
+[为什么](#为什么需要-tokenwise) · [怎么工作](#怎么工作) · [真实效果](#真实会话里的效果) · [安装](#安装) · [支持的 agent](#支持的-agent) · [命令](#命令) · [开发](#开发)
+
 </div>
 
 ---
 
-> **状态：0.2 开发中。** Token Economy、LightShadow 和自进化过滤规则以 pi 和 DeepSeek Harness 插件的形式提供，默认全部开启。Codex、Claude Code、CodeBuddy、Grok、OpenCode 和 Hermes 通过插件获得 Token Economy 和 LightShadow，其他 Agent 用 `lc run` 和 `lc mcp`。委派记账计划在 0.3。尚未发布到 npm，在此之前请[从源码安装](#从源码安装)。
+## 为什么需要 TokenWise
 
-## 📰 动态
+编程 agent 的上下文窗口，大部分花在读工具输出上：测试、构建、diff、搜索、整个文件。其中大多是模型读一眼就过的噪音；也有一部分是一小时后还要用的证据，可 agent 压缩历史时，摘要往往把它漏掉了。噪音的每个 token 都在花钱、花时间、分散注意力；漏掉的每个细节，都意味着重跑一遍，或者答错。
 
-- **2026-10-15** LightShadow 在真实的约 100 万 token DeepSeek 长会话上、用两个宿主的默认压缩设置通过测试；DeepSeek Harness 会在有新输出值得学习时提示。
-- **2026-10-14** 🧬 自进化过滤规则：可以从 pi 的 `/lightcode` 面板、DeepSeek Harness 的插件页或 `lc evolve` 开始学习。
-- **2026-10-14** 🌗 LightShadow：pi 和 DeepSeek Harness 上可找回的历史压缩。
-- **2026-10-13** 🧩 pi 和 DeepSeek Harness（网页版、桌面版、命令行）的可安装插件，以及针对已发布宿主版本的端到端测试。
-
-## ✨ 为什么用 LightCode
-
-编码 Agent 的上下文大多花在工具输出上：测试、构建、diff、搜索、读文件。其中大部分是模型只看一眼的噪声；也有一部分是证据，被宿主压缩掉以后 agent 还需要再看。LightCode 通过宿主提供的插件接口接入你正在用的 Agent，做三件事：
-
-- **Token Economy**：给模型看可识别输出的精简、确定性版本，保留每条失败、警告和汇总，原文存在本机。
-- **LightShadow**：宿主压缩长会话时，工具输出存档并列出目录，而不是丢掉；agent 一次工具调用就能读回任意一条。
-- **自进化**：由你自己的 agent 为*你的*构建脚本和日志写过滤规则；只有在学习者没见过的输出上验证通过，LightCode 才会采用。
-
-它不是另一个 Agent，所有数据都在本机（只有你主动开始的学习会把记录的输出发给你自己 agent 的模型）。出错即放行：任何环节出问题，模型都拿到原文。
+TokenWise 从 agent 开放给插件的位置接进去，只改变一件事：**模型只读它需要的部分，其余的随时能取回。** 它不是另一个 agent，不需要任何配置，所有数据都留在你自己的电脑上。
 
 <div align="center">
-<img src="../assets/architecture.svg" alt="LightCode 架构：宿主、适配器、机制、基础层" width="100%">
+<img src="../assets/tokenwise.svg" alt="TokenWise 位于 agent 和工具输出之间：精简输出、可撤销的压缩、会学习的过滤规则；原文保存在本机" width="100%">
 </div>
 
-## 🚀 快速开始
+## 怎么工作
 
-| 你的 Agent | 安装 |
+同一个思路，用在每一个花 token 的地方。
+
+**每次工具输出都精简显示。** agent 运行 `pytest`、`cargo test`、`git diff`、`grep -rn`、`tsc`、装依赖，或其他约 80 种能识别的命令时，模型读到的是一份更短、确定的版本：通过的测试只计数不逐行列出，进度条和重复行被折叠，过长的搜索和 diff 只预览，并写明省略了多少。失败、警告、总数和退出码一律保留。完整输出存在本机，精简版末尾有一行，告诉模型需要时怎么读原文。
+
+<div align="center">
+<img src="../assets/economy.svg" alt="pytest -v：266 行精简到 23 行，失败信息完整保留" width="100%">
+</div>
+
+**每次压缩都留住被删掉的内容。** 会话一长，agent 就会压缩：把较早的历史总结一下然后丢掉。有了 TokenWise，这段历史里的每个工具结果都会被保存，并换成一个引用，写明是哪条命令或哪个文件产生的。新的上下文里有摘要、你自己的原话（一字不改），以及这些引用的目录。agent 再需要某一行原文时，调用一次 `lightcode_recall` 就能读回：可以是它当时看到的原文，可以是某行或某个字符串附近的一段，也可以是精简之前的完整输出。
+
+<div align="center">
+<img src="../assets/lightshadow.svg" alt="长会话、带目录的检查点、按行号取回" width="100%">
+</div>
+
+**每次会话都在教它认识你的工具。** 内置过滤规则只认识常见命令，而你的项目有自己的构建脚本、测试工具和部署日志。你发起学习后，由你自己的 agent 研究会话里记录下的输出，为它们写小的过滤规则。TokenWise 会用所有记录过的输出重放验证；只有在学习时没见过的输出上也能省 token，才会采用这条规则。如果 agent 总要绕开某条规则去看原文，这条规则会自动关闭；任何一次采用都可以回滚。
+
+<div align="center">
+<img src="../assets/evolution.svg" alt="一次学习：记录、提议、验证、采用、观察" width="100%">
+</div>
+
+### 不变的原则
+
+- **只会更小，否则给原文。** 精简版必须更小、并且确实省 token，才会给模型看。
+- **证据不丢。** 失败详情、诊断、警告和总数都保留；过滤规则认不全的输出，原样通过。
+- **结果确定。** 同样的输出永远得到同样的结果，事后也不会重新生成，所以 prompt 缓存一直有效。
+- **出错就放行。** 任何环节出错，模型都拿到原文；TokenWise 改进不了的压缩，就交给 agent 自己处理。
+- **只在本地。** 原文存在 `~/.lightcode`，只有你自己能读，保留 14 天。TokenWise 自己不发任何网络请求。
+
+## 真实会话里的效果
+
+用真实的长任务，每个 agent 都用**默认**压缩设置，一直跑到它自己压缩为止。压缩之后，agent 必须一字不差地引用压缩前读过的内容。
+
+| Agent · 模型 | 被压缩的历史 → 模型保留的内容 | 保存的结果数 | 压缩之后 |
+|---|---|---|---|
+| pi · DeepSeek V4（1M） | 949k → 29.5k tokens | 624 | 取回 2 次，全部答对 |
+| DeepSeek Harness · DeepSeek V4（1M） | 539k → 30.8k tokens | 589 | 取回 2 次，全部答对 |
+| pi · Kimi K2.6（262k） | 274k → 8.0k tokens | 113 | 取回 3 次，全部答对 |
+| OpenCode · Kimi K2.6（262k） | 190k → 7.1k tokens | 67 | 全部答对 |
+| Hermes Agent · Kimi K2.6（262k） | 180k → 8.9k tokens | 83 | 取回 8 次，全部答对 |
+| Grok Build · 默认模型 | 199k 的历史；在 Grok 的摘要后补上目录 | 82 | 全部答对 |
+| Claude Code · 日常会话 | 661k 时自动压缩；在 Claude 的摘要后补上目录 | 202 | — |
+
+262k 窗口的那几轮里，每个 agent 都要对照 720 KB 的规格文档修 6 个 bug，再一字不差地抄出 60 条变更请求，全部做对。CodeBuddy 跑同一个任务时根本没压缩：精简输出替它省了约 5.8 万 tokens。
+
+## 安装
+
+| 你的 agent | 安装 |
 |---|---|
 | **pi** | `pi install npm:@lightcode-ai/pi`，会话里输入 `/lightcode` |
-| **DeepSeek Harness**（网页版、桌面版） | **插件** → **添加插件** → `@lightcode-ai/dsh` → **安装** → **立即启用** |
-| **DeepSeek Harness**（终端） | `dsh plugin --profile web add @lightcode-ai/dsh`（需要 pnpm 11+） |
-| **Codex** | `codex plugin marketplace add <仓库>` → `codex plugin add lightcode@lightcode`，再在 `/hooks` 里信任钩子 |
-| **Claude Code** | `claude plugin marketplace add <仓库>` → `claude plugin install lightcode@lightcode` |
-| **CodeBuddy** | `codebuddy plugin marketplace add <仓库>` → `codebuddy plugin install lightcode@lightcode` |
-| **Grok Build** | `grok plugin marketplace add <仓库>` → `grok plugin install lightcode --trust` |
-| **OpenCode** | 把 `adapters/opencode/dist/index.js` 复制为 `~/.config/opencode/plugins/lightcode.js` |
-| **Hermes Agent** | 把 `adapters/hermes/lightcode` 复制到 `~/.hermes/plugins/`，再 `hermes plugins enable lightcode` |
-| **其他** | `npm install -g @lightcode-ai/cli`，然后 `lc run -c 'cargo test'` |
+| **DeepSeek Harness**（Web、桌面版） | **Plugins** → **Add plugin** → `@lightcode-ai/dsh` → **Install** → **Enable now** |
+| **DeepSeek Harness**（终端） | `dsh plugin --profile web add @lightcode-ai/dsh` |
+| **Claude Code** | `claude plugin marketplace add <checkout>` → `claude plugin install lightcode@lightcode` |
+| **Codex** | `codex plugin marketplace add <checkout>` → `codex plugin add lightcode@lightcode`，再在 `/hooks` 里信任钩子 |
+| **CodeBuddy** | `codebuddy plugin marketplace add <checkout>` → `codebuddy plugin install lightcode@lightcode` |
+| **Grok Build** | `grok plugin marketplace add <checkout>` → `grok plugin install lightcode --trust` |
+| **OpenCode** | 把 `adapters/opencode/dist/index.js` 复制到 `~/.config/opencode/plugins/lightcode.js` |
+| **Hermes Agent** | 把 `adapters/hermes/lightcode` 复制到 `~/.hermes/plugins/`，执行 `hermes plugins enable lightcode` 和 `hermes config set context.engine lightcode` |
+| **其他任何 agent** | `npm install -g @lightcode-ai/cli`，然后 `lc run -c 'cargo test'` |
 
-无需配置：Economy 和 LightShadow 从下一次工具调用起生效。`lc report` 查看省了多少，`lc doctor` 查看每个宿主支持什么。
+不用配置，下一次工具调用就生效。`lc report` 查看省了多少，`lc doctor` 查看你的 agent 支持哪些功能。
+
+> TokenWise 由一个叫 LightCode 的项目发展而来。npm 包名（`@lightcode-ai/*`）、`lc` 命令、插件 id 和 `lightcode_recall` 工具还沿用这个名字。
 
 ### 从源码安装
 
-npm 包发布之前，从本仓库构建（需要 Node.js 22 和 pnpm），按路径安装：
+npm 包发布之前，可以从这里构建（需要 Node.js 22 和 pnpm），再按路径安装：
 
 ```sh
-git clone https://github.com/Zongwei9888/lightcode-plugins.git lightcode
-cd lightcode && pnpm install && pnpm build
+git clone https://github.com/Zongwei9888/lightcode-plugins.git tokenwise
+cd tokenwise && pnpm install && pnpm build
 
+npm install -g ./packages/cli                            # lc 命令（Claude Code、Codex、CodeBuddy、Grok、Hermes 都需要）
 pi install "$PWD/adapters/pi"                            # pi
-dsh plugin --profile web add "$PWD/adapters/dsh"         # DeepSeek Harness（换成你用的 profile）
-npm install -g ./packages/cli                            # lc 命令
+dsh plugin --profile web add "$PWD/adapters/dsh"         # DeepSeek Harness（换成你的 profile）
 ```
 
-DeepSeek Harness 桌面版：先退出应用，再用它自带的 `dsh` 加 `--profile desktop`。Codex、Claude Code、CodeBuddy 和 Grok 从源码以 marketplace 方式安装，见 [`adapters/codex`](../../adapters/codex/README.md)、[`adapters/claude-code`](../../adapters/claude-code/README.md)、[`adapters/codebuddy`](../../adapters/codebuddy/README.md) 和 [`adapters/grok`](../../adapters/grok/README.md)；它们都需要 `lc` 在 `PATH` 上。
+Claude Code、Codex、CodeBuddy 和 Grok 把源码目录当作插件市场来安装，详见 [`adapters/`](../../adapters) 下各自的目录。
 
-## 🖥️ 界面
+## 支持的 agent
 
-**pi**：`/lightcode` 打开面板，显示本会话省下的 token、LightShadow、学到的规则和值得学习的命令。按 `l` 开始学习，面板会跟随进度，`r` 回滚。
+TokenWise 能做到多深，取决于每个 agent 允许插件做什么。在其中五个 agent 上，压缩后的上下文由 TokenWise 直接写；另外三个不允许插件替换摘要，仍由 agent 自己写，TokenWise 紧接着补上目录。
 
-<div align="center">
-<img src="../assets/screenshots/pi-panel-adopted.png" alt="pi 的 /lightcode 面板，已采用一条规则" width="820">
-</div>
+| Agent | 精简输出 | 压缩 | 学习的过滤规则 |
+|---|---|---|---|
+| **pi** 1.1+ | 进程内；pi 的会话保留原文 | 直接写压缩后的上下文 | 支持 |
+| **DeepSeek Harness** 0.2.x | 进程内插件（Web、桌面版、CLI） | 直接写压缩后的上下文；被裁剪的结果也能取回 | 支持 |
+| **OpenCode** 1.19+ | 进程内插件 | 直接写压缩后的上下文 | 支持 |
+| **Hermes Agent** 0.22+ | 调用 `lc` 的 Python 插件 | 直接写压缩后的上下文（作为 context engine） | 支持 |
+| **CodeBuddy** 2.175+ | 插件钩子（`lc run`） | 改写存下来的摘要 | 仅限被包装的命令 |
+| **Claude Code** 2.1+ | 插件钩子 | 在 Claude 的摘要后补目录 | 支持 |
+| **Codex** 0.162+ | 插件钩子（`lc run`） | 在 Codex 的摘要后补目录 | 仅限被包装的命令 |
+| **Grok Build** 1.0+ | 插件钩子 | 在 Grok 的摘要后补目录 | 支持 |
+| **其他 agent 或 shell** | `lc run -c '<命令>'` | 通过 `lc mcp` 取回（任何 MCP 客户端） | 支持 |
 
-**DeepSeek Harness**（网页版和桌面版）：像其他插件一样在 **插件** 页安装；插件页有“自进化”一节：**开始学习**、实时进度、学到的规则（可开关、可**回滚**），学习结束时弹出提示。
-
-<div align="center">
-<img src="../assets/screenshots/dsh-self-evolution.png" alt="DeepSeek Harness 的 LightCode 插件页：自进化，已采用学到的规则" width="900">
-</div>
+测试在 macOS 和 Linux 上运行，Windows 还没有测试。接入新的 agent 只需要在同一个核心上写一个很薄的适配层，做法见 [docs/adapters.md](../adapters.md)。
 
 <details>
-<summary>更多截图：安装、学习进行中、学习前的 pi 面板、深色主题</summary>
+<summary>在 pi 和 DeepSeek Harness 里：面板、学习、回滚</summary>
 
-<p align="center">
-<img src="../assets/screenshots/dsh-install.png" alt="DeepSeek Harness 插件页：@lightcode-ai/dsh 安装完成" width="900">
-<img src="../assets/screenshots/dsh-learning.png" alt="DeepSeek Harness 插件页：学习进行中" width="900">
-<img src="../assets/screenshots/pi-panel-ready.png" alt="pi 的 /lightcode 面板，可以开始学习" width="820">
-<img src="../assets/screenshots/dsh-self-evolution-dark.png" alt="深色主题下的 LightCode 插件页" width="900">
-</p>
+**pi**：`/lightcode` 打开一个面板，显示本次会话省了多少、学到的过滤规则，以及值得学习的命令。按 `l` 开始学习，按 `r` 回滚一次采用。
+
+<p align="center"><img src="../assets/screenshots/pi-panel-adopted.png" alt="pi 的 /lightcode 面板，已采用一条过滤规则" width="820"></p>
+
+**DeepSeek Harness**（Web 和桌面版）：插件页面上有 **Learn now**、实时进度、带开关和 **Roll back** 的已学规则列表；有值得学习的新输出时会弹出提示。
+
+<p align="center"><img src="../assets/screenshots/dsh-self-evolution.png" alt="DeepSeek Harness 插件页面：已采用一条过滤规则" width="900"></p>
+
+截图来自端到端测试：用一个脚本化的模型驱动真实的应用。
 
 </details>
 
-截图来自端到端测试（`pnpm e2e`），测试驱动真实的 DeepSeek Harness 桌面版和 pi 终端界面，模型是脚本模拟的。
-
-## 🔍 工作原理
-
-### Token Economy
-
-<div align="center">
-<img src="../assets/economy.svg" alt="pytest -v：266 行精简为 23 行，失败信息完整保留" width="100%">
-</div>
-
-Agent 运行 `pytest`、`cargo test`、`git diff`、`grep -rn`、`tsc`、`find`、依赖安装等约 80 类常见命令时，LightCode 把模型要读的输出替换成确定性的**投影**：通过的测试行只计数不逐条列出，进度条和重复行折叠，过大的搜索结果和 diff hunk 用预览加明确的省略计数表示。宿主自带的搜索工具（pi 的 `grep`、`find`，DeepSeek Harness 的 `grep`、`glob`）的结果做无损排版：同一文件的匹配、同一目录的路径归到一起，每条匹配、行号和路径都保留。
-
-不变的规则：
-
-- **严格变小才使用**：投影的 UTF-8 字节数和 Token 都必须更小，否则交付原文。
-- **证据保留**：失败详情、诊断、警告、未知行、汇总和退出状态都保留；无法完整识别的输出原样通过；失败的命令绝不会被概括成 "ok"。
-- **确定性、首次可见即定型**：同一输入总是得到同样的字节，已交付的结果不会再被重算，前缀缓存保持有效。
-- **原文保留**：pi 在自己的会话文件里保留原文；所有宿主上 LightCode 都会把原文私下存一份（`~/.lightcode`，仅本人可读，默认保留 14 天），并保存投影到原文的源映射。
-- **出错即放行**：LightCode 自身出任何错，都交付原文。
-
-### LightShadow
-
-<div align="center">
-<img src="../assets/lightshadow.svg" alt="LightShadow：长会话、带目录的检查点、按行号找回" width="100%">
-</div>
-
-会话变长后宿主会压缩历史：让模型把较早的对话写成摘要，然后丢掉原文，摘要没写进去的工具输出就再也看不到了。装了 LightShadow 后，宿主压缩时：
-
-- 宿主自己的摘要器照常读这段内容写摘要，但会被要求记下继续工作需要的结论（路径、行号、数值、报错），而不是整段文件或日志；
-- 这段里的每条工具结果都存到本地，换成一个引用，写明是哪条命令或哪个文件产生的，并带简短摘录（首尾几行，最多 320 字节）；存档目录列出长会话里的全部引用（预算为这段的 8%，最近 40 条带摘录）；
-- 替换这段历史的检查点 = 摘要 + **你说过的话原文** + 引用目录；
-- 模型可以用 `lightcode_recall` 工具把任意一条重新读回来：和当初看到的一字不差，或按给定字符串、按行号取最多 8 KB 的窗口（按行号取时每行带行号，并标出所请求的那一行）；如果当初被 Token Economy 精简过，还可以取完整原文；
-- DeepSeek Harness 把超长结果截成首尾两段时，完整内容也会保存，截断提示里写明用哪个编号找回。
-
-检查点没有变小、或任何环节出错，都交还给宿主按原方式压缩。
-
-每个宿主能做到哪一步，取决于它的插件接口开放了什么（`lc doctor` 会显示）：
-
-| 档位 | 宿主 | 做法 |
-|---|---|---|
-| **完整** | pi、DeepSeek Harness、OpenCode、Hermes Agent、CodeBuddy | 上面的检查点替换宿主的摘要 |
-| **辅助** | Claude Code、Codex、Grok Build | 宿主仍写自己的摘要（不允许插件替换）；LightShadow 保存这段的工具结果，在压缩后把引用目录放进上下文，找回工具由插件自带的 MCP 服务（`lc mcp`）提供 |
-
-其他支持 MCP 的 agent 也可以用 `lc mcp` 读回 LightShadow 保存的内容；接入新 agent 见 [docs/adapters.md](../adapters.md)。
-
-### 自进化过滤规则
-
-<div align="center">
-<img src="../assets/evolution.svg" alt="一次学习：记录、提出、验证、采用、观察" width="100%">
-</div>
-
-内置过滤器覆盖常见工具，但每个项目都有自己的构建脚本、测试工具、日志格式。LightCode 把见过的 shell 输出存作证据，在你需要时于后台学习新规则：
-
-- **pi**：输入 `/lightcode` 打开面板，可以看到本会话省下的 token、学到的规则和各自省了多少、值得学习的命令、正在进行的学习。按 `l` 开始学习（学习者就是 pi 自己，使用当前会话的模型），底部状态栏显示进度，结束时 pi 会提示。
-- **DeepSeek Harness（网页版和桌面版）**：插件 → LightCode 页面有“自进化”一节：**开始学习**（学习者是 DSH headless，使用你的默认模型）、实时进度、学到的规则（可开关、可**回滚**）；有新的输出值得学习时、学习结束时都会弹出提示。
-- **任何终端**：`lc evolve`。
-
-学习在独立进程里运行，不会卡住会话；同一时间只运行一个，20 分钟自动停止，也可以随时取消；采用的规则在正在运行的会话里从下一条输出起生效。每次学习：
-
-```sh
-lc evolve --learner pi          # 也可以是 dsh、claude、codex 或任意命令
-```
-
-1. **证据**：最近会话里还有压缩空间的输出（出现最多的优先）写进一个工作区；全部证据另存一份，用于验证，学习者看不到。
-2. **提出**：你自己的编码 agent 在工作区里当学习者，读证据、写或改规则（很短的 JavaScript 函数，写法见工作区里的 `RULES.md`），过程中可以随时运行 `./check` 和 `./try`。
-3. **验证**：LightCode 用当前规则和新规则把**所有**记录过的输出重放一遍，并检查一组“必须保留的信息”（看起来像排版的字面数据、看起来像测试进度的程序输出、失败证据等）。只有全部满足、没有规则出错、总体更省、**没有任何一条输出变得更费**，并且被改进的命令在**学习者从没见过的输出**上也更省（只贴合样本的规则会被拒绝），才会采用。
-4. **观察**：使用中，如果 agent 总是要找回某条学到的规则藏掉的原文（同一条规则被找回原文 3 次，且至少占使用次数的 1/5），这条规则会被自动关闭，记作一次可以回滚的变更；下一次学习会被告知。
-
-采用的规则在之后的新会话里、在所有宿主上先于内置过滤器运行，跑在沙箱里（不能访问文件、网络、`require`、定时器或 `eval`，每次调用限 100 ms）；如果某条规则的结果删掉了包含 error、warning、failure 等字样的行，或者源映射和输出对不上，这次结果直接作废。`lc rules` 可以查看、关闭、回滚。
-
-## 🧩 宿主
-
-| 宿主 | 安装 | 接入方式 | Economy | LightShadow | 学到的规则 |
-|---|---|---|---|---|---|
-| **pi** 1.1+ | `pi install npm:@lightcode-ai/pi` | 进程内扩展；通过 `context_edit` 交付投影，pi 会话保留原文；压缩走 `session_before_compact` | 应用 | 应用 | 支持 |
-| **DeepSeek Harness** 0.2.x | 插件 → 添加插件 → `@lightcode-ai/dsh`，或 `dsh plugin --profile web add @lightcode-ai/dsh` | 进程内插件（`tools/post-execute`）；压缩接入每个 agent 预设自己的压缩模块；插件页可切换模式 | 应用 | 应用 | 支持 |
-| **Codex** 0.162+ | `codex plugin marketplace add <仓库>`，再 `codex plugin add lightcode@lightcode` | 插件的 `PreToolUse` 钩子把可识别的命令改写为 `lc run -c '<命令>'`；模型历史里仍是原命令；`SessionStart(compact)` 补回引用目录，插件自带的 MCP 服务提供找回工具 | 应用 | 辅助 | 仅限钩子改写的命令 |
-| **Claude Code** 2.1+ | `claude plugin marketplace add <仓库>`，再 `claude plugin install lightcode@lightcode` | 插件的 `PostToolUse` 钩子替换成功的 Bash 调用的输出；在 `bypassPermissions` 模式下 `PreToolUse` 把命令包进 `lc run`，失败的调用也会被过滤；`SessionStart(compact)` 补回引用目录，插件自带的 MCP 服务提供找回工具 | 应用 | 辅助 | 支持 |
-| **CodeBuddy** 2.175+ | `codebuddy plugin marketplace add <仓库>`，再 `codebuddy plugin install lightcode@lightcode` | 插件的 `PreToolUse` 钩子把可识别的命令改写为 `lc run`，不给出权限决定，CodeBuddy 自己的权限检查照常生效；插件里的 mod 把存下的摘要改写成检查点 | 应用 | 应用 | 仅限钩子改写的命令 |
-| **Grok Build** 1.0+ | `grok plugin marketplace add <仓库>`，再 `grok plugin install lightcode --trust` | 插件的 `PostToolUse` 钩子替换模型看到的 shell 结果，失败的命令也包括在内；Grok 保留原文；压缩后下一个工具结果带上引用目录，插件自带的 MCP 服务提供找回工具 | 应用 | 辅助 | 支持 |
-| **OpenCode** 1.19+ | 把打包文件复制到 `~/.config/opencode/plugins/` | 进程内插件（`tool.execute.after`）；在 OpenCode 保存之前替换 bash 结果，失败的命令也包括在内；压缩走它的（实验性）压缩钩子 | 应用 | 应用 | 支持 |
-| **Hermes Agent** 0.22+ | 把插件复制到 `~/.hermes/plugins/`，再 `hermes plugins enable lightcode` | Python 插件挂在 `transform_terminal_output` 上，把终端输出交给 `lc hook hermes`，发生在 Hermes 截断和脱敏之前；LightShadow 是一个上下文引擎（`hermes config set context.engine lightcode`） | 应用 | 应用 | 支持 |
-| **任何 Agent / 终端** | `npm install -g @lightcode-ai/cli` | 直接调用 `lc run -c '<命令>'`；`lc mcp` 给任何 MCP 客户端提供找回工具 | 应用 | 仅找回 | 支持 |
-
-`lc evolve` 和 `lc rules` 随 `@lightcode-ai/cli` 提供。
-
-pi 和 DeepSeek Harness 插件已在 macOS 和 Linux 上测试（DSH 桌面版在 macOS 上测试）；Windows 尚未测试。两个插件在子 agent 里同样生效（DSH 的内置 `subagent` / `subagent_fork`；pi 上每个子 agent 单独起 `pi` 进程的子 agent 扩展），会话的 `/lightcode` 会把子 agent 省下的一起算上。
-
-`lc doctor` 会列出每个宿主支持什么以及原因（能力协商：每个机制按宿主能力以 `apply` / `observe` / `off` 运行，配置只能降级不能强开）。
-
-#### pi
-
-`pi install npm:@lightcode-ai/pi` 安装。状态栏显示本会话省下的 token，`/lightcode` 查看明细，`pi --lightcode observe` 本次只记录不改动，`pi config` 可关闭扩展。详见 [adapters/pi](../../adapters/pi/README.md)。
-
-#### DeepSeek Harness
-
-Web 界面或桌面版：侧边栏 **插件** → **添加插件** → 输入 `@lightcode-ai/dsh` → **安装** → **立即启用**；或终端执行 `dsh plugin --profile web add @lightcode-ai/dsh`（`dsh plugin` 需要 pnpm 11 及以上）。会话里输入 `/lightcode` 查看省下的 token；插件详情页的 **模式**（精简 / 只记录 / 关闭）保存后对下一次工具调用生效，无需重启。详见 [adapters/dsh](../../adapters/dsh/README.md)。
-
-## ⌨️ 常用命令
+## 命令
 
 ```
-lc run -c 'cargo test'      用你的 shell 执行，输出精简结果；退出码和信号原样透传
-lc report                   节省统计、各过滤器贡献、最常见的未覆盖命令
-lc doctor                   配置与各宿主的能力协商结果
-lc filters                  所有过滤器及其保留的内容
-lc show <sha256>            查看保存的原文
-lc gc [--days N]            清理过期原文
-lc evolve --learner pi      用证据学新规则，验证通过才采用（--dry-run 只验证不采用）
-lc rules [list|show|off|rollback]   查看、关闭、回滚学到的规则
-lc recall <编号> [--query 字符串 | --line 行号]   读回 LightShadow 保存的工具结果
-lc mcp                      MCP 服务（stdio），提供 lightcode_recall 工具
-lc shadow checkpoint|catalog       给宿主适配器用的 LightShadow 接口（stdin 传 JSON，见 docs/adapters.md）
+lc report [--host H] [--session S] [--json]   按会话或 agent 查看省了多少
+lc doctor [--json]                            配置，以及每个 agent 支持什么
+lc run -c '<命令>'                            运行命令，输出精简后的结果
+lc recall <id> [--query Q | --line N] [--original]
+                                              读回一个保存的结果
+lc mcp                                        提供取回工具的 MCP 服务，任何 agent 都能用
+lc evolve --learner pi|dsh|claude|codex|"<命令>"
+                                              从记录的输出里学习过滤规则
+lc rules [list|show|off|rollback]             已学的过滤规则
+lc filters · lc show <sha256> · lc gc         内置规则、查看一份原文、清理
 ```
 
-全部关闭：`LIGHTCODE_DISABLE=1`；单独调整：`LIGHTCODE_ECONOMY`、`LIGHTCODE_LIGHTSHADOW`（`apply|observe|off`）。配置文件为 `~/.lightcode/config.json`，格式见英文 README（`economy.evidence` 控制是否保存证据，`economy.learnedRules` 控制是否使用学到的规则，`lightshadow.mode` 控制 LightShadow）。项目里的 `.lightcode/config.json` 只能调低模式或关闭功能，不能重新打开你在自己配置里关掉的功能。
+## 配置
 
-## 🔒 隐私
+不需要配置。想改的话，写在 `~/.lightcode/config.json`：
 
-所有数据只在本机。保存的原文可能包含命令打印出的任何内容（包括密钥），文件仅本人可读，并按保留期删除。LightCode 不发起任何网络请求。唯一的例外是你自己运行的 `lc evolve`：学习者就是你的编码 agent，它读到的证据（最近的命令输出）会发给该 agent 使用的模型服务，和当初 agent 运行这些命令时一样。把 `economy.evidence` 设为 `false` 就完全不保存证据。
+```json
+{
+  "economy": { "mode": "apply", "minimumSavedTokens": 16, "evidence": true, "learnedRules": true },
+  "lightshadow": { "mode": "apply" },
+  "artifacts": { "retentionDays": 14 }
+}
+```
 
-## ✅ 如何测试
+`economy` 管精简输出和学习，`lightshadow` 管压缩；每项可设为 `apply`、`observe`（只记录会改什么，不实际改动）或 `off`。项目里的 `.lightcode/config.json` 只能往低调。`LIGHTCODE_DISABLE=1` 关闭全部功能。
+
+## 隐私
+
+所有数据都留在本机。保存的原文可能包含命令打印出来的任何内容，包括密钥；这些文件只有你自己能读，过了保留期就删除。唯一会离开本机的，是你亲自发起的学习：学习者是你自己的 agent，所以它读到的记录会发给这个 agent 的模型服务商，和 agent 当初运行这些命令时一样。设置 `"evidence": false` 就不记录任何内容。
+
+## 怎么测试的
 
 | 层级 | 内容 |
 |---|---|
-| 单元测试 | core、protocol、store、mechanisms、cli 以及各适配器共 1,020 个测试；pi 的测试运行真实的 pi 会话（模型为脚本模拟）；钩子类宿主的测试用从各宿主实际抓到的事件和会话记录构造 |
-| 一致性 | `conformance/economy`：每个实现都必须逐字节复现预期的投影 |
-| 端到端 | `pnpm e2e` 把打包好的插件从本地 registry 装进已发布的 pi 和 DeepSeek Harness（两个网页版版本和桌面版），通过宿主自己的插件命令和界面操作；本地 51 项检查，CI 在 Linux 和 macOS 上运行（桌面版除外） |
-| 真实模型 | 用宿主**默认**压缩设置跑 DeepSeek 长会话，直到宿主自己触发压缩；之后要求 agent 引用压缩前读过的原文 |
+| 单元测试 | 1,095 个，覆盖核心和每个适配层；agent 的事件数据和会话记录都取自真实 agent |
+| 一致性测试 | 每个实现都必须逐字节复现预期的精简输出 |
+| 端到端测试 | 把打包好的插件装进已发布的 pi 和 DeepSeek Harness，通过它们自己的界面操作；在 CI 的 Linux 和 macOS 上运行 |
+| 真实模型 | 8 个 agent 的长会话，分别用默认和调低的压缩阈值，压缩后要求一字不差地引用原文 |
 
-真实 DeepSeek 长会话的结果（LightShadow 检查点、引用数、找回）：
+## 开发
 
-| 宿主 | 被压缩的段 → 检查点 | 引用 | 压缩之后 |
-|---|---|---|---|
-| pi | 约 94.9 万 → 2.95 万 tokens | 624 | 按行号找回 2 次，所有问题回答正确 |
-| DeepSeek Harness | 约 53.9 万 → 3.08 万 tokens | 589 | 找回 2 次，所有问题回答正确 |
+```sh
+pnpm install
+pnpm check        # 类型检查、构建、全部单元测试
+pnpm e2e          # 装进已发布的 agent 版本，跑真实会话
+```
 
-每个宿主还用真实模型、调低的压缩阈值（约 2–3.5 万 tokens；未注明的都是火山引擎上的 DeepSeek V4 Flash）各跑了一遍：agent 读 10 个 7 KB 的文件，宿主压缩，然后要求它不重新读文件、说出第一个文件里的某一行。
+```
+packages/core        过滤规则、学习规则的沙箱、source map，不依赖任何 agent
+packages/protocol    能力、agent 描述、协商、日志格式
+packages/store       日志、保存的原文、学到的规则、配置
+packages/mechanisms  精简输出、压缩、学习
+packages/cli         lc 命令
+adapters/<agent>     每个 agent 一个很薄的适配层
+conformance/         逐字节对照的测试语料
+e2e/                 针对已发布 agent 版本的端到端测试
+```
 
-| 宿主 | 档位 | 结果 |
-|---|---|---|
-| pi 1.1.0 | 完整 | 检查点含 8 个引用；一次 `lightcode_recall` 后答对 |
-| DeepSeek Harness 0.2.1 | 完整 | 2 个检查点；一次找回后答对 |
-| OpenCode 1.19.4 | 完整 | 3 个检查点（一轮里两次自动压缩）；一次找回后答对 |
-| Hermes Agent 0.22.5 | 完整 | Hermes 自己的压缩器加 `lightcode` 引擎；从一行 37 KB 的 JSON 转义日志里一次找回后答对 |
-| CodeBuddy 2.175.0 | 完整 | `/compact` 后存下的摘要变成含 10 个引用的检查点；一次找回后答对 |
-| Claude Code 2.1.312（Haiku） | 辅助 | 自动压缩后补回引用目录；用插件的 MCP 找回工具答对 |
-| Codex 0.165.0（GPT） | 辅助 | 3 次自动压缩，每次都补回目录；用 MCP 找回工具答对 |
-| Grok Build 1.0.70（grok-4.7） | 辅助 | `/compact` 后下一轮带上引用目录；用 MCP 找回工具答对 |
+设计：[docs/architecture.md](../architecture.md) · 接入新 agent：[docs/adapters.md](../adapters.md) · 发布：[docs/releasing.md](../releasing.md) · 变更：[CHANGELOG.md](../../CHANGELOG.md)
 
-## 📄 许可证
+## 许可证
 
-MIT。`packages/core/src/rtk/` 中的 RTK 内置过滤数据为 Apache-2.0，见 [`third-party/rtk`](../../third-party/rtk/NOTICE.md)。架构说明见 [architecture.md](../architecture.md)（英文）。
+MIT。`packages/core/src/rtk/` 中的 RTK 过滤数据为 Apache-2.0，见 [`third-party/rtk`](../../third-party/rtk/NOTICE.md)。
