@@ -6,14 +6,12 @@ First open-source release line: compact tool output on eight hosts and any shell
 recoverable compaction on every host whose plugin interface
 allows it (in full on five, assisted on three), and self-evolving filters. (0.1.0 and 0.2.0 were never published; their contents are part of this release.)
 
-- The project is **TokenWise** (it was LightCode): packages `@tokenwise/*`,
-  the `tokenwise` command (alias `tw`), plugin ids `tokenwise@tokenwise`, the
-  `tokenwise_recall` tool, data in `~/.tokenwise` (`TOKENWISE_HOME`), and
-  `TOKENWISE_*` variables. The configuration's `economy` and `lightshadow`
-  sections are now `output` and `compaction` (`TOKENWISE_OUTPUT`,
-  `TOKENWISE_COMPACTION`). Learned rules get their helpers as `tw` (the
-  parameter name is the rule's own, so existing rules still run). The RTK
-  preview line says TokenWise; the runtime is `static-v11`.
+- Names: packages `@tokenwise/*`, the `tokenwise` command (alias `tw`), plugin
+  ids `tokenwise@tokenwise`, the `tokenwise_recall` tool, data in
+  `~/.tokenwise` (`TOKENWISE_HOME`) and `TOKENWISE_*` variables. The
+  configuration has an `output` section (compact output and learning) and a
+  `compaction` section (`TOKENWISE_OUTPUT`, `TOKENWISE_COMPACTION`). Learned
+  rules get their helpers as `tw`. The filter runtime is `static-v11`.
 - Recoverable compaction: when pi or DeepSeek Harness compacts, tool results in the
   compacted span are saved and replaced by references with a 320-byte
   excerpt; the host's own summarizer reads the span in full and keeps the
@@ -164,7 +162,7 @@ allows it (in full on five, assisted on three), and self-evolving filters. (0.1.
   research runtime — 79 shell-output filters (16 hand-written, 63 from pinned
   RTK built-ins) plus 2 host-native search formats — source maps, the strict-shrink admission rule and command normalization,
   with no host dependency. A conformance corpus pins them byte-for-byte to
-  the research runtime (`static-v10`).
+  the research runtime (`static-v11`).
 - `@tokenwise/protocol`: host capability vocabulary, verified host profiles
   and mode negotiation (`off` / `observe` / `apply`).
 - `@tokenwise/store`: private journal, content-addressed original store with
