@@ -1,14 +1,14 @@
-import { createPolicy, decideShellProjection, estimateTokens as defaultEstimate, sha256 } from '@lightcode-ai/core'
-import type { EconomyPolicy, LearnedRuleSet, ShellResult, TokenEstimator } from '@lightcode-ai/core'
-import type { ArtifactPort, EconomyRecord, JournalRecord } from '@lightcode-ai/protocol'
+import { createPolicy, decideShellProjection, estimateTokens as defaultEstimate, sha256 } from '@tokenwise/core'
+import type { EconomyPolicy, LearnedRuleSet, ShellResult, TokenEstimator } from '@tokenwise/core'
+import type { ArtifactPort, EconomyRecord, JournalRecord } from '@tokenwise/protocol'
 
 /**
  * Evidence-guided self-evolution of the filter policy: pi_{k+1} = Verify(Propose(pi_k, E_k)).
  *
- * - Evidence: the shell outputs LightCode saw (originals kept in the artifact
+ * - Evidence: the shell outputs TokenWise saw (originals kept in the artifact
  *   store, decisions in the journal), rebuilt exactly as the engine saw them.
  * - Propose: a coding agent (the learner) edits a copy of the learned rules in
- *   a workspace, given the evidence (`lc evolve`).
+ *   a workspace, given the evidence (`tokenwise evolve`).
  * - Verify (this module): replay every observation with the current and the
  *   proposed policy, and check the preservation requirements. A proposal is
  *   accepted iff it changes the rules, meets every requirement, no rule fails

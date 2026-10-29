@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { compileLearnedRules, nativeGrepRecords, sha256 } from '@lightcode-ai/core'
-import type { LearnedRuleSet } from '@lightcode-ai/core'
-import type { ArtifactPort, ArtifactRef, EconomyRecord, JournalRecord } from '@lightcode-ai/protocol'
-import { DEFAULT_CONFIG } from '@lightcode-ai/store'
+import { compileLearnedRules, nativeGrepRecords, sha256 } from '@tokenwise/core'
+import type { LearnedRuleSet } from '@tokenwise/core'
+import type { ArtifactPort, ArtifactRef, EconomyRecord, JournalRecord } from '@tokenwise/protocol'
+import { DEFAULT_CONFIG } from '@tokenwise/store'
 import { EconomyEngine, normalizeShellCommand, summarizeEconomy } from '../src/index.ts'
 import type { EconomyEngineOptions } from '../src/index.ts'
 
@@ -33,7 +33,7 @@ describe('EconomyEngine', () => {
     const progress = Array.from({ length: 80 }, (_, i) => `[${i + 1}/80] Linking t${i}`).join('\n') + '\nLinked\n'
     const rules = compileLearnedRules([
       { path: 'index.json', text: JSON.stringify({ schemaVersion: 1, rules: [{ id: 'link', file: 'rules/link.js' }] }) },
-      { path: 'rules/link.js', text: "defineRule({ project(input, lc) { return input.argv && input.argv[0] === './link.sh' ? lc.keepLines(input.raw, line => !/^\\[\\d+\\/\\d+\\] Linking /.test(line.text), n => '[' + n + ' link lines omitted]\\n') : null } })" },
+      { path: 'rules/link.js', text: "defineRule({ project(input, tw) { return input.argv && input.argv[0] === './link.sh' ? tw.keepLines(input.raw, line => !/^\\[\\d+\\/\\d+\\] Linking /.test(line.text), n => '[' + n + ' link lines omitted]\\n') : null } })" },
     ])
     let active: LearnedRuleSet | undefined
     const { engine, records } = setup({ learned: () => active })
@@ -77,7 +77,7 @@ describe('EconomyEngine', () => {
     expect(JSON.parse(artifacts.read(record.sourceMap!.sha256)!)).toMatchObject({ version: 1, sourceLength: raw.length })
     expect(record.projected!.sha256).toBe(sha256(output.text!))
   })
-  it('keeps the original of a pass as evidence for lc evolve, unless evidence is off', () => {
+  it('keeps the original of a pass as evidence for tokenwise evolve, unless evidence is off', () => {
     const { engine, records, artifacts } = setup()
     const output = 'x\n'.repeat(500)
     expect(engine.process({ sessionId: null, callId: null, tool: 'bash', result: shell('my-tool', output) }).text).toBeUndefined()
@@ -176,9 +176,9 @@ describe('Economy recall hint', () => {
     const { recallFromJournal } = await import('../src/index.ts')
     const { engine, records, artifacts } = setup({ recallHint: true })
     const out = engine.process({ sessionId: 's', callId: 'c1', tool: 'bash', result: { ...shell('python3 -m pytest -v', pytest), exitCode: 1 } })
-    const id = /observation (o-[a-f0-9]{12}): read it with lightcode_recall/u.exec(out.text!)?.[1]
+    const id = /observation (o-[a-f0-9]{12}): read it with tokenwise_recall/u.exec(out.text!)?.[1]
     expect(id).toBe(`o-${sha256(pytest).slice(0, 12)}`)
-    expect(out.text!.endsWith('`lc recall ' + id + '`.]\n')).toBe(true)
+    expect(out.text!.endsWith('`tokenwise recall ' + id + '`.]\n')).toBe(true)
     const record = records.at(-1) as EconomyRecord
     expect(record.projected).toMatchObject({ bytes: Buffer.byteLength(out.text!) })
     // Before any compaction the recall tool reads the complete original by that ID (with or without `original`).
@@ -195,12 +195,12 @@ describe('Economy recall hint', () => {
     const out = engine.process({ sessionId: 's', callId: 'c2', tool: 'bash',
       result: { command: 'python3 -m pytest -v', exitCode: 1, rendered, stdout: { start: 0, text: pytest }, stderr: { start: pytest.length + 10, text: 'DeprecationWarning: x\n' } } })
     expect(out.text!.endsWith(footer.slice(1))).toBe(true)
-    expect(out.text).toMatch(/`lc recall o-[a-f0-9]{12}`\.\]\n\[stderr\]/u)
+    expect(out.text).toMatch(/`tokenwise recall o-[a-f0-9]{12}`\.\]\n\[stderr\]/u)
     const records = Array.from({ length: 30 }, (_, i) => ({ path: `src/f${i % 3}.ts`, line: i + 1, text: `const v${i} = ${i}` }))
     const native = nativeGrepRecords(records.map(r => `${r.path}:${r.line}:${r.text}`).join('\n'))
     if (native) {
       const layout = engine.process({ sessionId: 's', callId: 'c3', tool: 'grep', command: 'grep v', native: { rendered: records.map(r => `${r.path}:${r.line}:${r.text}`).join('\n'), projection: native } })
-      if (layout.text) expect(layout.text).not.toContain('LightCode shortened')
+      if (layout.text) expect(layout.text).not.toContain('TokenWise shortened')
     }
   })
 

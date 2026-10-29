@@ -1,12 +1,12 @@
 {
-  "description": "LightCode: replace the model's copy of recognized shell results with a smaller projection; after a compaction, add the catalog of tool results LightCode kept recallable with the next tool result.",
+  "description": "TokenWise: replace the model's copy of recognized shell results with a smaller projection; after a compaction, add the catalog of tool results TokenWise kept recallable with the next tool result.",
   "hooks": {
     "PostToolUse": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "lc hook grok",
+            "command": "tokenwise hook grok",
             "timeout": 10
           }
         ]
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "lc hook grok",
+            "command": "tokenwise hook grok",
             "timeout": 60
           }
         ]
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "lc hook grok",
+            "command": "tokenwise hook grok",
             "timeout": 10
           }
         ]

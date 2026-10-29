@@ -1,20 +1,20 @@
 {
-  "name": "@lightcode-ai/opencode",
+  "name": "@tokenwise/opencode",
   "version": "0.3.0",
-  "description": "LightCode for OpenCode: shrinks recognized bash output (tests, builds, diffs, searches) before the model reads it, keeping the original privately.",
+  "description": "TokenWise for OpenCode: shrinks recognized bash output (tests, builds, diffs, searches) before the model reads it, keeping the original privately.",
   "license": "MIT",
   "type": "module",
   "keywords": [
     "opencode",
     "opencode-plugin",
-    "lightcode",
+    "tokenwise",
     "context",
     "tokens"
   ],
-  "homepage": "https://github.com/Zongwei9888/lightcode-plugins/tree/main/adapters/opencode#readme",
+  "homepage": "https://github.com/Zongwei9888/tokenwise/tree/main/adapters/opencode#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Zongwei9888/lightcode-plugins.git",
+    "url": "git+https://github.com/Zongwei9888/tokenwise.git",
     "directory": "adapters/opencode"
   },
   "engines": {
@@ -36,9 +36,9 @@
     "test": "vitest run"
   },
   "devDependencies": {
-    "@lightcode-ai/core": "workspace:*",
-    "@lightcode-ai/mechanisms": "workspace:*",
-    "@lightcode-ai/protocol": "workspace:*",
-    "@lightcode-ai/store": "workspace:*"
+    "@tokenwise/core": "workspace:*",
+    "@tokenwise/mechanisms": "workspace:*",
+    "@tokenwise/protocol": "workspace:*",
+    "@tokenwise/store": "workspace:*"
   }
 }

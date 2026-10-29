@@ -8,14 +8,14 @@ stay as they are:
 - the summarizer is told that the tool results stay recoverable
   (``_build_summary_prompt``);
 - before Hermes assembles the compacted history, every tool result it
-  compacted or shortened is saved by ``lc shadow checkpoint``, and the summary
+  compacted or shortened is saved by ``tokenwise shadow checkpoint``, and the summary
   becomes Hermes's summary plus the catalog of observation IDs
   (``_assemble_compressed``); shortened results in the kept head are marked
   with their ID;
-- the model gets a ``lightcode_recall`` tool that reads any of them again
-  (``lc recall``).
+- the model gets a ``tokenwise_recall`` tool that reads any of them again
+  (``tokenwise recall``).
 
-Fail-open: any error, a missing ``lc``, a timeout or a checkpoint that is not
+Fail-open: any error, a missing ``tokenwise``, a timeout or a checkpoint that is not
 smaller leaves Hermes's own compaction exactly as it would have been.
 
 Verified against Hermes Agent 0.22.5: ``ContextCompressor.compress``,
@@ -34,27 +34,27 @@ from typing import Any, Callable, Optional
 
 logger = logging.getLogger(__name__)
 
-ENGINE_NAME = "lightcode"
+ENGINE_NAME = "tokenwise"
 _TIMEOUT_S = 20
-RECALL_TOOL_NAME = "lightcode_recall"
+RECALL_TOOL_NAME = "tokenwise_recall"
 
-# Kept equal to SHADOW_ASSISTED_INSTRUCTION in @lightcode-ai/mechanisms (a test compares them):
+# Kept equal to SHADOW_ASSISTED_INSTRUCTION in @tokenwise/mechanisms (a test compares them):
 # Hermes's lean summary keeps the user's messages itself, and the catalog follows the summary.
 SUMMARY_INSTRUCTION = (
-    "After this compaction every tool result in this span stays recoverable: LightCode adds a catalog of them after your summary, "
+    "After this compaction every tool result in this span stays recoverable: TokenWise adds a catalog of them after your summary, "
     "and the agent can read any of them again with its recall tool. So write the summary the agent needs to carry on "
     "without re-running anything: the findings from the tool results (facts, file paths with line numbers, values, "
     "errors, what passed and what failed) and the decisions made. Do not paste whole files, logs or test output; "
     "say what they showed. Do not list observation IDs."
 )
 
-# Kept equal to RECALL_TOOL_DESCRIPTION and RECALL_INPUT_SCHEMA in @lightcode-ai/mechanisms.
+# Kept equal to RECALL_TOOL_DESCRIPTION and RECALL_INPUT_SCHEMA in @tokenwise/mechanisms.
 RECALL_DESCRIPTION = (
     "Read again a tool result that context compaction removed, exactly as you first saw it. "
     "Its observation_id is listed in the observation catalog of the compacted summary, next to the call (command or path) that produced it. "
     "Results larger than 8 KB come back a window at a time: pass a line number (you get the lines around it) or a query: "
     "an exact string they contain (a symbol, path or error message); you get the lines around its first match. With neither, you get the first lines. "
-    "Set original to true for the complete output LightCode shortened before you first read it, when the catalog marks one."
+    "Set original to true for the complete output TokenWise shortened before you first read it, when the catalog marks one."
 )
 RECALL_PARAMETERS = {
     "type": "object",
@@ -62,7 +62,7 @@ RECALL_PARAMETERS = {
         "observation_id": {"type": "string", "description": "An observation_id from the observation catalog, such as o-1a2b3c4d5e6f."},
         "query": {"type": "string", "description": "An exact string the result contains; for results over 8 KB, this or line."},
         "line": {"type": "integer", "minimum": 1, "description": "A 1-based line number to read around; for results over 8 KB, this or query."},
-        "original": {"type": "boolean", "description": "Read the complete output LightCode shortened before you first read it."},
+        "original": {"type": "boolean", "description": "Read the complete output TokenWise shortened before you first read it."},
     },
     "required": ["observation_id"],
     "additionalProperties": False,
@@ -186,14 +186,14 @@ def segment_messages(original: list, pruned: list, start: int, end: int, is_summ
     return out
 
 
-def _run_lc(lc: Optional[str], args: list, payload: Optional[dict] = None) -> Optional[subprocess.CompletedProcess]:
-    if not lc:
+def _run_lc(tokenwise: Optional[str], args: list, payload: Optional[dict] = None) -> Optional[subprocess.CompletedProcess]:
+    if not tokenwise:
         return None
     try:
-        return subprocess.run([lc, *args], input=json.dumps(payload) if payload is not None else None, capture_output=True,
+        return subprocess.run([tokenwise, *args], input=json.dumps(payload) if payload is not None else None, capture_output=True,
                               text=True, encoding="utf-8", timeout=_TIMEOUT_S)
     except Exception:  # Fail-open.
-        logger.debug("lightcode: lc %s failed", args[:2], exc_info=True)
+        logger.debug("tokenwise: tokenwise %s failed", args[:2], exc_info=True)
         return None
 
 
@@ -226,7 +226,7 @@ def _compressor_kwargs(compressor_cls: type) -> dict:
                       proactive_prune_min_reclaim_tokens=cs.proactive_prune_min_reclaim, min_tail_user_messages=cs.min_tail_users,
                       tail_mode=cs.tail_mode)
     except Exception:
-        logger.debug("lightcode: could not read compression settings; using the compressor defaults", exc_info=True)
+        logger.debug("tokenwise: could not read compression settings; using the compressor defaults", exc_info=True)
     try:
         accepted = set(inspect.signature(compressor_cls.__init__).parameters)
         kwargs = {key: value for key, value in kwargs.items() if key in accepted}
@@ -269,7 +269,7 @@ def engine_class(find_lc: Callable[[], Optional[str]]):
                 try:
                     summary = self._checkpoint(messages, compress_start, compress_end, summary)
                 except Exception:  # Fail-open: Hermes's summary stays.
-                    logger.debug("lightcode: LightShadow checkpoint failed", exc_info=True)
+                    logger.debug("tokenwise: compaction checkpoint failed", exc_info=True)
             return super()._assemble_compressed(messages, compress_start, compress_end, scan, summary)
 
         def _checkpoint(self, messages, start, end, summary):
@@ -298,7 +298,7 @@ def engine_class(find_lc: Callable[[], Optional[str]]):
                 ref = self._lc_refs.get(message.get("tool_call_id"))
                 original = originals.get(_key(message))
                 if ref and original is not None and _text(original.get("content")) != message["content"]:
-                    message["content"] += f" [LightCode kept the full output: {RECALL_TOOL_NAME} observation_id {ref}]"
+                    message["content"] += f" [TokenWise kept the full output: {RECALL_TOOL_NAME} observation_id {ref}]"
             return out
 
         def get_tool_schemas(self):
@@ -324,7 +324,7 @@ def engine_class(find_lc: Callable[[], Optional[str]]):
                 argv.append("--original")
             done = _run_lc(find_lc(), argv)
             if done is None:
-                return json.dumps({"error": "LightCode (lc) is not available"})
+                return json.dumps({"error": "TokenWise (tokenwise) is not available"})
             return json.dumps({"result": done.stdout} if done.returncode == 0 else {"error": done.stdout.strip()})
 
     return LightShadowEngine

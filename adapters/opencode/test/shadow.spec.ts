@@ -2,14 +2,14 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { RECALL_INPUT_SCHEMA } from '@lightcode-ai/mechanisms'
-import { createLightCode } from '../src/plugin.ts'
+import { RECALL_INPUT_SCHEMA } from '@tokenwise/mechanisms'
+import { createTokenWise } from '../src/plugin.ts'
 import type { Hooks } from '../src/plugin.ts'
 import { shadowMessagesOf } from '../src/shadow.ts'
 import type { OpenCodeClient, OpenCodeMessage } from '../src/shadow.ts'
 
 const dirs: string[] = []
-const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'lightcode-oc-shadow-')); dirs.push(dir); return dir }
+const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'tokenwise-oc-shadow-')); dirs.push(dir); return dir }
 afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }) })
 
 const rows = (tag: string) => Array.from({ length: 400 }, (_, i) => `${tag} ${i}: ${(i * 7919) % 10007}`).join('\n')
@@ -26,7 +26,7 @@ const span = (sessionID: string): OpenCodeMessage[] => [
 
 async function plugin(client?: OpenCodeClient, env: NodeJS.ProcessEnv = {}) {
   const errors: unknown[] = []
-  const hooks: Hooks = await createLightCode({ env: { LIGHTCODE_HOME: temp(), ...env }, onError: error => errors.push(error) })({ directory: temp(), ...client ? { client } : {} })
+  const hooks: Hooks = await createTokenWise({ env: { TOKENWISE_HOME: temp(), ...env }, onError: error => errors.push(error) })({ directory: temp(), ...client ? { client } : {} })
   return { hooks, errors }
 }
 
@@ -63,10 +63,10 @@ describe('OpenCode LightShadow', () => {
     expect(text).toContain('"Read both data files."')
     const ids = [...text.matchAll(/observation_id: (o-[a-f0-9]{12})/gu)].map(m => m[1]!)
     expect(ids).toHaveLength(1)
-    const recalled = await hooks.tool!.lightcode_recall!.execute({ observation_id: ids[0], query: 'one 333:' }, { sessionID: 'ses_1', callID: 'c9' })
+    const recalled = await hooks.tool!.tokenwise_recall!.execute({ observation_id: ids[0], query: 'one 333:' }, { sessionID: 'ses_1', callID: 'c9' })
     expect(recalled).toContain(`one 333: ${(333 * 7919) % 10007}`)
     const definition = { description: 'd', parameters: {}, jsonSchema: { required: ['observation_id', 'query', 'line', 'original'] } }
-    await hooks['tool.definition']!({ toolID: 'lightcode_recall' }, definition)
+    await hooks['tool.definition']!({ toolID: 'tokenwise_recall' }, definition)
     expect(definition.jsonSchema).toEqual(RECALL_INPUT_SCHEMA)
     expect(errors).toEqual([])
   })
@@ -93,9 +93,9 @@ describe('OpenCode LightShadow', () => {
     const { text } = await compact(hooks, 'ses_3', 'Summary.')
     // The hanging lookup gives up after its timeout; the throwing one counts as "no answer".
     expect(Date.now() - started).toBeLessThan(5000)
-    expect(text).toContain('<lightcode-observation-catalog>')
+    expect(text).toContain('<tokenwise-observation-catalog>')
     expect(errors).toEqual([])
-    const off = await plugin(undefined, { LIGHTCODE_LIGHTSHADOW: 'off' })
+    const off = await plugin(undefined, { TOKENWISE_COMPACTION: 'off' })
     expect(off.hooks['experimental.session.compacting']).toBeUndefined()
     expect(off.hooks.tool).toBeUndefined()
     expect(off.hooks['tool.execute.after']).toBeDefined()

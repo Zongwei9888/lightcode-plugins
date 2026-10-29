@@ -2,10 +2,10 @@
  * LightShadow from the command line, for host adapters that are not
  * JavaScript or run outside the host process (hooks, Python plugins):
  *
- *   lc shadow instruction            the line to add to the host's summary instruction
- *   lc shadow checkpoint             stdin {host, session_id, messages, summary, prior?, user_messages?} → {text, refs}
- *   lc shadow catalog                stdin {host, session_id, messages, tool_name?, budget_tokens?} → {text}
- *   lc recall <observation_id> ...   the recall tool
+ *   tokenwise shadow instruction            the line to add to the host's summary instruction
+ *   tokenwise shadow checkpoint             stdin {host, session_id, messages, summary, prior?, user_messages?} → {text, refs}
+ *   tokenwise shadow catalog                stdin {host, session_id, messages, tool_name?, budget_tokens?} → {text}
+ *   tokenwise recall <observation_id> ...   the recall tool
  *
  * `messages` are `ShadowMessage`s: {role: user|assistant|tool|summary|other,
  * text, tool_name?, call_id?, call?}. Output is one JSON object. A failure
@@ -14,12 +14,12 @@
  */
 import {
   RECALL_TOOL_DESCRIPTION, RECALL_TOOL_NAME, SHADOW_SUMMARY_INSTRUCTION, recallFromJournal, shadowCatalog, shadowCheckpoint, shadowMessagesFrom,
-} from '@lightcode-ai/mechanisms'
-import type { ShadowMessage, ShadowStore } from '@lightcode-ai/mechanisms'
-import type { ArtifactPort } from '@lightcode-ai/protocol'
+} from '@tokenwise/mechanisms'
+import type { ShadowMessage, ShadowStore } from '@tokenwise/mechanisms'
+import type { ArtifactPort } from '@tokenwise/protocol'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { ensurePrivateDir, pathSegment } from '@lightcode-ai/store'
+import { ensurePrivateDir, pathSegment } from '@tokenwise/store'
 import { cliContext } from './context.ts'
 import type { CliContext } from './context.ts'
 import { readStdin } from './hook.ts'
@@ -100,7 +100,7 @@ export async function shadow(sub: string | undefined): Promise<number> {
     return reply({ name: RECALL_TOOL_NAME, description: RECALL_TOOL_DESCRIPTION })
   }
   if (sub !== 'checkpoint' && sub !== 'catalog') {
-    process.stderr.write('lc shadow: use instruction, tool, checkpoint or catalog\n')
+    process.stderr.write('tokenwise shadow: use instruction, tool, checkpoint or catalog\n')
     return 2
   }
   try {
@@ -109,7 +109,7 @@ export async function shadow(sub: string | undefined): Promise<number> {
     const context = cliContext({ ...text(input.cwd) ? { cwd: input.cwd as string } : {} })
     if (context.loaded.config.lightshadow.mode !== 'apply') return reply({ text: null, reason: `lightshadow is ${context.loaded.config.lightshadow.mode}` })
     const store = shadowStore(context, host)
-    if (!store) return reply({ text: null, error: 'no writable LightCode data directory' })
+    if (!store) return reply({ text: null, error: 'no writable TokenWise data directory' })
     const span = { host, sessionId: text(input.session_id) ?? null, messages: shadowMessagesFrom(input.messages),
       ...text(input.prior) ? { prior: input.prior as string } : {} }
     if (sub === 'checkpoint') {
@@ -135,7 +135,7 @@ export interface RecallOptions {
   readonly call?: string
 }
 
-/** `lc recall`: prints what the recall tool would return; exit 1 when it failed. */
+/** `tokenwise recall`: prints what the recall tool would return; exit 1 when it failed. */
 export function recall(options: RecallOptions): number {
   const context = cliContext()
   const host = options.host ?? 'shell'

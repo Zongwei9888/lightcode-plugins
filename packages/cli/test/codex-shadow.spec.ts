@@ -6,23 +6,23 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CODEX_RECALL_TOOL, codexSpan } from '../src/codex-shadow.ts'
 
-// Each test starts real `lc` processes; under a full parallel run they take longer than the default 5 s.
+// Each test starts real `tokenwise` processes; under a full parallel run they take longer than the default 5 s.
 vi.setConfig({ testTimeout: 30_000 })
 
 const main = fileURLToPath(new URL('../src/main.ts', import.meta.url))
 const dirs: string[] = []
-const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'lightcode-codex-')); dirs.push(dir); return dir }
+const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'tokenwise-codex-')); dirs.push(dir); return dir }
 afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }) })
 
-/** An `lc` on PATH: the hook only rewrites to `lc run` when one is there to run it. */
+/** An `tokenwise` on PATH: the hook only rewrites to `tokenwise run` when one is there to run it. */
 function lcOnPath() {
   const bin = temp()
-  writeFileSync(join(bin, 'lc'), '#!/bin/sh\n')
-  chmodSync(join(bin, 'lc'), 0o755)
+  writeFileSync(join(bin, 'tokenwise'), '#!/bin/sh\n')
+  chmodSync(join(bin, 'tokenwise'), 0o755)
   return `${bin}:${process.env.PATH ?? ''}`
 }
 const run = (args: string[], home: string, input?: string) =>
-  spawnSync(process.execPath, ['--conditions=source', main, ...args], { input, encoding: 'utf8', env: { ...process.env, LIGHTCODE_HOME: home, PATH: lcOnPath() } }).stdout
+  spawnSync(process.execPath, ['--conditions=source', main, ...args], { input, encoding: 'utf8', env: { ...process.env, TOKENWISE_HOME: home, PATH: lcOnPath() } }).stdout
 
 // Rollout lines as Codex 0.165 writes them.
 const item = (payload: Record<string, unknown>) => ({ timestamp: 't', type: 'response_item', payload })
@@ -53,7 +53,7 @@ describe('Codex rollout span', () => {
   })
 })
 
-describe('lc hook codex: LightShadow', () => {
+describe('tokenwise hook codex: LightShadow', () => {
   it('returns a cumulative catalog after each compaction that names the code-mode call, and recall reads it', () => {
     const home = temp(), dir = temp(), rollout = join(dir, 'rollout.jsonl')
     const first = [message('user', 'Count'), exec('c1', 'x'), nested('seq 100000 100600'), execOutput('c1', seq(100000)), compacted]
@@ -74,6 +74,6 @@ describe('lc hook codex: LightShadow', () => {
     expect(run(['hook', 'codex'], home, JSON.stringify({ hook_event_name: 'SessionStart', source: 'startup', session_id: 'x', transcript_path: '/nope' }))).toBe('')
     const wrapped = JSON.parse(run(['hook', 'codex'], home, JSON.stringify({ hook_event_name: 'PreToolUse', tool_name: 'Bash', session_id: 's', tool_use_id: 'u',
       tool_input: { command: 'git status' } })))
-    expect(wrapped.hookSpecificOutput.updatedInput.command).toMatch(/^lc run /u)
+    expect(wrapped.hookSpecificOutput.updatedInput.command).toMatch(/^tokenwise run /u)
   })
 })

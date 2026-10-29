@@ -1,17 +1,17 @@
 /**
- * What a host lets LightCode do. Adapters declare the capabilities their host
+ * What a host lets TokenWise do. Adapters declare the capabilities their host
  * offers; each mechanism declares what it needs; `negotiate` picks the
  * strongest mode both sides support and says why. Nothing is enabled by
  * patching a host.
  */
 export const CAPABILITIES = {
-  journal: 'private append-only LightCode event log',
+  journal: 'private append-only TokenWise event log',
   artifacts: 'private store for original tool output',
   tokens: 'token estimate for admission (host meter or the default estimate)',
   toolResults: 'replace a tool result before the model first sees it',
   toolResultsPreserveRaw: 'replace what the model sees while the host session keeps the original',
   toolCalls: 'rewrite tool arguments before execution',
-  commandWrapper: 'run shell commands through `lc run`, which filters at the process boundary',
+  commandWrapper: 'run shell commands through `tokenwise run`, which filters at the process boundary',
   compaction: 'supply the compaction summary and kept boundary',
   compactionShaping: 'influence, but not supply, the host compaction summary',
   compactionContext: 'add text to the conversation right after the host compacts it (the host writes the summary)',

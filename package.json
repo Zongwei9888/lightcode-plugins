@@ -1,8 +1,8 @@
 {
-  "name": "lightcode-monorepo",
+  "name": "tokenwise-monorepo",
   "private": true,
   "type": "module",
-  "description": "LightCode: deterministic, recoverable context economy for coding agents (pi, DeepSeek Harness, Codex, Claude Code, CodeBuddy, Grok).",
+  "description": "TokenWise: deterministic, recoverable context economy for coding agents (pi, DeepSeek Harness, Codex, Claude Code, CodeBuddy, Grok).",
   "license": "MIT",
   "engines": {
     "node": ">=22"

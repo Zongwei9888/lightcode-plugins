@@ -1,6 +1,6 @@
 {
-  "name": "lightcode",
+  "name": "tokenwise",
   "plugins": [
-    { "name": "lightcode", "source": "./adapters/codex" }
+    { "name": "tokenwise", "source": "./adapters/codex" }
   ]
 }

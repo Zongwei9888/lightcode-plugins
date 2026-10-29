@@ -3,14 +3,14 @@ import { chmodSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, w
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { FileArtifactStore } from '@lightcode-ai/store'
+import { FileArtifactStore } from '@tokenwise/store'
 import { claudeHook, codebuddyHook, eventHost, grokHook, hermesHook } from '../src/hook.ts'
 
 const dirs: string[] = []
-const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'lightcode-hooks-')); dirs.push(dir); return dir }
+const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'tokenwise-hooks-')); dirs.push(dir); return dir }
 afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }) })
 
-/** Three source files whose `grep -rn value src` output LightCode shortens. */
+/** Three source files whose `grep -rn value src` output TokenWise shortens. */
 function grepCase() {
   const cwd = temp()
   mkdirSync(join(cwd, 'src'))
@@ -19,12 +19,12 @@ function grepCase() {
   return { cwd, output, home: temp() }
 }
 
-/** An environment with `lc` on PATH (a stub: wrapping never runs it). */
+/** An environment with `tokenwise` on PATH (a stub: wrapping never runs it). */
 function withLc(home: string) {
   const bin = temp()
-  writeFileSync(join(bin, 'lc'), '#!/bin/sh\n')
-  chmodSync(join(bin, 'lc'), 0o755)
-  return { LIGHTCODE_HOME: home, PATH: bin }
+  writeFileSync(join(bin, 'tokenwise'), '#!/bin/sh\n')
+  chmodSync(join(bin, 'tokenwise'), 0o755)
+  return { TOKENWISE_HOME: home, PATH: bin }
 }
 
 /** `pytest -v` with 150 passing tests and one failure, as the e2e fixture project prints it. */
@@ -56,7 +56,7 @@ describe('Claude Code hook', () => {
   it('replaces a successful call\'s output with its projection and keeps the original', () => {
     const { cwd, output, home } = grepCase()
     const response = { stdout: output.trimEnd(), stderr: '', interrupted: false, isImage: false, noOutputExpected: false }
-    const reply = JSON.parse(claudeHook(claudeEvent('PostToolUse', 'grep -rn value src', { cwd, tool_response: response }), { LIGHTCODE_HOME: home })!)
+    const reply = JSON.parse(claudeHook(claudeEvent('PostToolUse', 'grep -rn value src', { cwd, tool_response: response }), { TOKENWISE_HOME: home })!)
     const replaced = reply.hookSpecificOutput.updatedToolOutput
     expect(reply.hookSpecificOutput.hookEventName).toBe('PostToolUse')
     // The replacement keeps Bash's own result shape, which Claude Code requires.
@@ -75,7 +75,7 @@ describe('Claude Code hook', () => {
     const wrapped = JSON.parse(claudeHook(claudeEvent('PreToolUse', 'grep -rn value src', { permission_mode: 'bypassPermissions' }), env)!)
     // No permission decision; the rest of the input stays as the model wrote it.
     expect(wrapped).toEqual({ hookSpecificOutput: { hookEventName: 'PreToolUse',
-      updatedInput: { command: "lc run --host claude --session cc-session --call toolu_01 -c 'grep -rn value src'", description: 'Search' } } })
+      updatedInput: { command: "tokenwise run --host claude --session cc-session --call toolu_01 -c 'grep -rn value src'", description: 'Search' } } })
     expect(claudeHook(claudeEvent('PreToolUse', 'grep -rn value src', { permission_mode: 'bypassPermissions', tool_input: { command: 'grep -rn value src', run_in_background: true } }), env)).toBeUndefined()
     const after = claudeEvent('PostToolUse', wrapped.hookSpecificOutput.updatedInput.command, { tool_response: { stdout: 'x', stderr: '', interrupted: false, isImage: false } })
     expect(claudeHook(after, env)).toBeUndefined()
@@ -83,13 +83,13 @@ describe('Claude Code hook', () => {
 
   it('leaves other tools, unrecognized output and images alone', () => {
     const { cwd, output, home } = grepCase()
-    const env = { LIGHTCODE_HOME: home }
+    const env = { TOKENWISE_HOME: home }
     const response = { stdout: output, stderr: '', interrupted: false, isImage: false }
     expect(claudeHook(claudeEvent('PostToolUse', 'echo hi', { cwd, tool_response: { ...response, stdout: 'hi' } }), env)).toBeUndefined()
     expect(claudeHook({ ...claudeEvent('PostToolUse', 'grep -rn value src', { cwd, tool_response: response }), tool_name: 'Read' }, env)).toBeUndefined()
     expect(claudeHook(claudeEvent('PostToolUse', 'grep -rn value src', { cwd, tool_response: { ...response, isImage: true } }), env)).toBeUndefined()
     expect(claudeHook(claudeEvent('PostToolUseFailure', 'grep -rn value src', { cwd, error: 'Exit code 1' }), env)).toBeUndefined()
-    expect(claudeHook(claudeEvent('PostToolUse', 'grep -rn value src', { cwd, tool_response: response }), { ...env, LIGHTCODE_DISABLE: '1' })).toBeUndefined()
+    expect(claudeHook(claudeEvent('PostToolUse', 'grep -rn value src', { cwd, tool_response: response }), { ...env, TOKENWISE_DISABLE: '1' })).toBeUndefined()
   })
 
   it('leaves events from Grok and CodeBuddy, which also run Claude Code hooks, to their own hook', () => {
@@ -100,8 +100,8 @@ describe('Claude Code hook', () => {
     expect(eventHost(event, { GROK_HOOK_EVENT: 'post_tool_use' })).toBe('grok')
     expect(eventHost({ ...event, generation_id: 'g1' }, {})).toBe('codebuddy')
     expect(eventHost(event, {})).toBeUndefined()
-    expect(claudeHook(event, { LIGHTCODE_HOME: home, GROK_HOOK_EVENT: 'post_tool_use' })).toBeUndefined()
-    expect(claudeHook({ ...event, generation_id: 'g1' }, { LIGHTCODE_HOME: home })).toBeUndefined()
+    expect(claudeHook(event, { TOKENWISE_HOME: home, GROK_HOOK_EVENT: 'post_tool_use' })).toBeUndefined()
+    expect(claudeHook({ ...event, generation_id: 'g1' }, { TOKENWISE_HOME: home })).toBeUndefined()
   })
 })
 
@@ -115,7 +115,7 @@ describe('CodeBuddy hook', () => {
     const { home } = grepCase()
     const reply = JSON.parse(codebuddyHook(event('rg value src'), withLc(home))!)
     expect(reply).toEqual({ hookSpecificOutput: { hookEventName: 'PreToolUse',
-      updatedInput: { command: "lc run --host codebuddy --session cb-session --call call_00_x -c 'rg -n -H value src'", description: 'Search' } } })
+      updatedInput: { command: "tokenwise run --host codebuddy --session cb-session --call call_00_x -c 'rg -n -H value src'", description: 'Search' } } })
     expect(reply.hookSpecificOutput).not.toHaveProperty('permissionDecision')
     expect(records(home, 'codebuddy')).toMatchObject([{ type: 'economy/command-rewrite', original: 'rg value src', tool: 'Bash' }])
   })
@@ -125,7 +125,7 @@ describe('CodeBuddy hook', () => {
     expect(codebuddyHook(event('echo hi'), env)).toBeUndefined()
     expect(codebuddyHook(event('pytest', { tool_input: { command: 'pytest', run_in_background: true } }), env)).toBeUndefined()
     expect(codebuddyHook(event('pytest', { hook_event_name: 'PostToolUse' }), env)).toBeUndefined()
-    expect(codebuddyHook(event("lc run -c 'pytest'"), env)).toBeUndefined()
+    expect(codebuddyHook(event("tokenwise run -c 'pytest'"), env)).toBeUndefined()
   })
 })
 
@@ -140,7 +140,7 @@ describe('Grok hook', () => {
 
   it('replaces the model\'s copy of a result, failed commands included', () => {
     const { cwd, output, home } = grepCase()
-    const env = { LIGHTCODE_HOME: home }
+    const env = { TOKENWISE_HOME: home }
     const grep = JSON.parse(grokHook(event('grep -rn value src', output, 0, { cwd }), env)!).hookSpecificOutput.updatedToolOutput as string
     expect(grep.startsWith('exit: 0\n')).toBe(true)
     expect(grep.length).toBeLessThan(output.length)
@@ -158,7 +158,7 @@ describe('Grok hook', () => {
 
   it('leaves cut, oversized, unexpected and undecodable results alone', () => {
     const { cwd, output, home } = grepCase()
-    const env = { LIGHTCODE_HOME: home }
+    const env = { TOKENWISE_HOME: home }
     const base = event('grep -rn value src', output, 0, { cwd })
     const result = base.toolResult
     // Cut by Grok: recorded as passed, never projected.
@@ -180,7 +180,7 @@ describe('Hermes hook', () => {
 
   it('answers with the projection of a recognized output, failed commands included', () => {
     const { cwd, output, home } = grepCase()
-    const env = { LIGHTCODE_HOME: home }
+    const env = { TOKENWISE_HOME: home }
     const grep = JSON.parse(hermesHook(event('grep -rn value src', output, 0, { cwd }), env)!).output as string
     expect(grep.length).toBeLessThan(output.length)
     expect(grep).toContain('omitted')
@@ -194,7 +194,7 @@ describe('Hermes hook', () => {
 
   it('leaves cut, stopped, background and unrecognized output alone', () => {
     const { cwd, output, home } = grepCase()
-    const env = { LIGHTCODE_HOME: home }
+    const env = { TOKENWISE_HOME: home }
     const cut = `${output.slice(0, 2000)}\n\n... [OUTPUT TRUNCATED - 9,000 chars omitted out of 12,000 total] ...\n\n${output.slice(-2000)}`
     expect(hermesHook(event('grep -rn value src', cut, 0, { cwd }), env)).toBeUndefined()
     expect(hermesHook(event('python3 -m pytest -v', `${failingPytest}\n[Command timed out after 180s]`, 124, { cwd }), env)).toBeUndefined()

@@ -3,10 +3,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { FileArtifactStore, FileJournal, collectDaily, dataDirs, fallbackDataDir, loadConfig, pathSegment, readJournals, resolveDataDir, writableDataDir } from '../src/index.ts'
-import type { EconomyRecord } from '@lightcode-ai/protocol'
+import type { EconomyRecord } from '@tokenwise/protocol'
 
 const dirs: string[] = []
-const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'lightcode-store-')); dirs.push(dir); return dir }
+const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'tokenwise-store-')); dirs.push(dir); return dir }
 afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }) })
 
 const record = (sessionId: string | null, callId: string): EconomyRecord => ({
@@ -16,8 +16,8 @@ const record = (sessionId: string | null, callId: string): EconomyRecord => ({
 })
 
 describe('paths', () => {
-  it('honours LIGHTCODE_HOME and hashes unsafe identifiers', () => {
-    expect(resolveDataDir({ LIGHTCODE_HOME: '/tmp/x' })).toBe('/tmp/x')
+  it('honours TOKENWISE_HOME and hashes unsafe identifiers', () => {
+    expect(resolveDataDir({ TOKENWISE_HOME: '/tmp/x' })).toBe('/tmp/x')
     expect(pathSegment('session-1')).toBe('session-1')
     expect(pathSegment('../escape')).toMatch(/^h-[a-f0-9]{32}$/)
     expect(pathSegment('a/b')).not.toContain('/')
@@ -29,22 +29,22 @@ describe('data directories', () => {
     const tmp = temp()
     const blocked = join(temp(), 'file-not-dir')
     writeFileSync(blocked, '')
-    const env = { LIGHTCODE_HOME: join(blocked, 'home'), TMPDIR: tmp }
+    const env = { TOKENWISE_HOME: join(blocked, 'home'), TMPDIR: tmp }
     const fallback = dataDirs(env)[1]!
     expect(dataDirs(env)[0]).toBe(join(blocked, 'home'))
-    expect(fallback.startsWith(join(tmp, `lightcode-${process.getuid!()}-`)) && /-[a-f0-9]{12}$/.test(fallback)).toBe(true)
+    expect(fallback.startsWith(join(tmp, `tokenwise-${process.getuid!()}-`)) && /-[a-f0-9]{12}$/.test(fallback)).toBe(true)
     expect(writableDataDir(env)).toBe(fallback)
     expect(statSync(writableDataDir(env)!).mode & 0o777).toBe(0o700)
     const ok = temp()
-    expect(writableDataDir({ LIGHTCODE_HOME: ok, TMPDIR: tmp })).toBe(ok)
+    expect(writableDataDir({ TOKENWISE_HOME: ok, TMPDIR: tmp })).toBe(ok)
   })
-  it('gives each LIGHTCODE_HOME its own fallback; the default home keeps the per-user one', () => {
+  it('gives each TOKENWISE_HOME its own fallback; the default home keeps the per-user one', () => {
     const tmp = temp()
-    expect(fallbackDataDir({ TMPDIR: tmp })).toBe(join(tmp, `lightcode-${process.getuid!()}`))
-    const a = fallbackDataDir({ TMPDIR: tmp, LIGHTCODE_HOME: '/x/a' }), b = fallbackDataDir({ TMPDIR: tmp, LIGHTCODE_HOME: '/x/b' })
+    expect(fallbackDataDir({ TMPDIR: tmp })).toBe(join(tmp, `tokenwise-${process.getuid!()}`))
+    const a = fallbackDataDir({ TMPDIR: tmp, TOKENWISE_HOME: '/x/a' }), b = fallbackDataDir({ TMPDIR: tmp, TOKENWISE_HOME: '/x/b' })
     expect(a).not.toBe(b)
     expect(a).not.toBe(fallbackDataDir({ TMPDIR: tmp }))
-    expect(fallbackDataDir({ TMPDIR: tmp, LIGHTCODE_HOME: '/x/a/' })).toBe(a)
+    expect(fallbackDataDir({ TMPDIR: tmp, TOKENWISE_HOME: '/x/a/' })).toBe(a)
   })
   it('reads journals from every location and filters by session alone', () => {
     const a = temp(), b = temp()
@@ -103,44 +103,44 @@ describe('loadConfig', () => {
   it('uses defaults, then user, project and environment settings', () => {
     const data = temp(), cwd = temp()
     expect(loadConfig({ dataDir: data, env: {} }).config.economy).toMatchObject({ mode: 'apply', minimumSavedTokens: 16 })
-    writeFileSync(join(data, 'config.json'), JSON.stringify({ economy: { minimumSavedTokens: 32 }, artifacts: { retentionDays: 3 } }))
-    mkdirSync(join(cwd, '.lightcode'))
-    writeFileSync(join(cwd, '.lightcode', 'config.json'), JSON.stringify({ economy: { mode: 'observe', filterOptions: { grep: { maxPerFile: 10 } } } }))
+    writeFileSync(join(data, 'config.json'), JSON.stringify({ output: { minimumSavedTokens: 32 }, artifacts: { retentionDays: 3 } }))
+    mkdirSync(join(cwd, '.tokenwise'))
+    writeFileSync(join(cwd, '.tokenwise', 'config.json'), JSON.stringify({ output: { mode: 'observe', filterOptions: { grep: { maxPerFile: 10 } } } }))
     const loaded = loadConfig({ dataDir: data, cwd, env: {} })
     expect(loaded.problems).toEqual([])
     expect(loaded.config).toEqual({ economy: { mode: 'observe', minimumSavedTokens: 32, commandNormalization: true, evidence: true, learnedRules: true, filterOptions: { grep: { maxPerFile: 10 } } }, lightshadow: { mode: 'apply' }, artifacts: { retentionDays: 3 } })
-    expect(loadConfig({ dataDir: data, cwd, env: { LIGHTCODE_ECONOMY: 'apply' } }).config.economy.mode).toBe('apply')
-    expect(loadConfig({ dataDir: data, cwd, env: { LIGHTCODE_DISABLE: '1' } }).config).toMatchObject({ economy: { mode: 'off' }, lightshadow: { mode: 'off' } })
+    expect(loadConfig({ dataDir: data, cwd, env: { TOKENWISE_OUTPUT: 'apply' } }).config.economy.mode).toBe('apply')
+    expect(loadConfig({ dataDir: data, cwd, env: { TOKENWISE_DISABLE: '1' } }).config).toMatchObject({ economy: { mode: 'off' }, lightshadow: { mode: 'off' } })
   })
-  it('sets LightShadow like Economy: a project can only lower it, and any problem turns it off', () => {
+  it('sets compaction like output: a project can only lower it, and any problem turns it off', () => {
     const data = temp(), cwd = temp()
-    mkdirSync(join(cwd, '.lightcode'))
-    writeFileSync(join(data, 'config.json'), JSON.stringify({ lightshadow: { mode: 'observe' } }))
-    writeFileSync(join(cwd, '.lightcode', 'config.json'), JSON.stringify({ lightshadow: { mode: 'apply' } }))
+    mkdirSync(join(cwd, '.tokenwise'))
+    writeFileSync(join(data, 'config.json'), JSON.stringify({ compaction: { mode: 'observe' } }))
+    writeFileSync(join(cwd, '.tokenwise', 'config.json'), JSON.stringify({ compaction: { mode: 'apply' } }))
     expect(loadConfig({ dataDir: data, cwd, env: {} }).config.lightshadow.mode).toBe('observe')
-    writeFileSync(join(cwd, '.lightcode', 'config.json'), JSON.stringify({ lightshadow: { mode: 'off' } }))
+    writeFileSync(join(cwd, '.tokenwise', 'config.json'), JSON.stringify({ compaction: { mode: 'off' } }))
     expect(loadConfig({ dataDir: data, cwd, env: {} }).config.lightshadow.mode).toBe('off')
-    expect(loadConfig({ dataDir: data, cwd, env: { LIGHTCODE_LIGHTSHADOW: 'apply' } }).config.lightshadow.mode).toBe('apply')
-    const bad = loadConfig({ dataDir: data, env: { LIGHTCODE_LIGHTSHADOW: 'sometimes' } })
+    expect(loadConfig({ dataDir: data, cwd, env: { TOKENWISE_COMPACTION: 'apply' } }).config.lightshadow.mode).toBe('apply')
+    const bad = loadConfig({ dataDir: data, env: { TOKENWISE_COMPACTION: 'sometimes' } })
     expect(bad.config).toMatchObject({ economy: { mode: 'off' }, lightshadow: { mode: 'off' } })
-    writeFileSync(join(data, 'config.json'), JSON.stringify({ lightshadow: { mode: 'apply', budget: 3 } }))
-    expect(loadConfig({ dataDir: data, env: {} }).problems).toEqual([expect.stringContaining('invalid lightshadow.budget')])
+    writeFileSync(join(data, 'config.json'), JSON.stringify({ compaction: { mode: 'apply', budget: 3 } }))
+    expect(loadConfig({ dataDir: data, env: {} }).problems).toEqual([expect.stringContaining('invalid compaction.budget')])
   })
   it('lets a project lower the mode or switch rewriting off, never undo what the user turned off', () => {
     const data = temp(), cwd = temp()
-    mkdirSync(join(cwd, '.lightcode'))
-    writeFileSync(join(data, 'config.json'), JSON.stringify({ economy: { mode: 'off', commandNormalization: false } }))
-    writeFileSync(join(cwd, '.lightcode', 'config.json'), JSON.stringify({ economy: { mode: 'apply', commandNormalization: true } }))
+    mkdirSync(join(cwd, '.tokenwise'))
+    writeFileSync(join(data, 'config.json'), JSON.stringify({ output: { mode: 'off', commandNormalization: false } }))
+    writeFileSync(join(cwd, '.tokenwise', 'config.json'), JSON.stringify({ output: { mode: 'apply', commandNormalization: true } }))
     expect(loadConfig({ dataDir: data, cwd, env: {} }).config.economy).toMatchObject({ mode: 'off', commandNormalization: false })
-    writeFileSync(join(data, 'config.json'), JSON.stringify({ economy: { mode: 'observe' } }))
-    writeFileSync(join(cwd, '.lightcode', 'config.json'), JSON.stringify({ economy: { mode: 'off', commandNormalization: false } }))
+    writeFileSync(join(data, 'config.json'), JSON.stringify({ output: { mode: 'observe' } }))
+    writeFileSync(join(cwd, '.tokenwise', 'config.json'), JSON.stringify({ output: { mode: 'off', commandNormalization: false } }))
     expect(loadConfig({ dataDir: data, cwd, env: {} }).config.economy).toMatchObject({ mode: 'off', commandNormalization: false })
-    expect(loadConfig({ dataDir: data, cwd, env: { LIGHTCODE_ECONOMY: 'apply' } }).config.economy.mode).toBe('apply')
+    expect(loadConfig({ dataDir: data, cwd, env: { TOKENWISE_OUTPUT: 'apply' } }).config.economy.mode).toBe('apply')
   })
   it('turns Economy off on any invalid setting and keeps project files away from retention', () => {
     const data = temp(), cwd = temp()
-    mkdirSync(join(cwd, '.lightcode'))
-    writeFileSync(join(cwd, '.lightcode', 'config.json'), JSON.stringify({ artifacts: { retentionDays: 1 } }))
+    mkdirSync(join(cwd, '.tokenwise'))
+    writeFileSync(join(cwd, '.tokenwise', 'config.json'), JSON.stringify({ artifacts: { retentionDays: 1 } }))
     const loaded = loadConfig({ dataDir: data, cwd, env: {} })
     expect(loaded.config.economy.mode).toBe('off')
     expect(loaded.config.artifacts.retentionDays).toBe(14)

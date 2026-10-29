@@ -1,5 +1,5 @@
 /**
- * The "Self-evolution" section on LightCode's Plugins page, and the toast when
+ * The "Self-evolution" section on TokenWise's Plugins page, and the toast when
  * a learning run ends. `EvolveView` is a pure function of what the Host
  * reports (so tests render it without a browser); `EvolveSection` and
  * `EvolveToast` add the polling and the actions. Built from the Web client's
@@ -8,7 +8,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { jsx, jsxs } from 'react/jsx-runtime'
 import { Button, StateDot, Switch, Tag, TextShimmer, Toast } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { EvolveOutcome, EvolveRunStatus } from '@lightcode-ai/mechanisms'
+import type { EvolveOutcome, EvolveRunStatus } from '@tokenwise/mechanisms'
 import { api, formatTokens } from './api.ts'
 import type { LearningPayload, ReadyCommand } from './api.ts'
 import type { Copy } from './locales.ts'
@@ -127,7 +127,7 @@ export function errorText(t: Translate, code: string): string {
 }
 
 function Tile(label: string, value: unknown, key: string, tone?: 'success') {
-  return h('div', { key, style: S.tile, 'data-lightcode-tile': key },
+  return h('div', { key, style: S.tile, 'data-tokenwise-tile': key },
     h('span', { style: S.tileLabel }, label),
     h('span', { style: tone === 'success' ? { ...S.tileValue, color: 'var(--dsw-alias-state-success-primary)' } : S.tileValue }, value))
 }
@@ -135,7 +135,7 @@ function Tile(label: string, value: unknown, key: string, tone?: 'success') {
 export function EvolveView(p: ViewProps): unknown {
   const { t } = p
   if (!p.payload) {
-    return h('section', { style: S.section, 'data-lightcode-evolve': 'loading' },
+    return h('section', { style: S.section, 'data-tokenwise-evolve': 'loading' },
       h('h4', { style: S.title }, t('evolveTitle')),
       h('p', { style: S.intro }, p.unreachable ? t('unreachable') : t('evolveIntro')))
   }
@@ -145,15 +145,15 @@ export function EvolveView(p: ViewProps): unknown {
   const canLearn = 'label' in learner && !running
 
   const chip = running
-    ? h('span', { style: S.chip, 'data-lightcode-state': 'learning' }, jsx(StateDot, { state: 'ongoing', size: 8 }),
+    ? h('span', { style: S.chip, 'data-tokenwise-state': 'learning' }, jsx(StateDot, { state: 'ongoing', size: 8 }),
       jsx(TextShimmer, { active: true, children: `${t(run!.phase === 'verifying' ? 'stateVerifying' : 'stateLearning')} ${elapsed(p.now - Date.parse(run!.startedAt))}` }))
-    : scan?.ready ? h('span', { style: S.chip, 'data-lightcode-state': 'ready' }, jsx(StateDot, { state: 'warning', size: 8 }), t('stateReady'))
-      : rules.active ? h('span', { style: S.chip, 'data-lightcode-state': 'active' }, jsx(StateDot, { state: 'done', size: 8 }), t('stateActive'))
-        : h('span', { style: S.chip, 'data-lightcode-state': 'collecting' }, jsx(StateDot, { state: 'idle', size: 8 }), t('stateCollecting'))
+    : scan?.ready ? h('span', { style: S.chip, 'data-tokenwise-state': 'ready' }, jsx(StateDot, { state: 'warning', size: 8 }), t('stateReady'))
+      : rules.active ? h('span', { style: S.chip, 'data-tokenwise-state': 'active' }, jsx(StateDot, { state: 'done', size: 8 }), t('stateActive'))
+        : h('span', { style: S.chip, 'data-tokenwise-state': 'collecting' }, jsx(StateDot, { state: 'idle', size: 8 }), t('stateCollecting'))
 
   const action = running
-    ? jsx(Button, { variant: 'outline', size: 'sm', disabled: p.busy, onClick: p.onCancel, 'data-lightcode-action': 'cancel', children: t('cancel') })
-    : canLearn && !p.confirming ? jsx(Button, { variant: 'primary', size: 'sm', disabled: p.busy, onClick: p.onLearn, 'data-lightcode-action': 'learn', children: t('learnNow') }) : null
+    ? jsx(Button, { variant: 'outline', size: 'sm', disabled: p.busy, onClick: p.onCancel, 'data-tokenwise-action': 'cancel', children: t('cancel') })
+    : canLearn && !p.confirming ? jsx(Button, { variant: 'primary', size: 'sm', disabled: p.busy, onClick: p.onLearn, 'data-tokenwise-action': 'learn', children: t('learnNow') }) : null
 
   const uses = new Map((scan?.rules ?? []).map(use => [use.id, use]))
   const learnedSaved = [...uses.values()].reduce((sum, use) => sum + use.savedTokens, 0)
@@ -163,11 +163,11 @@ export function EvolveView(p: ViewProps): unknown {
     Tile(t('tileSaved'), learnedSaved > 0 ? `−${formatTokens(learnedSaved)}` : '—', 'saved', learnedSaved > 0 ? 'success' : undefined),
     Tile(t('tileEvidence'), scan ? String(scan.evidence) : '—', 'evidence'))
 
-  const confirm = p.confirming && 'label' in learner ? h('div', { style: S.soft, 'data-lightcode-confirm': '' },
+  const confirm = p.confirming && 'label' in learner ? h('div', { style: S.soft, 'data-tokenwise-confirm': '' },
     h('p', { style: S.cardTitle }, t('confirmTitle', { learner: learner.label })),
     h('p', { style: S.body }, t('confirmBody')),
     h('div', { style: S.buttons },
-      jsx(Button, { variant: 'primary', size: 'sm', disabled: p.busy, onClick: p.onConfirm, 'data-lightcode-action': 'confirm', children: t('confirmStart') }),
+      jsx(Button, { variant: 'primary', size: 'sm', disabled: p.busy, onClick: p.onConfirm, 'data-tokenwise-action': 'confirm', children: t('confirmStart') }),
       jsx(Button, { variant: 'ghost', size: 'sm', disabled: p.busy, onClick: p.onBack, children: t('confirmBack') }))) : null
 
   let progress: unknown = null
@@ -177,7 +177,7 @@ export function EvolveView(p: ViewProps): unknown {
     const step = (label: string, index: number) => h('span', { key: label, style: { ...S.step, color: at >= index ? text.primary : text.tertiary } },
       jsx(StateDot, { state: at > index ? 'done' : at === index ? 'ongoing' : 'idle', appearance: 'step', size: 14 }), label)
     const last = run!.lastCheck
-    progress = h('div', { style: S.card, 'data-lightcode-progress': run!.phase },
+    progress = h('div', { style: S.card, 'data-tokenwise-progress': run!.phase },
       h('div', { style: S.steps }, step(t('stepPrepare'), 1), h('span', { key: 'c1', style: S.connector }), step(t('stepLearn'), 2),
         h('span', { key: 'c2', style: S.connector }), step(t('stepVerify'), 3)),
       h('dl', { style: S.facts },
@@ -192,7 +192,7 @@ export function EvolveView(p: ViewProps): unknown {
 
   const opportunities = scan?.opportunities ?? []
   const max = opportunities[0]?.leftTokens ?? 0
-  const worth = running ? null : h('div', { style: S.card, 'data-lightcode-worth': '' },
+  const worth = running ? null : h('div', { style: S.card, 'data-tokenwise-worth': '' },
     h('p', { style: S.cardTitle }, t('worthTitle')),
     opportunities.length === 0 ? h('p', { style: S.note }, t('worthNone'))
       : h('ul', { style: S.list }, opportunities.slice(0, 5).map((item, i) => h('li', { key: item.command, style: i === 0 ? { ...S.row, ...S.rowFirst } : S.row },
@@ -200,18 +200,18 @@ export function EvolveView(p: ViewProps): unknown {
         h('span', { style: S.barTrack, 'aria-hidden': 'true' }, h('span', { style: { ...S.barFill, width: `${Math.max(8, Math.round(item.leftTokens / max * 100))}%` } })),
         h('span', { style: S.meta }, t('worthLeft', { n: formatTokens(item.leftTokens) }))))))
 
-  const rulesCard = h('div', { style: S.card, 'data-lightcode-rules': rules.active ?? 'none' },
+  const rulesCard = h('div', { style: S.card, 'data-tokenwise-rules': rules.active ?? 'none' },
     h('div', { style: S.cardHead },
       h('p', { style: S.cardTitle }, t('rulesTitle')),
       rules.active || rules.history > 0 ? h('span', { style: S.inline },
         h('span', { style: S.meta }, t('rulesUse')),
         jsx(Switch, { checked: rules.active !== null, label: t('rulesUse'), disabled: p.busy, onChange: p.onToggle }),
-        rules.active ? jsx(Button, { variant: 'ghost', size: 'sm', disabled: p.busy, onClick: p.onRollback, 'data-lightcode-action': 'rollback', children: t('rulesRollback') }) : null) : null),
+        rules.active ? jsx(Button, { variant: 'ghost', size: 'sm', disabled: p.busy, onClick: p.onRollback, 'data-tokenwise-action': 'rollback', children: t('rulesRollback') }) : null) : null),
     p.payload.learnedRulesOff ? h('p', { style: { ...S.note, color: 'var(--dsw-alias-state-warn-label, var(--dsw-alias-label-secondary))' } }, t('rulesConfigOff')) : null,
     rules.active && rules.rules.length > 0
       ? h('ul', { style: S.list }, rules.rules.map((rule, i) => {
         const use = uses.get(rule.id)
-        return h('li', { key: rule.id, style: i === 0 ? { ...S.row, ...S.rowFirst } : S.row, 'data-lightcode-rule': rule.id },
+        return h('li', { key: rule.id, style: i === 0 ? { ...S.row, ...S.rowFirst } : S.row, 'data-tokenwise-rule': rule.id },
           h('span', { style: S.inline }, h('code', { style: S.code }, rule.id), jsx(Tag, { tone: 'neutral', children: rule.transformation })),
           use && use.originalRecalls > 0 ? h('span', { title: t('rulesRecallsHint') }, jsx(Tag, { tone: 'warning', children: t('rulesRecalls', { n: use.originalRecalls }) })) : h('span', null),
           use && use.projections > 0 ? h('span', { style: S.inline }, h('span', { style: S.meta }, t('rulesUses', { n: use.projections })), h('span', { style: S.saved }, `−${formatTokens(use.savedTokens)}`))
@@ -220,7 +220,7 @@ export function EvolveView(p: ViewProps): unknown {
       : h('p', { style: S.note }, rules.history > 0 ? t('rulesOffHistory') : t('rulesNone')),
     ...(scan?.disabled ?? []).map(item => h('p', { key: `off-${item.id}`, style: { ...S.note, color: 'var(--dsw-alias-state-warn-label, var(--dsw-alias-label-secondary))' } }, t('switchedOff', { id: item.id, recalls: item.recalls, uses: item.uses }))))
 
-  const last = run && !running && run.outcome ? h('div', { style: { display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap', fontSize: '12.5px', lineHeight: '19px' }, 'data-lightcode-last': run.outcome.result },
+  const last = run && !running && run.outcome ? h('div', { style: { display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap', fontSize: '12.5px', lineHeight: '19px' }, 'data-tokenwise-last': run.outcome.result },
     h('span', { style: { color: text.tertiary } }, t('lastTitle')),
     jsx(Tag, { tone: outcomeTone(run.outcome), children: t(`result.${run.outcome.result}` as keyof Copy) }),
     h('span', { style: { color: text.secondary, minWidth: 0 } }, outcomeText(t, run.outcome)),
@@ -229,7 +229,7 @@ export function EvolveView(p: ViewProps): unknown {
   const unavailable = 'unavailable' in learner && !running ? h('p', { style: S.note }, errorText(t, learner.unavailable)) : null
   const message = p.message ? h('p', { role: 'status', style: { ...S.message, color: p.message.tone === 'error' ? 'var(--dsw-alias-state-error-primary)' : 'var(--dsw-alias-state-success-primary)' } }, p.message.text) : null
 
-  return h('section', { style: S.section, 'data-lightcode-evolve': running ? 'running' : 'idle' },
+  return h('section', { style: S.section, 'data-tokenwise-evolve': running ? 'running' : 'idle' },
     h('div', { style: S.head }, h('div', { style: S.headLeft }, h('h4', { style: S.title }, t('evolveTitle')), chip), action),
     h('p', { style: S.intro }, t('evolveIntro')),
     tiles, confirm, message, unavailable, progress, worth, rulesCard, last)
@@ -245,7 +245,7 @@ export const POLL_RUNNING_MS = 1500
 export const POLL_IDLE_MS = 5000
 
 export function EvolveSection(props: SectionProps): unknown {
-  if (props.subject && (props.subject.kind === 'item' || props.subject.pkg?.name !== '@lightcode-ai/dsh')) return null
+  if (props.subject && (props.subject.kind === 'item' || props.subject.pkg?.name !== '@tokenwise/dsh')) return null
   return jsx(EvolveLive, { t: props.t })
 }
 

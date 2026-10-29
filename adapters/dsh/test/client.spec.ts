@@ -59,38 +59,38 @@ function mount() {
     },
   }
   ;(exports.apply as (ctx: unknown) => void)(ctx)
-  return { exports, effects, registrations, dictionaries, ctx, watched: () => watched, serve: () => served!(new Set(['lightcode'])) }
+  return { exports, effects, registrations, dictionaries, ctx, watched: () => watched, serve: () => served!(new Set(['tokenwise'])) }
 }
 
 describe('DSH browser half', () => {
   it('registers under the package name and asks only for shared modules', () => {
     const { id, exports, requested } = load()
-    expect(id).toBe('@lightcode-ai/dsh')
+    expect(id).toBe('@tokenwise/dsh')
     expect(exports.inject).toEqual(['slots', 'locale', 'configForms'])
     expect(typeof exports.apply).toBe('function')
     expect([...new Set(requested)].sort()).toEqual(['@deepseek-ai/dsh-client-ui-primitives', 'react', 'react/jsx-runtime'])
   })
-  it('puts the mode form on the bundle page while the Host serves the lightcode entry', () => {
+  it('puts the mode form on the bundle page while the Host serves the tokenwise entry', () => {
     const mounted = mount()
-    expect(mounted.watched()).toEqual(['lightcode'])
-    expect(FakeFormModel.last!.scope).toEqual({ ns: 'lightcode' })
+    expect(mounted.watched()).toEqual(['tokenwise'])
+    expect(FakeFormModel.last!.scope).toEqual({ ns: 'tokenwise' })
     expect(mounted.registrations).toHaveLength(0)
     mounted.serve()
     expect(mounted.registrations.map(item => item.options)).toEqual([
-      expect.objectContaining({ name: 'plugins.bundle.config', key: '@lightcode-ai/dsh', locale: 'lightcode.settings' }),
-      { name: 'plugins.detail.section', id: 'lightcode.evolve', order: 10, locale: 'lightcode.settings' },
-      { name: 'shell.overlay', id: 'lightcode.evolve-toast', order: 50, locale: 'lightcode.settings' },
+      expect.objectContaining({ name: 'plugins.bundle.config', key: '@tokenwise/dsh', locale: 'tokenwise.settings' }),
+      { name: 'plugins.detail.section', id: 'tokenwise.evolve', order: 10, locale: 'tokenwise.settings' },
+      { name: 'shell.overlay', id: 'tokenwise.evolve-toast', order: 50, locale: 'tokenwise.settings' },
     ])
-    expect(Object.keys(mounted.dictionaries['lightcode.settings']!).sort()).toEqual(['en', 'zh'])
-    expect(Object.keys(mounted.dictionaries['lightcode.settings']!.zh!).sort()).toEqual(Object.keys(mounted.dictionaries['lightcode.settings']!.en!).sort())
+    expect(Object.keys(mounted.dictionaries['tokenwise.settings']!).sort()).toEqual(['en', 'zh'])
+    expect(Object.keys(mounted.dictionaries['tokenwise.settings']!.zh!).sort()).toEqual(Object.keys(mounted.dictionaries['tokenwise.settings']!.en!).sort())
   })
   it('renders a three-way mode control that stages edits, and a reset once overridden', () => {
     const mounted = mount()
     mounted.serve()
     const { options, component } = mounted.registrations[0]!
     const face = (options.inject as () => Record<string, unknown>)()
-    const store = (face.hooks as { lightcodeConfig: { getSnapshot: () => unknown } }).lightcodeConfig
-    const props = { ...face, t: (key: string) => key, view: 'page', useLightcodeConfig: (select: (state: unknown) => unknown) => select(store.getSnapshot()) }
+    const store = (face.hooks as { tokenwiseConfig: { getSnapshot: () => unknown } }).tokenwiseConfig
+    const props = { ...face, t: (key: string) => key, view: 'page', useTokenwiseConfig: (select: (state: unknown) => unknown) => select(store.getSnapshot()) }
     const find = (node: unknown, type: unknown): Element[] => {
       if (node === null || typeof node !== 'object') return []
       if (Array.isArray(node)) return node.flatMap(child => find(child, type))

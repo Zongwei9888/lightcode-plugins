@@ -1,13 +1,13 @@
 {
-  "name": "lightcode",
+  "name": "tokenwise",
   "owner": {
     "name": "Zongwei9888"
   },
   "plugins": [
     {
-      "name": "lightcode",
+      "name": "tokenwise",
       "source": "./adapters/claude-code",
-      "description": "LightCode Economy for Claude Code",
+      "description": "TokenWise Economy for Claude Code",
       "version": "0.3.0"
     }
   ]

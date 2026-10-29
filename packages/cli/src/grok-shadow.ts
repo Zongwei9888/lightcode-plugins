@@ -11,22 +11,22 @@
  * - the next PostToolUse (any tool) delivers it as `additionalContext`, which
  *   Grok stores in the history; if the turn ends with no tool call, Stop does
  *   (at the cost of one more model round);
- * - the recall tool comes from the plugin's MCP server (`lc mcp`), which
+ * - the recall tool comes from the plugin's MCP server (`tokenwise mcp`), which
  *   Grok shows the model through `search_tool` / `use_tool`.
  */
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { callLabel } from '@lightcode-ai/mechanisms'
-import type { ShadowMessage } from '@lightcode-ai/mechanisms'
+import { callLabel } from '@tokenwise/mechanisms'
+import type { ShadowMessage } from '@tokenwise/mechanisms'
 import { catalogText, keepPending, shadowApplies, takePending } from './shadow.ts'
 
 /** The MCP tool as Grok names it: `<server key>__<tool>`. */
-export const GROK_RECALL_TOOL = 'lightcode__lightcode_recall'
+export const GROK_RECALL_TOOL = 'tokenwise__tokenwise_recall'
 /** Grok clips additionalContext at 10,000 characters. */
 const CONTEXT_CHARS = 9_000
 const MAX_UPDATES_BYTES = 512 * 1024 * 1024
 
-export const GROK_CATALOG_LEAD = 'LightCode kept the tool results that context compaction removed from this conversation. '
+export const GROK_CATALOG_LEAD = 'TokenWise kept the tool results that context compaction removed from this conversation. '
   + `Read any of them again, exactly as first seen, with the MCP tool ${GROK_RECALL_TOOL} (call use_tool with tool_name "${GROK_RECALL_TOOL}" `
   + 'and arguments {"observation_id": "o-…", "query": "an exact string"}) instead of re-running the command or re-reading the file.'
 

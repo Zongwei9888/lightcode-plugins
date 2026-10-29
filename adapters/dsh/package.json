@@ -1,21 +1,21 @@
 {
-  "name": "@lightcode-ai/dsh",
+  "name": "@tokenwise/dsh",
   "version": "0.3.0",
-  "description": "LightCode for DeepSeek Harness: shrinks recognized bash output (tests, builds, diffs, searches) and its own grep/glob results before the model reads them, keeping the original.",
+  "description": "TokenWise for DeepSeek Harness: shrinks recognized bash output (tests, builds, diffs, searches) and its own grep/glob results before the model reads them, keeping the original.",
   "license": "MIT",
   "type": "module",
   "keywords": [
     "dsh",
     "dsh-plugin",
     "deepseek-harness",
-    "lightcode",
+    "tokenwise",
     "context",
     "tokens"
   ],
-  "homepage": "https://github.com/Zongwei9888/lightcode-plugins/tree/main/adapters/dsh#readme",
+  "homepage": "https://github.com/Zongwei9888/tokenwise/tree/main/adapters/dsh#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Zongwei9888/lightcode-plugins.git",
+    "url": "git+https://github.com/Zongwei9888/tokenwise.git",
     "directory": "adapters/dsh"
   },
   "engines": {
@@ -71,9 +71,9 @@
   },
   "devDependencies": {
     "@deepseek-ai/schemastery": "3.18.4",
-    "@lightcode-ai/core": "workspace:*",
-    "@lightcode-ai/mechanisms": "workspace:*",
-    "@lightcode-ai/protocol": "workspace:*",
-    "@lightcode-ai/store": "workspace:*"
+    "@tokenwise/core": "workspace:*",
+    "@tokenwise/mechanisms": "workspace:*",
+    "@tokenwise/protocol": "workspace:*",
+    "@tokenwise/store": "workspace:*"
   }
 }

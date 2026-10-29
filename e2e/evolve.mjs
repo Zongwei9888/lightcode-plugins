@@ -1,6 +1,6 @@
 /**
  * Self-evolution, end to end: the plugins installed in DeepSeek Harness and pi
- * record evidence, `lc evolve` (from the @lightcode-ai/cli package on the
+ * record evidence, `tokenwise evolve` (from the @tokenwise/cli package on the
  * registry) runs a scripted learner that writes a rule, verifies and adopts it,
  * and the next session on each host reads the learned projection.
  */
@@ -31,9 +31,9 @@ cat > rules-work/index.json <<'JSON'
 { "schemaVersion": 1, "rules": [{ "id": "build-progress", "file": "rules/build-progress.js", "transformation": "noise-removal" }] }
 JSON
 cat > rules-work/rules/build-progress.js <<'JS'
-defineRule({ project(input, lc) {
+defineRule({ project(input, tw) {
   if (!input.argv || input.argv[0] !== './build.sh') return null
-  return lc.keepLines(input.raw, line => !/^\\[\\s*\\d+\\/\\d+\\] Compiling /.test(line.text), n => '[' + n + ' progress lines omitted]\\n')
+  return tw.keepLines(input.raw, line => !/^\\[\\s*\\d+\\/\\d+\\] Compiling /.test(line.text), n => '[' + n + ' progress lines omitted]\\n')
 } })
 JS
 ./check
@@ -46,13 +46,13 @@ const lastResult = requests => toolResults(requests.at(-1)).at(-1)?.text
 
 export async function runEvolve({ cache, root, registry, log }) {
   const base = join(root, 'evolve')
-  const lightcodeHome = join(base, 'lightcode')
+  const tokenwiseHome = join(base, 'tokenwise')
   mkdirSync(base, { recursive: true })
   // The CLI, installed from the registry the way a user would.
   const cliPrefix = join(base, 'cli')
-  run('npm', ['install', '--global', '--prefix', cliPrefix, '--no-fund', '--no-audit', '@lightcode-ai/cli'], { cwd: base,
+  run('npm', ['install', '--global', '--prefix', cliPrefix, '--no-fund', '--no-audit', '@tokenwise/cli'], { cwd: base,
     env: childEnv({ ...registry.env, npm_config_cache: join(cache, 'npm-cache') }) })
-  const lc = join(cliPrefix, 'bin', 'lc')
+  const tokenwise = join(cliPrefix, 'bin', 'tokenwise')
   const mock = await startMockLlm({ commands: ['./build.sh'], toolArguments: command => ({ description: 'Build', command }) })
   const pnpmBin = ensureTool(cache, 'pnpm', VERSIONS.pnpm)
   try {
@@ -61,10 +61,10 @@ export async function runEvolve({ cache, root, registry, log }) {
     const dshHome = join(base, 'dsh-home'), agentDir = join(base, 'pi-agent'), work = join(base, 'work')
     mkdirSync(dshHome, { recursive: true }); mkdirSync(agentDir, { recursive: true })
     fixture(work)
-    const env = childEnv({ ...registry.env, DSH_HOME: dshHome, PI_CODING_AGENT_DIR: agentDir, LIGHTCODE_HOME: lightcodeHome, MOCK_LLM_API_KEY: 'e2e',
+    const env = childEnv({ ...registry.env, DSH_HOME: dshHome, PI_CODING_AGENT_DIR: agentDir, TOKENWISE_HOME: tokenwiseHome, MOCK_LLM_API_KEY: 'e2e',
       PI_SKIP_VERSION_CHECK: '1', PI_TELEMETRY: '0', PATH: `${pnpmBin}:${dshBin}:${process.env.PATH}`,
       npm_config_cache: join(cache, 'npm-cache'), npm_config_store_dir: join(cache, 'pnpm-store') })
-    run(join(dshBin, 'dsh'), ['plugin', '--profile', 'headless', 'add', '@lightcode-ai/dsh'], { cwd: base, env })
+    run(join(dshBin, 'dsh'), ['plugin', '--profile', 'headless', 'add', '@tokenwise/dsh'], { cwd: base, env })
     writeFileSync(join(dshHome, 'profiles', 'headless', 'cordis.patch.yml'), `- id: llm-pi-ai
   config:
     providers:
@@ -79,7 +79,7 @@ export async function runEvolve({ cache, root, registry, log }) {
     provider: mock
     model: mock-model
 `)
-    run(join(piBin, 'pi'), ['install', 'npm:@lightcode-ai/pi'], { cwd: base, env })
+    run(join(piBin, 'pi'), ['install', 'npm:@tokenwise/pi'], { cwd: base, env })
     writeFileSync(join(agentDir, 'models.json'), JSON.stringify({ providers: { mock: { baseUrl: mock.url, api: 'openai-completions', apiKey: 'e2e',
       models: [{ id: 'mock-model', contextWindow: 128000, maxTokens: 4096 }] } } }, null, 2))
     const dsh = async () => {
@@ -99,24 +99,24 @@ export async function runEvolve({ cache, root, registry, log }) {
     // 1. Before learning: both hosts deliver the build output in full, and keep it as evidence.
     assert.match(await dsh(), /\[120\/120\] Compiling module_119/)
     assert.match(await pi(), /\[120\/120\] Compiling module_119/)
-    const evidence = journal(lightcodeHome, 'dsh').concat(journal(lightcodeHome, 'pi')).filter(record => record.type === 'economy/decision')
+    const evidence = journal(tokenwiseHome, 'dsh').concat(journal(tokenwiseHome, 'pi')).filter(record => record.type === 'economy/decision')
     assert.deepEqual(evidence.map(record => [record.outcome, record.raw.stored, record.layout !== undefined]), [['passed', true, true], ['passed', true, true]])
 
-    // 2. lc evolve: the scripted learner writes a rule; verification accepts it.
-    const evolved = run(lc, ['evolve', '--learner', learner(base), '--json'], { cwd: base, env })
+    // 2. tokenwise evolve: the scripted learner writes a rule; verification accepts it.
+    const evolved = run(tokenwise, ['evolve', '--learner', learner(base), '--json'], { cwd: base, env })
     const report = JSON.parse(evolved.stdout)
     assert.equal(report.accepted, true, evolved.stdout + evolved.stderr)
     // The same command and output on both hosts is one observation (seen twice).
     assert.equal(report.cases, 1)
-    assert.match(run(lc, ['rules'], { cwd: base, env }).stdout, new RegExp(`active: ${report.adopted.slice(0, 12)}`))
-    log(`evolve: lc evolve adopted ${report.adopted.slice(0, 12)} (+${report.gainTokens} tokens on ${report.cases} observations) ✓`)
+    assert.match(run(tokenwise, ['rules'], { cwd: base, env }).stdout, new RegExp(`active: ${report.adopted.slice(0, 12)}`))
+    log(`evolve: tokenwise evolve adopted ${report.adopted.slice(0, 12)} (+${report.gainTokens} tokens on ${report.cases} observations) ✓`)
 
     // 3. New sessions on both hosts read the learned projection.
     const learnedDsh = await dsh(), learnedPi = await pi()
     assertLearned(learnedDsh, LEARNED)
     assertLearned(learnedPi, LEARNED)
     for (const host of ['dsh', 'pi']) {
-      const last = journal(lightcodeHome, host).filter(record => record.type === 'economy/decision').at(-1)
+      const last = journal(tokenwiseHome, host).filter(record => record.type === 'economy/decision').at(-1)
       assert.equal(last.filter, 'learned-rule')
       assert.equal(last.rule, 'build-progress')
       assert.equal(last.learnedRulesHash, report.adopted)
@@ -124,9 +124,9 @@ export async function runEvolve({ cache, root, registry, log }) {
     log(`evolve: DSH ${dshVersion} and pi ${piVersion} apply the learned rule in new sessions ✓`)
 
     // 4. Rollback: the next sessions read the full output again.
-    run(lc, ['rules', 'rollback'], { cwd: base, env })
+    run(tokenwise, ['rules', 'rollback'], { cwd: base, env })
     assert.match(await dsh(), /\[120\/120\] Compiling module_119/)
-    log('evolve: lc rules rollback ✓')
+    log('evolve: tokenwise rules rollback ✓')
   } finally {
     await mock.close()
   }

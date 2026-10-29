@@ -5,7 +5,7 @@
  * and adds their `additionalContext` as a developer message before the next
  * model request. The rollout file is complete by then, so the hook reads the
  * span Codex just compacted, saves its tool outputs and returns the catalog.
- * The recall tool comes from the plugin's MCP server (`lc mcp`); annotated
+ * The recall tool comes from the plugin's MCP server (`tokenwise mcp`); annotated
  * read-only, Codex runs it without asking.
  *
  * Caveats (Codex 0.165): subagent threads get no SessionStart(compact), so no
@@ -13,12 +13,12 @@
  * lists every reference the session has.
  */
 import { readFileSync, statSync } from 'node:fs'
-import { callLabel } from '@lightcode-ai/mechanisms'
-import type { ShadowMessage } from '@lightcode-ai/mechanisms'
+import { callLabel } from '@tokenwise/mechanisms'
+import type { ShadowMessage } from '@tokenwise/mechanisms'
 import { catalogContext, shadowApplies } from './shadow.ts'
 
 /** The recall tool as the model sees it: `mcp__<server>__<tool>`. */
-export const CODEX_RECALL_TOOL = 'mcp__lightcode__lightcode_recall'
+export const CODEX_RECALL_TOOL = 'mcp__tokenwise__tokenwise_recall'
 /**
  * Codex spills additionalContext over the handler's `additionalContextLimit`
  * (set to 6,000 tokens in hooks.json) to a file; the catalog stays well under.
@@ -27,7 +27,7 @@ const CONTEXT_CHARS = 20_000
 const MAX_ROLLOUT_BYTES = 512 * 1024 * 1024
 
 /** Under code mode every tool is reached through the JavaScript `exec` tool, and MCP tools are not listed up front. */
-export const CODEX_CATALOG_LEAD = 'LightCode kept the tool results that context compaction removed from this conversation. '
+export const CODEX_CATALOG_LEAD = 'TokenWise kept the tool results that context compaction removed from this conversation. '
   + `Read any of them again, exactly as first seen, with the ${CODEX_RECALL_TOOL} tool and its observation_id, instead of re-running the command `
   + `(inside exec: \`text(await tools.${CODEX_RECALL_TOOL}({observation_id: "o-…", query: "an exact string"}))\`).`
 

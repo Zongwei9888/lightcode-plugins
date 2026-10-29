@@ -8,13 +8,13 @@ import { randomBytes } from 'node:crypto'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { cancelEvolution, LEARNER_INSTRUCTION, nodeBinary, onPath, readEvolveStatus, refreshScan, startEvolution, takeAnnouncement, takeReadyNotice } from '@lightcode-ai/mechanisms'
-import type { BackgroundOptions, EvolveRunStatus, EvolveStatus } from '@lightcode-ai/mechanisms'
-import { RuleStore, ensurePrivateDir, loadConfig } from '@lightcode-ai/store'
+import { cancelEvolution, LEARNER_INSTRUCTION, nodeBinary, onPath, readEvolveStatus, refreshScan, startEvolution, takeAnnouncement, takeReadyNotice } from '@tokenwise/mechanisms'
+import type { BackgroundOptions, EvolveRunStatus, EvolveStatus } from '@tokenwise/mechanisms'
+import { RuleStore, ensurePrivateDir, loadConfig } from '@tokenwise/store'
 
 export type Learner = { readonly argv: readonly string[]; readonly shell?: boolean; readonly label: string } | { readonly unavailable: string }
 
-/** What `GET /api/lightcode/status` returns. */
+/** What `GET /api/tokenwise/status` returns. */
 export interface LearningPayload {
   readonly evolve: EvolveStatus
   readonly learner: { readonly label: string } | { readonly unavailable: string }
@@ -49,11 +49,11 @@ export function providerEntries(patch: string): string {
 }
 
 export const ROUTES = {
-  status: '/api/lightcode/status',
-  learn: '/api/lightcode/learn',
-  cancel: '/api/lightcode/cancel',
-  rules: '/api/lightcode/rules',
-  announcement: '/api/lightcode/announcement',
+  status: '/api/tokenwise/status',
+  learn: '/api/tokenwise/learn',
+  cancel: '/api/tokenwise/cancel',
+  rules: '/api/tokenwise/rules',
+  announcement: '/api/tokenwise/announcement',
 } as const
 
 const HOST = 'dsh'
@@ -83,7 +83,7 @@ export function createDshLearning(options: DshLearningOptions) {
     const electron = process.versions.electron !== undefined
     const node = electron ? process.execPath : nodeBinary(env)
     if (!node) return { unavailable: 'no-node' }
-    const childEnv: NodeJS.ProcessEnv = { ...env, LIGHTCODE_HOME: configDir, ...electron ? { ELECTRON_RUN_AS_NODE: '1' } : {} }
+    const childEnv: NodeJS.ProcessEnv = { ...env, TOKENWISE_HOME: configDir, ...electron ? { ELECTRON_RUN_AS_NODE: '1' } : {} }
     return { runner, node, env: childEnv, cwd: configDir, ...options.runnerNodeArgs ? { nodeArgs: options.runnerNodeArgs } : {} }
   }
 

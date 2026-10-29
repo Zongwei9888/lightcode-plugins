@@ -1,5 +1,5 @@
 {
-  "description": "LightCode: replace the output of recognized Bash commands with a smaller projection (in bypassPermissions mode, run them through `lc run`); after a compaction, add the catalog of tool results LightCode kept recallable.",
+  "description": "TokenWise: replace the output of recognized Bash commands with a smaller projection (in bypassPermissions mode, run them through `tokenwise run`); after a compaction, add the catalog of tool results TokenWise kept recallable.",
   "hooks": {
     "PreToolUse": [
       {
@@ -7,17 +7,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "lc hook claude",
+            "command": "tokenwise hook claude",
             "timeout": 10
           }
         ]
       },
       {
-        "matcher": "mcp__plugin_lightcode_lightcode__lightcode_recall",
+        "matcher": "mcp__plugin_tokenwise_tokenwise__tokenwise_recall",
         "hooks": [
           {
             "type": "command",
-            "command": "lc hook claude",
+            "command": "tokenwise hook claude",
             "timeout": 10
           }
         ]
@@ -29,7 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "lc hook claude",
+            "command": "tokenwise hook claude",
             "timeout": 10
           }
         ]
@@ -40,7 +40,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "lc hook claude",
+            "command": "tokenwise hook claude",
             "timeout": 10
           }
         ]
@@ -52,7 +52,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "lc hook claude",
+            "command": "tokenwise hook claude",
             "timeout": 60
           }
         ]

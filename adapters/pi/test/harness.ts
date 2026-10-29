@@ -9,7 +9,7 @@ import { fauxAssistantMessage, fauxToolCall, registerFauxProvider } from '@earen
 
 /** pi's agent directory for one run, removed when the test ends (tests read the session file after the run). */
 function agentDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'lightcode-pi-'))
+  const dir = mkdtempSync(join(tmpdir(), 'tokenwise-pi-'))
   onTestFinished(() => rmSync(dir, { recursive: true, force: true }))
   return dir
 }

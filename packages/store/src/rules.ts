@@ -1,8 +1,8 @@
 import { chmodSync, cpSync, existsSync, lstatSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
 import { randomBytes } from 'node:crypto'
-import { compileLearnedRules, parseRuleIndex, ruleDirectoryHash, RuleDirectoryError } from '@lightcode-ai/core'
-import type { LearnedRuleSet, RuleFile } from '@lightcode-ai/core'
+import { compileLearnedRules, parseRuleIndex, ruleDirectoryHash, RuleDirectoryError } from '@tokenwise/core'
+import type { LearnedRuleSet, RuleFile } from '@tokenwise/core'
 import { ensurePrivateDir } from './paths.ts'
 
 /**
@@ -29,7 +29,7 @@ export interface RuleAdoption {
 
 export interface ActiveRules {
   readonly schemaVersion: 1
-  /** Null when learned rules are switched off (`lc rules off`). */
+  /** Null when learned rules are switched off (`tokenwise rules off`). */
   readonly active: string | null
   /** The rules in use when they were switched off; switching on restores them. */
   readonly paused?: string
@@ -203,7 +203,7 @@ function makeWritable(dir: string): void {
   }
 }
 
-/** Remove a working directory the store created (used by tests and `lc evolve` cleanup). */
+/** Remove a working directory the store created (used by tests and `tokenwise evolve` cleanup). */
 export function removeTree(path: string): void {
   if (!existsSync(path)) return
   try { makeWritable(path) } catch { /* Best effort. */ }

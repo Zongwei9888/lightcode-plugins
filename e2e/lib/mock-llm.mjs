@@ -25,7 +25,7 @@ export async function startMockLlm(script) {
     req.on('data', chunk => { body += chunk })
     req.on('end', () => {
       if (req.method === 'GET' && req.url?.endsWith('/models')) {
-        return json(res, { object: 'list', data: [{ id: 'mock-model', object: 'model', owned_by: 'lightcode-e2e' }] })
+        return json(res, { object: 'list', data: [{ id: 'mock-model', object: 'model', owned_by: 'tokenwise-e2e' }] })
       }
       if (req.method !== 'POST' || !req.url?.endsWith('/chat/completions')) { res.writeHead(404).end(); return }
       let request
@@ -63,7 +63,7 @@ function reply(request, script) {
   const own = script.respond?.(request)
   if (own !== undefined) return own
   // Auxiliary requests (titles, summaries) carry no tools: answer briefly.
-  if (!Array.isArray(request.tools) || request.tools.length === 0) return { content: 'LightCode e2e' }
+  if (!Array.isArray(request.tools) || request.tools.length === 0) return { content: 'TokenWise e2e' }
   const step = request.messages.filter(message => message.role === 'tool').length
   if (step >= script.commands.length) return { content: 'done' }
   const command = script.commands[step]

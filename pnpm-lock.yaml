@@ -32,31 +32,31 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: 3.18.4
         version: 3.18.4
-      '@lightcode-ai/core':
+      '@tokenwise/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@lightcode-ai/mechanisms':
+      '@tokenwise/mechanisms':
         specifier: workspace:*
         version: link:../../packages/mechanisms
-      '@lightcode-ai/protocol':
+      '@tokenwise/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
-      '@lightcode-ai/store':
+      '@tokenwise/store':
         specifier: workspace:*
         version: link:../../packages/store
 
   adapters/opencode:
     devDependencies:
-      '@lightcode-ai/core':
+      '@tokenwise/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@lightcode-ai/mechanisms':
+      '@tokenwise/mechanisms':
         specifier: workspace:*
         version: link:../../packages/mechanisms
-      '@lightcode-ai/protocol':
+      '@tokenwise/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
-      '@lightcode-ai/store':
+      '@tokenwise/store':
         specifier: workspace:*
         version: link:../../packages/store
 
@@ -71,31 +71,31 @@ importers:
       '@earendil-works/pi-tui':
         specifier: 1.1.0
         version: 1.1.0
-      '@lightcode-ai/core':
+      '@tokenwise/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@lightcode-ai/mechanisms':
+      '@tokenwise/mechanisms':
         specifier: workspace:*
         version: link:../../packages/mechanisms
-      '@lightcode-ai/protocol':
+      '@tokenwise/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
-      '@lightcode-ai/store':
+      '@tokenwise/store':
         specifier: workspace:*
         version: link:../../packages/store
 
   packages/cli:
     devDependencies:
-      '@lightcode-ai/core':
+      '@tokenwise/core':
         specifier: workspace:*
         version: link:../core
-      '@lightcode-ai/mechanisms':
+      '@tokenwise/mechanisms':
         specifier: workspace:*
         version: link:../mechanisms
-      '@lightcode-ai/protocol':
+      '@tokenwise/protocol':
         specifier: workspace:*
         version: link:../protocol
-      '@lightcode-ai/store':
+      '@tokenwise/store':
         specifier: workspace:*
         version: link:../store
 
@@ -103,28 +103,28 @@ importers:
 
   packages/mechanisms:
     dependencies:
-      '@lightcode-ai/core':
+      '@tokenwise/core':
         specifier: workspace:*
         version: link:../core
-      '@lightcode-ai/protocol':
+      '@tokenwise/protocol':
         specifier: workspace:*
         version: link:../protocol
-      '@lightcode-ai/store':
+      '@tokenwise/store':
         specifier: workspace:*
         version: link:../store
 
   packages/protocol:
     dependencies:
-      '@lightcode-ai/core':
+      '@tokenwise/core':
         specifier: workspace:*
         version: link:../core
 
   packages/store:
     dependencies:
-      '@lightcode-ai/core':
+      '@tokenwise/core':
         specifier: workspace:*
         version: link:../core
-      '@lightcode-ai/protocol':
+      '@tokenwise/protocol':
         specifier: workspace:*
         version: link:../protocol
 

@@ -1,5 +1,5 @@
-import { mayProject } from '@lightcode-ai/core'
-import { normalizeShellCommand } from '@lightcode-ai/mechanisms'
+import { mayProject } from '@tokenwise/core'
+import { normalizeShellCommand } from '@tokenwise/mechanisms'
 import { claudeAfterCompact, claudeAllowRecall, claudePreCompact } from './claude-shadow.ts'
 import { codexAfterCompact } from './codex-shadow.ts'
 import { grokAfterCompact, grokPendingCatalog } from './grok-shadow.ts'
@@ -7,7 +7,7 @@ import { cliContext, onPath, shellQuote } from './context.ts'
 import { projectOutput } from './project.ts'
 
 /**
- * Hook input fields LightCode reads. Codex, Claude Code and CodeBuddy send
+ * Hook input fields TokenWise reads. Codex, Claude Code and CodeBuddy send
  * these names; Grok sends them too (for Claude Code compatibility) beside its
  * own camelCase ones.
  */
@@ -29,9 +29,9 @@ type CodexHookInput = HookInput
 const MAX_INPUT = 4 * 1024 * 1024
 
 /** The wrapper prefix; a command that already starts with it is never wrapped twice. */
-export const WRAPPER = 'lc run'
+export const WRAPPER = 'tokenwise run'
 
-/** Hosts `lc hook` serves. */
+/** Hosts `tokenwise hook` serves. */
 export const HOOK_HOSTS = ['codex', 'claude', 'codebuddy', 'grok', 'hermes'] as const
 export type HookHost = typeof HOOK_HOSTS[number]
 
@@ -41,7 +41,7 @@ const text = (value: unknown) => typeof value === 'string' && value !== '' ? val
  * Which Claude-Code-compatible host sent this event, when it is not Claude
  * Code itself. Grok and CodeBuddy both run hooks written for Claude Code
  * (Grok imports `~/.claude` settings and plugins), so a Claude Code hook
- * must recognize their events and leave them to their own LightCode hook.
+ * must recognize their events and leave them to their own TokenWise hook.
  */
 export function eventHost(input: HookInput, env: NodeJS.ProcessEnv = process.env): 'grok' | 'codebuddy' | undefined {
   if (typeof input.hookEventName === 'string' || typeof env.GROK_HOOK_EVENT === 'string') return 'grok'
@@ -50,20 +50,20 @@ export function eventHost(input: HookInput, env: NodeJS.ProcessEnv = process.env
 }
 
 /**
- * The `lc run` command a recognizable shell script becomes, or undefined to
+ * The `tokenwise run` command a recognizable shell script becomes, or undefined to
  * leave it alone: empty or huge scripts, scripts already wrapped, patches, a
- * script no filter could shorten, no `lc` on PATH, or Economy off.
+ * script no filter could shorten, no `tokenwise` on PATH, or Economy off.
  */
 function wrapScript(host: HookHost, input: HookInput, env: NodeJS.ProcessEnv, options: { normalize: boolean; tool: string }): string | undefined {
   const script = input.tool_input?.command
   if (typeof script !== 'string' || script.trim() === '' || script.length > 65_536) return undefined
-  // A background command is read while it runs; `lc run` would hold its output back until it ends.
+  // A background command is read while it runs; `tokenwise run` would hold its output back until it ends.
   if (input.tool_input?.run_in_background === true) return undefined
   const trimmed = script.trimStart()
   if (trimmed.startsWith(`${WRAPPER} `) || /\bapply_?patch\b/.test(script)) return undefined
   if (!mayProject(script)) return undefined
-  // A rewrite to an unresolvable `lc` would turn every wrapped command into "command not found".
-  if (!onPath('lc', env)) return undefined
+  // A rewrite to an unresolvable `tokenwise` would turn every wrapped command into "command not found".
+  if (!onPath('tokenwise', env)) return undefined
   const cwd = typeof input.cwd === 'string' ? input.cwd : undefined
   const context = cliContext({ ...cwd === undefined ? {} : { cwd }, env })
   const { economy } = context.loaded.config
@@ -81,7 +81,7 @@ function wrapScript(host: HookHost, input: HookInput, env: NodeJS.ProcessEnv, op
 
 /**
  * Codex PreToolUse: wrap a recognizable shell script as
- * `lc run --host codex --session <id> --call <id> -c '<script>'`.
+ * `tokenwise run --host codex --session <id> --call <id> -c '<script>'`.
  * Everything else, and any error, produces no output (Codex passthrough).
  * The model's history keeps the original command; Codex re-applies its
  * exec policy and approval to the rewritten one.
@@ -113,7 +113,7 @@ export function codebuddyHook(input: HookInput, env: NodeJS.ProcessEnv = process
  * Claude Code. PostToolUse replaces a successful Bash call's output with its
  * projection; Claude Code sends failed calls to PostToolUseFailure, which
  * cannot replace output. In `bypassPermissions` mode, where no permission rule
- * is consulted, PreToolUse wraps the command in `lc run` instead, which also
+ * is consulted, PreToolUse wraps the command in `tokenwise run` instead, which also
  * filters failed calls. Elsewhere a wrapped command would no longer match the
  * user's permission rules, so commands are never rewritten there.
  */
@@ -190,7 +190,7 @@ const HERMES_STOPPED = /\[Command (?:interrupted|timed out after [^\]\n]*)\]\s*$
 const HERMES_CUT = '... [OUTPUT TRUNCATED - '
 
 /**
- * Hermes: its LightCode plugin hands `transform_terminal_output` here (the
+ * Hermes: its TokenWise plugin hands `transform_terminal_output` here (the
  * terminal tool's merged output after Hermes bounded the capture, before its
  * output limit, ANSI stripping and secret redaction). The reply is
  * `{"output": "<projection>"}`, which the plugin returns to Hermes. Output
@@ -246,7 +246,7 @@ const HANDLERS: Record<HookHost, (input: HookInput) => string | undefined> = {
   codex: input => codexAfterCompact(input) ?? codexPreToolUse(input), claude: claudeHook, codebuddy: codebuddyHook, grok: grokEntry, hermes: hermesHook,
 }
 
-/** `lc hook <host>`: never blocks a tool call, never exits non-zero. */
+/** `tokenwise hook <host>`: never blocks a tool call, never exits non-zero. */
 export async function hook(host: string | undefined): Promise<number> {
   try {
     if (host === undefined || !Object.hasOwn(HANDLERS, host)) return 0

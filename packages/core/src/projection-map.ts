@@ -70,7 +70,7 @@ export class ProjectionBuilder {
 
   keep(start: number, end: number): void {
     if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end < start || end > this.raw.length) {
-      throw new RangeError('invalid Economy source range')
+      throw new RangeError('invalid source range')
     }
     if (end === start) return
     const outputStart = this.text.length

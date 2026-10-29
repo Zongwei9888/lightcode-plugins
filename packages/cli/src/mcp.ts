@@ -1,11 +1,11 @@
 /**
- * `lc mcp`: a Model Context Protocol server on stdio with one tool,
- * `lightcode_recall`. Any agent that speaks MCP can read again the tool results
+ * `tokenwise mcp`: a Model Context Protocol server on stdio with one tool,
+ * `tokenwise_recall`. Any agent that speaks MCP can read again the tool results
  * LightShadow kept, whatever adapter (or none) recorded them. Messages are
  * newline-delimited JSON-RPC 2.0; no SDK, so the bundle stays one file.
  */
 import { createInterface } from 'node:readline'
-import { RECALL_INPUT_SCHEMA, RECALL_TOOL_DESCRIPTION, RECALL_TOOL_NAME, recallFromJournal } from '@lightcode-ai/mechanisms'
+import { RECALL_INPUT_SCHEMA, RECALL_TOOL_DESCRIPTION, RECALL_TOOL_NAME, recallFromJournal } from '@tokenwise/mechanisms'
 import { cliContext } from './context.ts'
 import { VERSION } from './doctor.ts'
 
@@ -13,7 +13,7 @@ import { VERSION } from './doctor.ts'
 const PROTOCOL_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05']
 
 const INSTRUCTIONS = `${RECALL_TOOL_NAME} reads again a tool result that context compaction removed, by the observation_id `
-  + 'listed in the LightCode observation catalog. Use it instead of re-running a command or re-reading a file whose output the catalog lists.'
+  + 'listed in the TokenWise observation catalog. Use it instead of re-running a command or re-reading a file whose output the catalog lists.'
 
 interface Request { jsonrpc?: unknown; id?: unknown; method?: unknown; params?: unknown }
 
@@ -39,7 +39,7 @@ export function handleMcp(message: Request, options: McpOptions = {}): Record<st
       return ok({
         protocolVersion: PROTOCOL_VERSIONS.includes(asked) ? asked : PROTOCOL_VERSIONS[0],
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: 'lightcode', version: VERSION },
+        serverInfo: { name: 'tokenwise', version: VERSION },
         instructions: INSTRUCTIONS,
       })
     }
@@ -53,9 +53,9 @@ export function handleMcp(message: Request, options: McpOptions = {}): Record<st
       try {
         const context = cliContext()
         const writable = context.writable()
-        const session = options.session || process.env.LIGHTCODE_SESSION || null
+        const session = options.session || process.env.TOKENWISE_SESSION || null
         const result = recallFromJournal(args, {
-          host: options.host ?? process.env.LIGHTCODE_HOST ?? 'mcp', sessionId: session,
+          host: options.host ?? process.env.TOKENWISE_HOST ?? 'mcp', sessionId: session,
           artifacts: { save: () => { throw new Error('read only') }, read: hash => context.readArtifact(hash) },
           read: sessionId => context.readJournal({ sessionId }),
           readAll: () => context.readJournal({}),

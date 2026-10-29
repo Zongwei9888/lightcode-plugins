@@ -4,7 +4,7 @@
  *
  * - add a line to the summarizer's instructions (PreCompact stdout),
  * - add context right after the compaction (SessionStart, source `compact`),
- * - ship an MCP server (`lc mcp`) whose tool the model can call.
+ * - ship an MCP server (`tokenwise mcp`) whose tool the model can call.
  *
  * So at SessionStart(compact) the hook reads the transcript, saves the tool
  * results of the span Claude Code just compacted, and returns the catalog of
@@ -22,12 +22,12 @@
  */
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
-import { callLabel, SHADOW_ASSISTED_INSTRUCTION } from '@lightcode-ai/mechanisms'
-import type { ShadowMessage } from '@lightcode-ai/mechanisms'
+import { callLabel, SHADOW_ASSISTED_INSTRUCTION } from '@tokenwise/mechanisms'
+import type { ShadowMessage } from '@tokenwise/mechanisms'
 import { catalogContext, shadowApplies } from './shadow.ts'
 
 /** The recall tool as the model sees it: `mcp__plugin_<plugin>_<server>__<tool>`. */
-export const CLAUDE_RECALL_TOOL = 'mcp__plugin_lightcode_lightcode__lightcode_recall'
+export const CLAUDE_RECALL_TOOL = 'mcp__plugin_tokenwise_tokenwise__tokenwise_recall'
 /** Claude Code moves additionalContext over 10,000 characters to a file. */
 const CONTEXT_CHARS = 9_000
 /** Tools that run a subagent: while one is unanswered, a compaction is the subagent's. */
@@ -200,9 +200,9 @@ export function claudeAfterCompact(input: CompactInput, host = 'claude', toolNam
   return catalogContext({ host, sessionId, cwd: input.cwd, messages: claudeSpan(lines), toolName, maxChars: CONTEXT_CHARS })
 }
 
-/** PreToolUse on LightCode's own recall tool: it only reads what LightCode saved, so it need not ask. */
+/** PreToolUse on TokenWise's own recall tool: it only reads what TokenWise saved, so it need not ask. */
 export function claudeAllowRecall(toolName: unknown, recallTool = CLAUDE_RECALL_TOOL): string | undefined {
   if (toolName !== recallTool) return undefined
   return JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'allow',
-    permissionDecisionReason: 'LightCode recall only reads tool output LightCode saved earlier in this session' } })
+    permissionDecisionReason: 'TokenWise recall only reads tool output TokenWise saved earlier in this session' } })
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { sha256 } from '@lightcode-ai/core'
-import type { ArtifactPort, ArtifactRef, JournalRecord, ShadowCheckpointRecord } from '@lightcode-ai/protocol'
+import { sha256 } from '@tokenwise/core'
+import type { ArtifactPort, ArtifactRef, JournalRecord, ShadowCheckpointRecord } from '@tokenwise/protocol'
 import { catalogIds, recallFromJournal, shadowCatalog, shadowCheckpoint, shadowMessagesFrom } from '../src/index.ts'
 import type { ShadowMessage, ShadowStore } from '../src/index.ts'
 
@@ -46,9 +46,9 @@ describe('shadowMessagesFrom', () => {
 describe('shadowCatalog (assisted tier)', () => {
   it('saves the span, lists every reference of the session and records an assisted checkpoint', () => {
     const store = memoryStore()
-    const first = shadowCatalog({ host: 'claude', sessionId: 's1', messages: span('alpha'), toolName: 'mcp__lightcode__lightcode_recall' }, store)
+    const first = shadowCatalog({ host: 'claude', sessionId: 's1', messages: span('alpha'), toolName: 'mcp__tokenwise__tokenwise_recall' }, store)
     expect(first).toMatchObject({ references: 1, added: 1 })
-    expect(first.text).toContain('mcp__lightcode__lightcode_recall')
+    expect(first.text).toContain('mcp__tokenwise__tokenwise_recall')
     expect(first.text).toContain('call: "cat alpha.log"')
     const second = shadowCatalog({ host: 'claude', sessionId: 's1', messages: span('beta') }, store)
     // The second compaction lists the first one's reference again.

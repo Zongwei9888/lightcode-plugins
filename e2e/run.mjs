@@ -7,9 +7,9 @@
  *
  *   pnpm build && node e2e/run.mjs [dsh] [pi] [shadow] [evolve] [pi-tui] [web] [desktop]
  *
- * Hosts are cached in $LIGHTCODE_E2E_CACHE (default: e2e/.cache); versions
- * come from LIGHTCODE_E2E_DSH / LIGHTCODE_E2E_PI (comma-separated). Nothing
- * touches ~/.dsh, ~/.pi, ~/.lightcode or global npm/pnpm state.
+ * Hosts are cached in $TOKENWISE_E2E_CACHE (default: e2e/.cache); versions
+ * come from TOKENWISE_E2E_DSH / TOKENWISE_E2E_PI (comma-separated). Nothing
+ * touches ~/.dsh, ~/.pi, ~/.tokenwise or global npm/pnpm state.
  */
 import { mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -27,14 +27,14 @@ import { runShadow } from './shadow.mjs'
 import { runWeb } from './web.mjs'
 
 const repo = fileURLToPath(new URL('..', import.meta.url))
-const cache = resolve(process.env.LIGHTCODE_E2E_CACHE ?? join(repo, 'e2e', '.cache'))
+const cache = resolve(process.env.TOKENWISE_E2E_CACHE ?? join(repo, 'e2e', '.cache'))
 const selected = process.argv.slice(2)
 const wants = host => selected.length === 0 || selected.includes(host)
 mkdirSync(cache, { recursive: true })
 for (const host of ['dsh', 'pi']) {
-  if (VERSIONS[host].length === 0) throw new Error(`no ${host} versions to test: LIGHTCODE_E2E_${host.toUpperCase()} is empty`)
+  if (VERSIONS[host].length === 0) throw new Error(`no ${host} versions to test: TOKENWISE_E2E_${host.toUpperCase()} is empty`)
 }
-const root = mkdtempSync(join(process.env.LIGHTCODE_E2E_TMP ?? tmpdir(), 'lightcode-e2e-'))
+const root = mkdtempSync(join(process.env.TOKENWISE_E2E_TMP ?? tmpdir(), 'tokenwise-e2e-'))
 const log = line => process.stdout.write(`${line}\n`)
 
 const packs = join(root, 'packs')
@@ -62,5 +62,5 @@ try {
 } finally {
   await registry.stop()
 }
-if (!failed && !process.env.LIGHTCODE_E2E_KEEP) rmSync(root, { recursive: true, force: true })
+if (!failed && !process.env.TOKENWISE_E2E_KEEP) rmSync(root, { recursive: true, force: true })
 process.exitCode = failed ? 1 : 0

@@ -6,20 +6,20 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { GROK_RECALL_TOOL, grokSpan, grokSpanFromUpdates } from '../src/grok-shadow.ts'
 
-// Each test starts real `lc` processes; under a full parallel run they take longer than the default 5 s.
+// Each test starts real `tokenwise` processes; under a full parallel run they take longer than the default 5 s.
 vi.setConfig({ testTimeout: 30_000 })
 
 const main = fileURLToPath(new URL('../src/main.ts', import.meta.url))
 const dirs: string[] = []
-const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'lightcode-grok-')); dirs.push(dir); return dir }
+const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'tokenwise-grok-')); dirs.push(dir); return dir }
 afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }) })
 
 function hook(input: object, home: string) {
-  const result = spawnSync(process.execPath, ['--conditions=source', main, 'hook', 'grok'], { input: JSON.stringify(input), encoding: 'utf8', env: { ...process.env, LIGHTCODE_HOME: home } })
+  const result = spawnSync(process.execPath, ['--conditions=source', main, 'hook', 'grok'], { input: JSON.stringify(input), encoding: 'utf8', env: { ...process.env, TOKENWISE_HOME: home } })
   return result.stdout.trim()
 }
-const lc = (args: string[], home: string) =>
-  spawnSync(process.execPath, ['--conditions=source', main, ...args], { encoding: 'utf8', env: { ...process.env, LIGHTCODE_HOME: home } }).stdout
+const tokenwise = (args: string[], home: string) =>
+  spawnSync(process.execPath, ['--conditions=source', main, ...args], { encoding: 'utf8', env: { ...process.env, TOKENWISE_HOME: home } }).stdout
 
 const rows = (tag: string) => Array.from({ length: 400 }, (_, i) => `${tag} ${i}: ${(i * 7919) % 10007}`).join('\n')
 // chat_history rows as Grok 1.0.70 writes them into compaction_requests/<id>.json.
@@ -51,7 +51,7 @@ describe('Grok compaction span', () => {
   })
 })
 
-describe('lc hook grok: LightShadow', () => {
+describe('tokenwise hook grok: LightShadow', () => {
   it('keeps the catalog after PostCompact and adds it to the next tool result, once', () => {
     const home = temp(), base = session(home)
     expect(hook({ ...base, hookEventName: 'post_compact', hook_event_name: 'PostCompact', source: 'manual' }, home)).toBe('')
@@ -63,7 +63,7 @@ describe('lc hook grok: LightShadow', () => {
     expect(delivered.updatedToolOutput).toBeUndefined()
     expect(hook(next, home)).toBe('')
     const id = /observation_id: (o-[a-f0-9]{12})/u.exec(delivered.additionalContext)![1]!
-    expect(lc(['recall', id, '--query', 'alpha 301:'], home)).toContain(`alpha 301: ${(301 * 7919) % 10007}`)
+    expect(tokenwise(['recall', id, '--query', 'alpha 301:'], home)).toContain(`alpha 301: ${(301 * 7919) % 10007}`)
   })
 
   it('delivers it at Stop when the turn used no tool, and not at a session-end Stop', () => {
@@ -79,7 +79,7 @@ describe('lc hook grok: LightShadow', () => {
     const home = temp(), base = session(home)
     expect(hook({ ...base, transcript_path: join(temp(), 'updates.jsonl'), hook_event_name: 'PostCompact' }, home)).toBe('')
     const off = spawnSync(process.execPath, ['--conditions=source', main, 'hook', 'grok'], { encoding: 'utf8',
-      input: JSON.stringify({ ...base, hook_event_name: 'PostCompact' }), env: { ...process.env, LIGHTCODE_HOME: home, LIGHTCODE_LIGHTSHADOW: 'off' } })
+      input: JSON.stringify({ ...base, hook_event_name: 'PostCompact' }), env: { ...process.env, TOKENWISE_HOME: home, TOKENWISE_COMPACTION: 'off' } })
     expect(off.stdout).toBe('')
     expect(hook({ ...base, hook_event_name: 'Stop', reason: 'end_turn' }, home)).toBe('')
   })

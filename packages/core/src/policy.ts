@@ -24,7 +24,7 @@ export interface EconomyPolicy {
 /** Undefined options mean defaults; malformed options throw instead of being partly applied. */
 export function createPolicy(filterOptions: unknown = DEFAULT_FILTER_OPTIONS, learned?: LearnedRuleSet): EconomyPolicy {
   const options = resolveFilterOptions(filterOptions)
-  if (!options) throw new Error('invalid Economy filter options')
+  if (!options) throw new Error('invalid filter options')
   const body = { schemaVersion: 1 as const, kind: 'economy-filter-policy' as const, runtimeVersion: ECONOMY_RUNTIME_VERSION, filterOptions: options,
     learnedRulesHash: learned?.hash ?? null }
   return Object.freeze({ ...body, policyHash: digest(body), ...learned ? { learned } : {} })

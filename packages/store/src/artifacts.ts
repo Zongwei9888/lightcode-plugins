@@ -1,8 +1,8 @@
 import { closeSync, existsSync, fsyncSync, openSync, readdirSync, readFileSync, renameSync, rmSync, statSync, utimesSync, writeSync } from 'node:fs'
 import { join } from 'node:path'
 import { randomBytes } from 'node:crypto'
-import { sha256 } from '@lightcode-ai/core'
-import type { ArtifactPort, ArtifactRef } from '@lightcode-ai/protocol'
+import { sha256 } from '@tokenwise/core'
+import type { ArtifactPort, ArtifactRef } from '@tokenwise/protocol'
 import { ensurePrivateDir } from './paths.ts'
 
 const HASH = /^[a-f0-9]{64}$/

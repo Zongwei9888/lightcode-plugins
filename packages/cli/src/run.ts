@@ -15,12 +15,12 @@ export interface RunOptions {
   readonly argv?: readonly string[]
 }
 
-/** Per stream; beyond it LightCode stops buffering and passes the rest through unchanged. */
+/** Per stream; beyond it TokenWise stops buffering and passes the rest through unchanged. */
 const CAPTURE_LIMIT = 32 * 1024 * 1024
 const FORWARDED = ['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGQUIT'] as const
 const SHELLS = new Set(['sh', 'bash', 'zsh', 'dash', 'ksh'])
 
-/** The command text filters see: the script itself, never LightCode's wrapper. */
+/** The command text filters see: the script itself, never TokenWise's wrapper. */
 export function commandText(options: Pick<RunOptions, 'script' | 'argv'>): string {
   if (options.script !== undefined) return options.script
   const argv = options.argv ?? []
@@ -49,7 +49,7 @@ export function run(options: RunOptions): Promise<never> {
   const program = options.script !== undefined ? shellProgram(env) : options.argv?.[0]
   const args = options.script !== undefined ? ['-c', options.script] : (options.argv ?? []).slice(1)
   if (!program) {
-    process.stderr.write('lc run: missing command (use -c <script> or -- <program> [args...])\n')
+    process.stderr.write('tokenwise run: missing command (use -c <script> or -- <program> [args...])\n')
     process.exit(2)
   }
   const child = spawn(program, args, { stdio: ['inherit', 'pipe', 'pipe'], env })
@@ -77,7 +77,7 @@ export function run(options: RunOptions): Promise<never> {
     child.on('error', error => {
       for (const [signal, handler] of handlers) process.off(signal, handler)
       const code = (error as NodeJS.ErrnoException).code
-      process.stderr.write(`lc run: ${program}: ${code === 'ENOENT' ? 'command not found' : error.message}\n`)
+      process.stderr.write(`tokenwise run: ${program}: ${code === 'ENOENT' ? 'command not found' : error.message}\n`)
       process.exit(code === 'ENOENT' ? 127 : 126)
     })
     child.on('close', (code, signal) => {

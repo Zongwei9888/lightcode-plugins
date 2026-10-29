@@ -9,22 +9,22 @@
  * - `session.append` sees every row as it is stored. The summary row
  *   (`<conversation_history_summary><summary>…</summary>…`) is rewritten so its
  *   summary becomes LightShadow's checkpoint: CodeBuddy's summary, the user's
- *   exact messages and the catalog of the tool results LightCode kept.
- * - `lightcode_recall`, registered at `session.start`, reads any of them
- *   again; `tool.check` lets it run without asking (it only reads LightCode's
+ *   exact messages and the catalog of the tool results TokenWise kept.
+ * - `tokenwise_recall`, registered at `session.start`, reads any of them
+ *   again; `tool.check` lets it run without asking (it only reads TokenWise's
  *   own store).
  *
- * A mod may not import anything, so the work is done by the `lc` command
- * (`lc shadow checkpoint`, `lc recall`). Every hook passes the event on
+ * A mod may not import anything, so the work is done by the `tokenwise` command
+ * (`tokenwise shadow checkpoint`, `tokenwise recall`). Every hook passes the event on
  * unchanged on any failure: CodeBuddy's own compaction stands.
  */
 
-const TOOL = 'lightcode_recall'
+const TOOL = 'tokenwise_recall'
 const LC_TIMEOUT_MS = 30_000
 
 // Kept equal to SHADOW_SUMMARY_INSTRUCTION, RECALL_TOOL_DESCRIPTION and RECALL_INPUT_SCHEMA in
-// @lightcode-ai/mechanisms (a test compares them).
-const INSTRUCTION = 'After this compaction every tool result in this span stays recoverable: LightCode appends a catalog of them, '
+// @tokenwise/mechanisms (a test compares them).
+const INSTRUCTION = 'After this compaction every tool result in this span stays recoverable: TokenWise appends a catalog of them, '
   + 'and the agent can read any of them again with the recall tool. So write the summary the agent needs to carry on '
   + 'without re-running anything: the findings from the tool results (facts, file paths with line numbers, values, '
   + 'errors, what passed and what failed) and the decisions made. Do not paste whole files, logs or test output; '
@@ -33,14 +33,14 @@ const INSTRUCTION = 'After this compaction every tool result in this span stays 
 const DESCRIPTION = 'Read again a tool result that context compaction removed, exactly as you first saw it. '
   + 'Its observation_id is listed in the observation catalog of the compacted summary, next to the call (command or path) that produced it. Results larger than 8 KB come back a window at a time: pass a line number (you get the lines around it) or a query: '
   + 'an exact string they contain (a symbol, path or error message); you get the lines around its first match. With neither, you get the first lines. '
-  + 'Set original to true for the complete output LightCode shortened before you first read it, when the catalog marks one.'
+  + 'Set original to true for the complete output TokenWise shortened before you first read it, when the catalog marks one.'
 const SCHEMA = {
   type: 'object',
   properties: {
     observation_id: { type: 'string', description: 'An observation_id from the observation catalog, such as o-1a2b3c4d5e6f.' },
     query: { type: 'string', description: 'An exact string the result contains; for results over 8 KB, this or line.' },
     line: { type: 'integer', minimum: 1, description: 'A 1-based line number to read around; for results over 8 KB, this or query.' },
-    original: { type: 'boolean', description: 'Read the complete output LightCode shortened before you first read it.' },
+    original: { type: 'boolean', description: 'Read the complete output TokenWise shortened before you first read it.' },
   },
   required: ['observation_id'],
   additionalProperties: false,
@@ -84,18 +84,18 @@ export function spanOf(messages) {
 }
 
 /**
- * `lc <args>` with JSON on stdin. A mod cannot tell the platform, so the ways
- * to start it are tried in turn, moving on when one cannot start (`lc` on
+ * `tokenwise <args>` with JSON on stdin. A mod cannot tell the platform, so the ways
+ * to start it are tried in turn, moving on when one cannot start (`tokenwise` on
  * PATH; a POSIX shell, whose PATH may differ; Windows' `cmd`, which runs the
- * `lc.cmd` npm installs there).
+ * `tokenwise.cmd` npm installs there).
  */
-async function lc($, args, payload) {
+async function tokenwise($, args, payload) {
   const init = { ...payload === undefined ? {} : { stdin: JSON.stringify(payload) }, timeoutMs: LC_TIMEOUT_MS }
-  const ways = [['lc', ...args], ['/bin/sh', '-c', 'exec lc "$@"', 'lc', ...args], ['cmd.exe', '/d', '/s', '/c', 'lc', ...args]]
+  const ways = [['tokenwise', ...args], ['/bin/sh', '-c', 'exec tokenwise "$@"', 'tokenwise', ...args], ['cmd.exe', '/d', '/s', '/c', 'tokenwise', ...args]]
   for (const argv of ways) {
     try {
       const done = await $.process.run(argv, init)
-      // 127: the shell started but found no lc; 9009: the same from cmd.
+      // 127: the shell started but found no tokenwise; 9009: the same from cmd.
       if (done && done.exitCode !== 127 && done.exitCode !== 9009) return done
     } catch { /* This way cannot start here; try the next. */ }
   }
@@ -156,7 +156,7 @@ export function register(on) {
       const match = text === undefined ? null : SUMMARY.exec(text) ?? BARE_SUMMARY.exec(text)
       if (match) {
         pending.delete(e.agentId ?? '')
-        const done = await lc($, ['shadow', 'checkpoint'], { host: 'codebuddy', session_id: entry.sessionId, messages: entry.span, summary: match[2].trim() })
+        const done = await tokenwise($, ['shadow', 'checkpoint'], { host: 'codebuddy', session_id: entry.sessionId, messages: entry.span, summary: match[2].trim() })
         const reply = done && done.exitCode === 0 ? JSON.parse(done.stdout || '{}') : undefined
         if (typeof reply?.text === 'string' && reply.text.trim()) {
           return next({ ...e, message: withText(e.message, `${match[1]}\n${reply.text}\n${match[3]}`) })
@@ -167,7 +167,7 @@ export function register(on) {
   })
 
   on('tool.check', async ($, e, next) => {
-    // Read-only: it reads what LightCode saved earlier in this session.
+    // Read-only: it reads what TokenWise saved earlier in this session.
     if (typeof e.tool === 'string' && (e.tool === TOOL || e.tool.endsWith(`__${TOOL}`))) return { decision: 'allow' }
     return next(e)
   })
@@ -182,8 +182,8 @@ export function register(on) {
       if (typeof e.query === 'string' && e.query) args.push('--query', e.query)
       if (e.line !== undefined && /^\s*\d+\s*$/u.test(String(e.line))) args.push('--line', String(e.line).trim())
       if (e.original === true || e.original === 'true') args.push('--original')
-      const done = await lc($, args)
-      return { result: done?.stdout || 'recall failed: LightCode (lc) is not available' }
+      const done = await tokenwise($, args)
+      return { result: done?.stdout || 'recall failed: TokenWise (tokenwise) is not available' }
     } catch (error) {
       return { result: `recall failed: ${String(error?.message ?? error)}` }
     }

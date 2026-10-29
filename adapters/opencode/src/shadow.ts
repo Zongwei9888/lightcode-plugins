@@ -9,7 +9,7 @@
  * 3. `experimental.text.complete` on the summary message: the text becomes
  *    the checkpoint (summary, the user's exact messages, the catalog), which
  *    OpenCode stores and replays as the summary.
- * 4. `lightcode_recall` reads any listed result again.
+ * 4. `tokenwise_recall` reads any listed result again.
  *
  * Every hook catches everything: OpenCode does not contain a plugin's throw,
  * and an uncaught one aborts the compaction and garbles the next turn. On
@@ -18,9 +18,9 @@
  */
 import {
   RECALL_INPUT_SCHEMA, RECALL_TOOL_DESCRIPTION, RECALL_TOOL_NAME, SHADOW_SUMMARY_INSTRUCTION, callLabel, recallFromJournal, shadowCheckpoint,
-} from '@lightcode-ai/mechanisms'
-import type { ShadowMessage, ShadowStore } from '@lightcode-ai/mechanisms'
-import type { ArtifactPort, JournalPort, JournalRecord } from '@lightcode-ai/protocol'
+} from '@tokenwise/mechanisms'
+import type { ShadowMessage, ShadowStore } from '@tokenwise/mechanisms'
+import type { ArtifactPort, JournalPort, JournalRecord } from '@tokenwise/protocol'
 
 /** The parts of OpenCode's messages and client LightShadow reads. */
 export interface OpenCodePart {

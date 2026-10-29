@@ -60,7 +60,7 @@ output is saved on your machine, and the shortened version ends with one line
 telling the model how to read it if it needs to.
 
 <div align="center">
-<img src="docs/assets/economy.svg" alt="pytest -v: 266 lines reduced to 23, with the failure kept in full" width="100%">
+<img src="docs/assets/compact-output.svg" alt="pytest -v: 266 lines reduced to 23, with the failure kept in full" width="100%">
 </div>
 
 **Every compaction keeps what it drops.** Long sessions get compacted: the
@@ -68,12 +68,12 @@ agent summarizes older history and throws it away. With TokenWise, each tool
 result in that history is saved and replaced by a reference that names the
 call that produced it. The new context carries the summary, your own messages
 word for word, and a catalog of those references. When the agent needs an
-exact line again, it reads it back with one call (`lightcode_recall`): the
+exact line again, it reads it back with one call (`tokenwise_recall`): the
 text it saw, a window around a line or a string, or the complete output
 before it was shortened.
 
 <div align="center">
-<img src="docs/assets/lightshadow.svg" alt="A long session, the checkpoint with its catalog, and a recall by line" width="100%">
+<img src="docs/assets/compaction.svg" alt="A long session, the checkpoint with its catalog, and a recall by line" width="100%">
 </div>
 
 **Every session teaches it your tools.** Built-in filters know common
@@ -98,7 +98,7 @@ switched off on its own, and any adoption can be rolled back.
   re-rendered later, so prompt caches stay valid.
 - **Fails open.** Any error, anywhere, delivers the original output, and a
   compaction TokenWise cannot improve is left to the agent.
-- **Local.** Originals are kept under `~/.lightcode` with user-only
+- **Local.** Originals are kept under `~/.tokenwise` with user-only
   permissions for 14 days. TokenWise makes no network requests of its own.
 
 ## Results on real sessions
@@ -126,23 +126,21 @@ output had saved it about 58k tokens.
 
 | Your agent | Install |
 |---|---|
-| **pi** | `pi install npm:@lightcode-ai/pi`, then `/lightcode` in a session |
-| **DeepSeek Harness** (Web, Desktop) | **Plugins** → **Add plugin** → `@lightcode-ai/dsh` → **Install** → **Enable now** |
-| **DeepSeek Harness** (terminal) | `dsh plugin --profile web add @lightcode-ai/dsh` |
-| **Claude Code** | `claude plugin marketplace add <checkout>` → `claude plugin install lightcode@lightcode` |
-| **Codex** | `codex plugin marketplace add <checkout>` → `codex plugin add lightcode@lightcode`, then trust the hooks in `/hooks` |
-| **CodeBuddy** | `codebuddy plugin marketplace add <checkout>` → `codebuddy plugin install lightcode@lightcode` |
-| **Grok Build** | `grok plugin marketplace add <checkout>` → `grok plugin install lightcode --trust` |
-| **OpenCode** | copy `adapters/opencode/dist/index.js` to `~/.config/opencode/plugins/lightcode.js` |
-| **Hermes Agent** | copy `adapters/hermes/lightcode` to `~/.hermes/plugins/`, `hermes plugins enable lightcode`, `hermes config set context.engine lightcode` |
-| **Anything else** | `npm install -g @lightcode-ai/cli`, then `lc run -c 'cargo test'` |
+| **pi** | `pi install npm:@tokenwise/pi`, then `/tokenwise` in a session |
+| **DeepSeek Harness** (Web, Desktop) | **Plugins** → **Add plugin** → `@tokenwise/dsh` → **Install** → **Enable now** |
+| **DeepSeek Harness** (terminal) | `dsh plugin --profile web add @tokenwise/dsh` |
+| **Claude Code** | `claude plugin marketplace add <checkout>` → `claude plugin install tokenwise@tokenwise` |
+| **Codex** | `codex plugin marketplace add <checkout>` → `codex plugin add tokenwise@tokenwise`, then trust the hooks in `/hooks` |
+| **CodeBuddy** | `codebuddy plugin marketplace add <checkout>` → `codebuddy plugin install tokenwise@tokenwise` |
+| **Grok Build** | `grok plugin marketplace add <checkout>` → `grok plugin install tokenwise --trust` |
+| **OpenCode** | copy `adapters/opencode/dist/index.js` to `~/.config/opencode/plugins/tokenwise.js` |
+| **Hermes Agent** | copy `adapters/hermes/tokenwise` to `~/.hermes/plugins/`, `hermes plugins enable tokenwise`, `hermes config set context.engine tokenwise` |
+| **Anything else** | `npm install -g @tokenwise/cli`, then `tokenwise run -c 'cargo test'` |
 
-Nothing to configure: it works from the next tool call. `lc report` shows
-what was saved, `lc doctor` what your agent supports.
+Nothing to configure: it works from the next tool call. `tokenwise report` shows
+what was saved, `tokenwise doctor` what your agent supports.
 
-> TokenWise grew out of a project called LightCode. The packages
-> (`@lightcode-ai/*`), the `lc` command, the plugin ids and the
-> `lightcode_recall` tool still carry that name.
+> `tw` is a short alias for the `tokenwise` command.
 
 ### From a checkout
 
@@ -150,10 +148,10 @@ Until the packages are on npm, build them here (Node.js 22 and pnpm) and
 install by path:
 
 ```sh
-git clone https://github.com/Zongwei9888/lightcode-plugins.git tokenwise
+git clone https://github.com/Zongwei9888/tokenwise.git tokenwise
 cd tokenwise && pnpm install && pnpm build
 
-npm install -g ./packages/cli                            # the lc command (Claude Code, Codex, CodeBuddy, Grok and Hermes need it)
+npm install -g ./packages/cli                            # the tokenwise command (Claude Code, Codex, CodeBuddy, Grok and Hermes need it)
 pi install "$PWD/adapters/pi"                            # pi
 dsh plugin --profile web add "$PWD/adapters/dsh"         # DeepSeek Harness (use your profile)
 ```
@@ -173,12 +171,12 @@ catalog right after it.
 | **pi** 1.1+ | in-process; pi's session keeps the original | writes the compacted context | yes |
 | **DeepSeek Harness** 0.2.x | in-process plugin (Web, Desktop, CLI) | writes the compacted context; results its pruner cuts stay recallable | yes |
 | **OpenCode** 1.19+ | in-process plugin | writes the compacted context | yes |
-| **Hermes Agent** 0.22+ | Python plugin calling `lc` | writes the compacted context (as a context engine) | yes |
-| **CodeBuddy** 2.175+ | plugin hook (`lc run`) | rewrites the stored summary | for wrapped commands |
+| **Hermes Agent** 0.22+ | Python plugin calling `tokenwise` | writes the compacted context (as a context engine) | yes |
+| **CodeBuddy** 2.175+ | plugin hook (`tokenwise run`) | rewrites the stored summary | for wrapped commands |
 | **Claude Code** 2.1+ | plugin hook | catalog after Claude's summary | yes |
-| **Codex** 0.162+ | plugin hook (`lc run`) | catalog after Codex's summary | for wrapped commands |
+| **Codex** 0.162+ | plugin hook (`tokenwise run`) | catalog after Codex's summary | for wrapped commands |
 | **Grok Build** 1.0+ | plugin hook | catalog after Grok's summary | yes |
-| **Any agent or shell** | `lc run -c '<command>'` | recall through `lc mcp` (any MCP client) | yes |
+| **Any agent or shell** | `tokenwise run -c '<command>'` | recall through `tokenwise mcp` (any MCP client) | yes |
 
 Tests run on macOS and Linux; Windows is not tested yet. Connecting another
 agent takes a thin adapter over the same core:
@@ -187,11 +185,11 @@ agent takes a thin adapter over the same core:
 <details>
 <summary>Inside pi and DeepSeek Harness: the panel, learning, rolling back</summary>
 
-**pi** — `/lightcode` opens a panel with the session's savings, the learned
+**pi** — `/tokenwise` opens a panel with the session's savings, the learned
 filters and the commands worth learning from. Press `l` to learn; `r` rolls
 an adoption back.
 
-<p align="center"><img src="docs/assets/screenshots/pi-panel-adopted.png" alt="pi /lightcode panel after a filter was adopted" width="820"></p>
+<p align="center"><img src="docs/assets/screenshots/pi-panel-adopted.png" alt="pi /tokenwise panel after a filter was adopted" width="820"></p>
 
 **DeepSeek Harness** (Web and Desktop) — the plugin's page has **Learn now**,
 live progress, the learned filters with a switch and **Roll back**, and a
@@ -207,34 +205,34 @@ a scripted model.
 ## Commands
 
 ```
-lc report [--host H] [--session S] [--json]   what was saved, per session or agent
-lc doctor [--json]                            configuration and what each agent supports
-lc run -c '<command>'                         run a command; print the compact output
-lc recall <id> [--query Q | --line N] [--original]
-                                              read back a saved result
-lc mcp                                        MCP server with the recall tool, for any agent
-lc evolve --learner pi|dsh|claude|codex|"<command>"
-                                              learn filters from your recorded output
-lc rules [list|show|off|rollback]             learned filters
-lc filters · lc show <sha256> · lc gc         built-in filters, a saved original, cleanup
+tokenwise report [--host H] [--session S] [--json]   what was saved, per session or agent
+tokenwise doctor [--json]                            configuration and what each agent supports
+tokenwise run -c '<command>'                         run a command; print the compact output
+tokenwise recall <id> [--query Q | --line N] [--original]
+                                                     read back a saved result
+tokenwise mcp                                        MCP server with the recall tool, for any agent
+tokenwise evolve --learner pi|dsh|claude|codex|"<command>"
+                                                     learn filters from your recorded output
+tokenwise rules [list|show|off|rollback]             learned filters
+tokenwise filters | show <sha256> | gc               built-in filters, a saved original, cleanup
 ```
 
 ## Configuration
 
-None is needed. To change something, `~/.lightcode/config.json`:
+None is needed. To change something, `~/.tokenwise/config.json`:
 
 ```json
 {
-  "economy": { "mode": "apply", "minimumSavedTokens": 16, "evidence": true, "learnedRules": true },
-  "lightshadow": { "mode": "apply" },
+  "output": { "mode": "apply", "minimumSavedTokens": 16, "evidence": true, "learnedRules": true },
+  "compaction": { "mode": "apply" },
   "artifacts": { "retentionDays": 14 }
 }
 ```
 
-`economy` governs compact output and learning, `lightshadow` compaction;
+`output` governs compact output and learning, `compaction` the compaction;
 each can be `apply`, `observe` (record what would change, change nothing) or
-`off`. A project's `.lightcode/config.json` can only turn things down.
-`LIGHTCODE_DISABLE=1` switches everything off.
+`off`. A project's `.tokenwise/config.json` can only turn things down.
+`TOKENWISE_DISABLE=1` switches everything off.
 
 ## Privacy
 
@@ -267,7 +265,7 @@ packages/core        filters, learned-filter sandbox, source maps — no agent d
 packages/protocol    capabilities, agent profiles, negotiation, journal schema
 packages/store       journal, saved originals, learned filters, configuration
 packages/mechanisms  compact output, compaction, learning
-packages/cli         the lc command
+packages/cli         the tokenwise command
 adapters/<agent>     one thin adapter per agent
 conformance/         the byte-for-byte corpus
 e2e/                 end-to-end suite against published agent releases

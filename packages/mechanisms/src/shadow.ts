@@ -1,6 +1,6 @@
-import { estimateTokens as defaultEstimate } from '@lightcode-ai/core'
-import type { TokenEstimator } from '@lightcode-ai/core'
-import type { ArtifactPort, EconomyRecord, ShadowCheckpointRecord, ShadowReference } from '@lightcode-ai/protocol'
+import { estimateTokens as defaultEstimate } from '@tokenwise/core'
+import type { TokenEstimator } from '@tokenwise/core'
+import type { ArtifactPort, EconomyRecord, ShadowCheckpointRecord, ShadowReference } from '@tokenwise/protocol'
 
 /**
  * LightShadow: recoverable history compaction. When the host compacts an
@@ -61,11 +61,11 @@ export const SHADOW_EXCERPT_BYTES = 320
 export const CATALOG_EXCERPTS = 40
 const CALL_LABEL_CHARS = 160
 export const SHADOW_RECALL_WINDOW_BYTES = 8192
-export const RECALL_TOOL_NAME = 'lightcode_recall'
+export const RECALL_TOOL_NAME = 'tokenwise_recall'
 
 /** Appended to the host's own compaction instruction for the residual segment. */
 export const SHADOW_SUMMARY_INSTRUCTION = [
-  'After this compaction every tool result in this span stays recoverable: LightCode appends a catalog of them,',
+  'After this compaction every tool result in this span stays recoverable: TokenWise appends a catalog of them,',
   'and the agent can read any of them again with the recall tool. So write the summary the agent needs to carry on',
   'without re-running anything: the findings from the tool results (facts, file paths with line numbers, values,',
   'errors, what passed and what failed) and the decisions made. Do not paste whole files, logs or test output;',
@@ -79,7 +79,7 @@ export const SHADOW_SUMMARY_INSTRUCTION = [
  * user's messages are kept however the host keeps them.
  */
 export const SHADOW_ASSISTED_INSTRUCTION = [
-  'After this compaction every tool result in this span stays recoverable: LightCode adds a catalog of them after your summary,',
+  'After this compaction every tool result in this span stays recoverable: TokenWise adds a catalog of them after your summary,',
   'and the agent can read any of them again with its recall tool. So write the summary the agent needs to carry on',
   'without re-running anything: the findings from the tool results (facts, file paths with line numbers, values,',
   'errors, what passed and what failed) and the decisions made. Do not paste whole files, logs or test output;',
@@ -89,10 +89,10 @@ export const SHADOW_ASSISTED_INSTRUCTION = [
 export const RECALL_TOOL_DESCRIPTION = 'Read again a tool result that context compaction removed, exactly as you first saw it. '
   + 'Its observation_id is listed in the observation catalog of the compacted summary, next to the call (command or path) that produced it. Results larger than 8 KB come back a window at a time: pass a line number (you get the lines around it) or a query: '
   + 'an exact string they contain (a symbol, path or error message); you get the lines around its first match. With neither, you get the first lines. '
-  + 'Set original to true for the complete output LightCode shortened before you first read it, when the catalog marks one.'
+  + 'Set original to true for the complete output TokenWise shortened before you first read it, when the catalog marks one.'
 
-const CATALOG_OPEN = '<lightcode-observation-catalog>'
-const CATALOG_CLOSE = '</lightcode-observation-catalog>'
+const CATALOG_OPEN = '<tokenwise-observation-catalog>'
+const CATALOG_CLOSE = '</tokenwise-observation-catalog>'
 const CATALOG_ID = /^observation_id: (o-[a-f0-9]{12})\b/gmu
 const bytes = (text: string) => Buffer.byteLength(text, 'utf8')
 
@@ -204,7 +204,7 @@ export function planShadow(segment: readonly ShadowMessage[], options: ShadowOpt
     }
     if (message.role === 'user') users.push(message.text)
     if (message.role === 'tool' && message.text !== '') {
-      // A result the host cut earlier, whose complete text LightCode kept: the reference is that text,
+      // A result the host cut earlier, whose complete text TokenWise kept: the reference is that text,
       // so a recall reads it whole (with its own line numbers), not the head and tail the model saw.
       const cutId = CUT_NOTE_ID.exec(message.text)?.[1]
       const cut = cutId ? options.knownReference?.(cutId) : undefined
@@ -409,11 +409,11 @@ export function externalizeCut(text: string, options: { artifacts: ArtifactPort;
 }
 
 /** The reference a cut note names (see `cutNote`). */
-const CUT_NOTE_ID = /LightCode kept the complete output: call \S+ with observation_id (o-[a-f0-9]{12})\b/u
+const CUT_NOTE_ID = /TokenWise kept the complete output: call \S+ with observation_id (o-[a-f0-9]{12})\b/u
 
 /** The note that replaces the host's own cut marker. */
 export function cutNote(reference: ShadowReference, removedChars: number): string {
-  return `\n\n[... ${removedChars} characters removed here to save context; LightCode kept the complete output: `
+  return `\n\n[... ${removedChars} characters removed here to save context; TokenWise kept the complete output: `
     + `call ${RECALL_TOOL_NAME} with observation_id ${reference.id} and a line number or a query (an exact string it contains) to read any part of it ...]\n\n`
 }
 
@@ -449,10 +449,10 @@ export function recallObservation(args: RecallArguments, options: {
   const reference = options.lookup(id)
   if (!reference) return { ok: false, error: `unknown observation_id ${id}; use one listed in the observation catalog` }
   const wantOriginal = args.original === true || args.original === 'true'
-  if (wantOriginal && !reference.original) return { ok: false, error: `${id} was not shortened by LightCode; recall it without original` }
+  if (wantOriginal && !reference.original) return { ok: false, error: `${id} was not shortened by TokenWise; recall it without original` }
   const hash = wantOriginal ? reference.original!.sha256 : reference.sha256
   const text = options.artifacts.read(hash)
-  if (text === undefined) return { ok: false, error: `${id} is no longer stored (LightCode keeps originals for a limited number of days)` }
+  if (text === undefined) return { ok: false, error: `${id} is no longer stored (TokenWise keeps originals for a limited number of days)` }
   const windowBytes = options.windowBytes ?? SHADOW_RECALL_WINDOW_BYTES
   const query = typeof args.query === 'string' ? args.query : ''
   let line = typeof args.line === 'number' ? args.line : typeof args.line === 'string' && /^\s*\d+\s*$/u.test(args.line) ? Number(args.line) : undefined
@@ -547,5 +547,5 @@ export function recallIndex(records: Iterable<{ type: string }>): Map<string, Sh
 
 /** The line Economy adds after an output it shortened: where the complete output is. */
 export function recallHint(id: string): string {
-  return `[LightCode shortened this output. The complete output is observation ${id}: read it with ${RECALL_TOOL_NAME} (observation_id ${id}), or run \`lc recall ${id}\`.]`
+  return `[TokenWise shortened this output. The complete output is observation ${id}: read it with ${RECALL_TOOL_NAME} (observation_id ${id}), or run \`tokenwise recall ${id}\`.]`
 }

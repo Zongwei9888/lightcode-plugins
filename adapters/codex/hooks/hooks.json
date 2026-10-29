@@ -1,5 +1,5 @@
 {
-  "description": "LightCode: wrap recognizable shell commands in `lc run` so their output is filtered before the model sees it; after a compaction, add the catalog of tool results LightCode kept recallable.",
+  "description": "TokenWise: wrap recognizable shell commands in `tokenwise run` so their output is filtered before the model sees it; after a compaction, add the catalog of tool results TokenWise kept recallable.",
   "hooks": {
     "PreToolUse": [
       {
@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "lc hook codex",
+            "command": "tokenwise hook codex",
             "timeout": 10
           }
         ]
@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "lc hook codex",
+            "command": "tokenwise hook codex",
             "timeout": 60,
             "additionalContextLimit": 6000
           }

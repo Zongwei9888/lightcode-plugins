@@ -1,33 +1,34 @@
 {
-  "name": "@lightcode-ai/cli",
+  "name": "@tokenwise/cli",
   "version": "0.3.0",
-  "description": "The lc command: run any command with LightCode filtering, the Codex hook, savings reports and diagnostics.",
+  "description": "The tokenwise command: run any command with TokenWise filtering, the Codex hook, savings reports and diagnostics.",
   "license": "MIT",
   "type": "module",
   "keywords": [
-    "lightcode",
+    "tokenwise",
     "codex",
     "context",
     "tokens",
     "cli"
   ],
-  "homepage": "https://github.com/Zongwei9888/lightcode-plugins#readme",
+  "homepage": "https://github.com/Zongwei9888/tokenwise#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Zongwei9888/lightcode-plugins.git",
+    "url": "git+https://github.com/Zongwei9888/tokenwise.git",
     "directory": "packages/cli"
   },
   "engines": {
     "node": ">=22"
   },
   "bin": {
-    "lc": "./dist/lc.js"
+    "tokenwise": "./dist/tokenwise.js",
+    "tw": "./dist/tokenwise.js"
   },
   "exports": {
     "./package.json": "./package.json"
   },
   "files": [
-    "dist/lc.js",
+    "dist/tokenwise.js",
     "README.md",
     "NOTICE.md",
     "LICENSE",
@@ -37,9 +38,9 @@
     "test": "vitest run"
   },
   "devDependencies": {
-    "@lightcode-ai/core": "workspace:*",
-    "@lightcode-ai/protocol": "workspace:*",
-    "@lightcode-ai/store": "workspace:*",
-    "@lightcode-ai/mechanisms": "workspace:*"
+    "@tokenwise/core": "workspace:*",
+    "@tokenwise/protocol": "workspace:*",
+    "@tokenwise/store": "workspace:*",
+    "@tokenwise/mechanisms": "workspace:*"
   }
 }

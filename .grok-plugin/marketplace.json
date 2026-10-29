@@ -1,16 +1,16 @@
 {
-  "name": "lightcode",
+  "name": "tokenwise",
   "owner": {
     "name": "Zongwei9888"
   },
   "plugins": [
     {
-      "name": "lightcode",
+      "name": "tokenwise",
       "source": {
         "type": "local",
         "path": "./adapters/grok"
       },
-      "description": "LightCode Economy for Grok Build",
+      "description": "TokenWise Economy for Grok Build",
       "version": "0.3.0"
     }
   ]

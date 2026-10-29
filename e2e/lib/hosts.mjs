@@ -7,10 +7,10 @@ import { existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 export const VERSIONS = {
-  dsh: (process.env.LIGHTCODE_E2E_DSH ?? '0.2.0-rc.2,0.2.1-alpha.2').split(',').filter(Boolean),
-  pi: (process.env.LIGHTCODE_E2E_PI ?? '1.1.0,1.2.0').split(',').filter(Boolean),
+  dsh: (process.env.TOKENWISE_E2E_DSH ?? '0.2.0-rc.2,0.2.1-alpha.2').split(',').filter(Boolean),
+  pi: (process.env.TOKENWISE_E2E_PI ?? '1.1.0,1.2.0').split(',').filter(Boolean),
   // DeepSeek Harness 0.2 drives the pnpm on PATH for `dsh plugin`; it needs pnpm 11 or later.
-  pnpm: process.env.LIGHTCODE_E2E_PNPM ?? '11.28.5',
+  pnpm: process.env.TOKENWISE_E2E_PNPM ?? '11.28.5',
   verdaccio: '6.10.4',
   playwright: '1.63.0',
 }

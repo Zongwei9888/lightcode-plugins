@@ -1,13 +1,13 @@
 import { appendFileSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { JournalPort, JournalRecord } from '@lightcode-ai/protocol'
+import type { JournalPort, JournalRecord } from '@tokenwise/protocol'
 import { ensurePrivateDir, pathSegment } from './paths.ts'
 
 const UNBOUND = '_unbound'
 
 /**
  * One JSONL file per host session under `<data>/journal/<host>/`. Each record
- * is one `appendFile` call, so concurrent `lc run` processes do not interleave
+ * is one `appendFile` call, so concurrent `tokenwise run` processes do not interleave
  * partial lines on local file systems.
  */
 export class FileJournal implements JournalPort {

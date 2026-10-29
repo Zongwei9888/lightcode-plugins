@@ -1,7 +1,7 @@
-# LightCode for Codex
+# TokenWise for Codex
 
 A Codex plugin with one `PreToolUse` hook. For a shell command that a
-LightCode filter may recognize (test runners, compilers, `git status/diff`,
+TokenWise filter may recognize (test runners, compilers, `git status/diff`,
 `grep`/`rg`, `find`, `ls`, build tools, …) the hook rewrites
 
 ```
@@ -11,11 +11,11 @@ cargo test
 to
 
 ```
-lc run --host codex --session <thread> --call <call> -c 'cargo test'
+tokenwise run --host codex --session <thread> --call <call> -c 'cargo test'
 ```
 
-`lc run` executes the original script with your shell, keeps the exit code
-and signals, saves the original output under `~/.lightcode`, and prints a
+`tokenwise run` executes the original script with your shell, keeps the exit code
+and signals, saves the original output under `~/.tokenwise`, and prints a
 smaller, deterministic projection when one is admitted (strictly fewer bytes
 and tokens). Every other command is left alone.
 
@@ -24,7 +24,7 @@ sessions:
 
 - The model's history keeps the original command; Codex still applies its
   exec policy, approval and sandbox to the rewritten one. Codex's own display
-  (the TUI and `codex exec --json`) shows the wrapped `lc run …` command.
+  (the TUI and `codex exec --json`) shows the wrapped `tokenwise run …` command.
 - Hooks from plugins (and `~/.codex/hooks.json`) run only after you trust
   them in `/hooks` or the startup review. Editing the hook revokes trust.
   `codex exec` skips untrusted hooks silently, so trust the hook once in the
@@ -33,18 +33,18 @@ sessions:
   head and tail of anything larger. Below that cap a projection is a direct
   saving; above it Codex's cap still applies, and the projection means more
   of the result fits inside it.
-- `lc` must be on the `PATH` of the shell Codex uses
-  (`npm install -g @lightcode-ai/cli`, then `lc doctor`).
+- `tokenwise` must be on the `PATH` of the shell Codex uses
+  (`npm install -g @tokenwise/cli`, then `tokenwise doctor`).
 - Long-running commands show their output when they finish, not while they
   run.
 - Wrapped commands run inside Codex's sandbox. With `workspace-write`,
-  `~/.lightcode` is not writable, so `lc run` keeps originals in a private
-  `$TMPDIR/lightcode-<uid>` directory instead (`lc report` reads both). To
-  keep everything in one place, add `~/.lightcode` (as an absolute path) to
+  `~/.tokenwise` is not writable, so `tokenwise run` keeps originals in a private
+  `$TMPDIR/tokenwise-<uid>` directory instead (`tokenwise report` reads both). To
+  keep everything in one place, add `~/.tokenwise` (as an absolute path) to
   `sandbox_workspace_write.writable_roots`. In `read-only` mode nothing can be
   saved, so nothing is filtered.
 
-## LightShadow (assisted)
+## Compaction (assisted)
 
 Codex writes the summary itself (for OpenAI models an opaque compaction
 item), but after every compaction it runs SessionStart hooks with source
@@ -55,9 +55,9 @@ item), but after every compaction it runs SessionStart hooks with source
   compactions (labelled by the shell commands each `exec` ran), and adds the
   catalog of every reference the session has; `additionalContextLimit` is
   raised to 6,000 tokens so Codex does not spill it to a file;
-- the plugin's MCP server (`.mcp.json`) offers `mcp__lightcode__lightcode_recall`,
+- the plugin's MCP server (`.mcp.json`) offers `mcp__tokenwise__tokenwise_recall`,
   annotated read-only, so `codex exec` runs it without asking; the catalog
-  shows the code-mode call (`await tools.mcp__lightcode__lightcode_recall({…})`).
+  shows the code-mode call (`await tools.mcp__tokenwise__tokenwise_recall({…})`).
 
 Subagent threads get no SessionStart(compact), so no catalog. After you
 install or update the plugin, trust its hooks again in `/hooks`.
@@ -67,14 +67,14 @@ install or update the plugin, trust its hooks again in `/hooks`.
 From a checkout of this repository (it doubles as a Codex marketplace):
 
 ```sh
-codex plugin marketplace add /path/to/lightcode
-codex plugin add lightcode@lightcode
+codex plugin marketplace add /path/to/tokenwise
+codex plugin add tokenwise@tokenwise
 ```
 
 Or copy `hooks/hooks.json` to `~/.codex/hooks.json` (or a project's
 `.codex/hooks.json`). Then start Codex, trust the hook in `/hooks`, and check
-savings with `lc report --host codex`.
+savings with `tokenwise report --host codex`.
 
-Disable at any time with `LIGHTCODE_DISABLE=1`, or set
-`{"economy": {"mode": "observe"}}` in `~/.lightcode/config.json` to record
+Disable at any time with `TOKENWISE_DISABLE=1`, or set
+`{"output": {"mode": "observe"}}` in `~/.tokenwise/config.json` to record
 what would change without changing anything.

@@ -1,7 +1,0 @@
-name: lightcode
-version: "0.3.0"
-description: "LightCode Economy: replaces the terminal tool's output with a smaller, deterministic projection when a LightCode filter recognizes it (test runners, compilers, git status/diff, grep, find, ls, build tools). The original is kept under ~/.lightcode. With context.engine set to lightcode, LightShadow keeps compacted tool results recallable (lightcode_recall). Needs the lc command on PATH (npm install -g @lightcode-ai/cli)."
-author: "LightCode (https://github.com/Zongwei9888/lightcode-plugins)"
-provides_hooks:
-  - pre_tool_call
-  - transform_terminal_output

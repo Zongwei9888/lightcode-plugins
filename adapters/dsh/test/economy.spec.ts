@@ -2,13 +2,13 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import type { MechanismMode } from '@lightcode-ai/protocol'
+import type { MechanismMode } from '@tokenwise/protocol'
 import { createDshEconomy } from '../src/economy.ts'
 import type { PostToolDecision, ToolExecution } from '../src/host.ts'
 import { bashResult, pytestOutput } from './render.ts'
 
 const dirs: string[] = []
-const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'lightcode-dsh-')); dirs.push(dir); return dir }
+const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'tokenwise-dsh-')); dirs.push(dir); return dir }
 afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }) })
 
 const accept: PostToolDecision = { kind: 'accept' }
@@ -62,21 +62,21 @@ describe('DSH Token Economy', () => {
     setMode('apply')
     expect(text(economy.postExecute(exec('pytest -v'), result, accept))).toContain('60 passed')
   })
-  it('lets LightCode configuration and environment lower the plugin setting, never raise it', () => {
+  it('lets TokenWise configuration and environment lower the plugin setting, never raise it', () => {
     const result = bashResult({ stdout: pytestOutput(60) })
     const configured = setup('apply')
-    writeFileSync(join(configured.dataDir, 'config.json'), JSON.stringify({ economy: { mode: 'observe' } }))
+    writeFileSync(join(configured.dataDir, 'config.json'), JSON.stringify({ output: { mode: 'observe' } }))
     expect(configured.economy.postExecute(exec('pytest -v'), result, accept)).toBe(accept)
     expect(configured.journal()).toMatchObject([{ outcome: 'previewed' }])
-    for (const env of [{ LIGHTCODE_DISABLE: '1' }, { LIGHTCODE_ECONOMY: 'off' }]) {
+    for (const env of [{ TOKENWISE_DISABLE: '1' }, { TOKENWISE_OUTPUT: 'off' }]) {
       const disabled = setup('apply', env)
       expect(disabled.economy.postExecute(exec('pytest -v'), result, accept)).toBe(accept)
       expect(disabled.journal()).toEqual([])
     }
     const project = setup('observe')
     const cwd = temp()
-    mkdirSync(join(cwd, '.lightcode'))
-    writeFileSync(join(cwd, '.lightcode', 'config.json'), JSON.stringify({ economy: { mode: 'apply' } }))
+    mkdirSync(join(cwd, '.tokenwise'))
+    writeFileSync(join(cwd, '.tokenwise', 'config.json'), JSON.stringify({ output: { mode: 'apply' } }))
     const inProject = exec('pytest -v', { agent: { session: { id: 's2', header: { cwd } } } })
     expect(project.economy.postExecute(inProject, result, accept)).toBe(accept)
   })
@@ -132,8 +132,8 @@ describe('DSH Token Economy', () => {
     expect(warnings.length).toBeGreaterThan(0)
     expect(new Set(warnings).size).toBe(warnings.length)
   })
-  it('touches nothing on disk while off, /lightcode included', () => {
-    const home = join(temp(), 'lightcode')
+  it('touches nothing on disk while off, /tokenwise included', () => {
+    const home = join(temp(), 'tokenwise')
     const economy = createDshEconomy({ mode: () => 'off', dataDir: home, env: {} })
     expect(economy.postExecute(exec('pytest -v'), bashResult({ stdout: pytestOutput(60) }), accept)).toBe(accept)
     expect(economy.report({ id: 'session-1' })).toContain('economy: off')
@@ -153,7 +153,7 @@ describe('DSH Token Economy', () => {
     const { economy, dataDir, journal } = setup('apply')
     const result = bashResult({ stdout: pytestOutput(60) })
     expect(text(economy.postExecute(exec('pytest -v'), result, accept))).toContain('60 passed')
-    writeFileSync(join(dataDir, 'config.json'), JSON.stringify({ economy: { mode: 'observe' } }))
+    writeFileSync(join(dataDir, 'config.json'), JSON.stringify({ output: { mode: 'observe' } }))
     expect(economy.postExecute(exec('pytest -v'), result, accept)).toBe(accept)
     expect(journal().map(record => record.outcome)).toEqual(['projected', 'previewed'])
     rmSync(join(dataDir, 'config.json'))
@@ -166,7 +166,7 @@ describe('DSH Token Economy', () => {
     const throwingMode = createDshEconomy({ mode: () => { throw new Error('volatile gone') }, dataDir: temp(), env: {} })
     expect(throwingMode.postExecute(exec('pytest -v'), bashResult({ stdout: pytestOutput(60) }), accept)).toBe(accept)
   })
-  it('counts what in-process subagents saved in the parent\'s /lightcode, grandchildren included', () => {
+  it('counts what in-process subagents saved in the parent\'s /tokenwise, grandchildren included', () => {
     const { economy, journal } = setup()
     const sessionOf = (id: string, header: Record<string, unknown>) => ({ agent: { session: { id, header: { cwd: '/nowhere', ...header } } } })
     const child = sessionOf('child-1', { parentSession: 'parent', origin: 'subagent', delegationDepth: 1 })
@@ -215,16 +215,16 @@ describe('DSH Token Economy', () => {
       + Array.from({ length: 12 }, (_, i) => `  module${i}.ts\n`).join('') + 'README.md')
     // Grouping a short list would not make it smaller.
     expect(globbed(['src/a/one.ts', 'src/a/two.ts', 'src/b/four.ts'])).toBeUndefined()
-    // Other tools are not LightCode's.
+    // Other tools are not TokenWise's.
     const read = { ...exec(''), name: 'read', arguments: { path: 'x' } }
     expect(economy.postExecute(read, { isError: false, value: {}, content: [{ type: 'text', text: rendered }] }, accept)).toBe(accept)
   })
-  it('reports savings and negotiation for /lightcode', () => {
+  it('reports savings and negotiation for /tokenwise', () => {
     const { economy } = setup()
     expect(economy.report({ id: 'session-1' })).toContain('has not filtered any output')
     economy.postExecute(exec('pytest -v'), bashResult({ stdout: pytestOutput(60) }), accept)
     const report = economy.report({ id: 'session-1' })
-    expect(report).toMatch(/LightCode saved ~\S+ tokens in this session \(1 of 1 outputs filtered\)/)
+    expect(report).toMatch(/TokenWise saved ~\S+ tokens in this session \(1 of 1 outputs filtered\)/)
     expect(report).toContain('pytest: 1×')
     expect(report).toContain('economy: apply')
     expect(report).toContain('command-normalization: off')

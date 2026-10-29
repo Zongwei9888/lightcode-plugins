@@ -3,8 +3,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { sha256 } from '@lightcode-ai/core'
-import { FileArtifactStore, FileJournal, RuleStore, removeTree } from '@lightcode-ai/store'
+import { sha256 } from '@tokenwise/core'
+import { FileArtifactStore, FileJournal, RuleStore, removeTree } from '@tokenwise/store'
 import { apply, testing } from '../src/index.ts'
 import type { CommandRuntime, ConnectionRuntime, HostContext } from '../src/host.ts'
 import { ROUTES, createDshLearning, dshCommand, providerEntries } from '../src/learning.ts'
@@ -12,15 +12,15 @@ import type { LearningPayload } from '../src/learning.ts'
 
 const runner = fileURLToPath(new URL('../../../packages/mechanisms/test/fixtures/runner.ts', import.meta.url))
 let home: string, work: string
-const saved = process.env.LIGHTCODE_HOME
+const saved = process.env.TOKENWISE_HOME
 beforeEach(() => {
-  home = mkdtempSync(join(tmpdir(), 'lightcode-dsh-learn-'))
-  work = mkdtempSync(join(tmpdir(), 'lightcode-dsh-learner-'))
-  process.env.LIGHTCODE_HOME = home
+  home = mkdtempSync(join(tmpdir(), 'tokenwise-dsh-learn-'))
+  work = mkdtempSync(join(tmpdir(), 'tokenwise-dsh-learner-'))
+  process.env.TOKENWISE_HOME = home
 })
 afterEach(() => {
-  if (saved === undefined) delete process.env.LIGHTCODE_HOME
-  else process.env.LIGHTCODE_HOME = saved
+  if (saved === undefined) delete process.env.TOKENWISE_HOME
+  else process.env.TOKENWISE_HOME = saved
   delete testing.learning
   removeTree(home)
   removeTree(work)
@@ -41,9 +41,9 @@ function learnerScript() {
   writeFileSync(script, `mkdir -p rules-work/rules
 echo '{ "schemaVersion": 1, "rules": [{ "id": "compile-progress", "file": "rules/compile-progress.js", "transformation": "noise-removal" }] }' > rules-work/index.json
 cat > rules-work/rules/compile-progress.js <<'JS'
-defineRule({ project(input, lc) {
+defineRule({ project(input, tw) {
   if (!input.argv || input.argv[0] !== './build.sh') return null
-  return lc.keepLines(input.raw, line => !/^\\[\\s*\\d+\\/\\d+\\] Compiling /.test(line.text), n => '[' + n + ' compile lines omitted]\\n')
+  return tw.keepLines(input.raw, line => !/^\\[\\s*\\d+\\/\\d+\\] Compiling /.test(line.text), n => '[' + n + ' compile lines omitted]\\n')
 } })
 JS
 ./check
@@ -130,14 +130,14 @@ describe('DSH self-evolution routes', () => {
     expect(await host.post(ROUTES.cancel)).toEqual({ ok: false })
   }, 60_000)
 
-  it('/lightcode learn starts a run, and the report still answers plain /lightcode', async () => {
+  it('/tokenwise learn starts a run, and the report still answers plain /tokenwise', async () => {
     evidence()
     testing.learning = { runner, runnerNodeArgs: ['--conditions=source'], learner: () => ({ argv: ['sleep 30'], shell: true, label: 'DSH · slow' }) }
     const host = mount()
     expect(host.command(' learn').text).toContain('learning output rules in the background')
     expect(host.command(' learn').text).toContain('a learning run is already in progress')
     await until(async () => ((await host.call(ROUTES.status)) as unknown as LearningPayload).evolve.run?.phase === 'learning' ? true : undefined)
-    expect(host.command('').text).toContain('LightCode has not filtered any output in this session yet')
+    expect(host.command('').text).toContain('TokenWise has not filtered any output in this session yet')
     expect(host.command(' cancel').text).toBe('Stopping the learning run.')
     const run = await until(async () => {
       const payload = await host.call(ROUTES.status) as unknown as LearningPayload

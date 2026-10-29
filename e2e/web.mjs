@@ -2,7 +2,7 @@
  * DeepSeek Harness Web UI (`dsh web`) in a real browser, through the Plugins
  * page flow in lib/plugins-page.mjs.
  *
- * `dsh web` runs with its own HOME, DSH_HOME and LIGHTCODE_HOME, and its
+ * `dsh web` runs with its own HOME, DSH_HOME and TOKENWISE_HOME, and its
  * Documents directory (which DSH otherwise asks the OS for, ignoring HOME) is
  * configured into the run directory, so the default workspace is the fixture
  * and nothing is written outside the run directory.
@@ -38,27 +38,27 @@ export async function runWeb({ cache, root, registry, log }) {
     const bin = ensureTool(cache, 'dsh', version)
     const dsh = join(bin, 'dsh')
     const base = join(root, `web-${version}`)
-    const home = join(base, 'home'), dshHome = join(base, 'dsh-home'), lightcodeHome = join(base, 'lightcode')
+    const home = join(base, 'home'), dshHome = join(base, 'dsh-home'), tokenwiseHome = join(base, 'tokenwise')
     const workspace = join(home, 'Documents', 'deepseek-harness', 'default-workspace')
     const shots = join(base, 'screenshots')
     for (const dir of [workspace, dshHome, shots]) mkdirSync(dir, { recursive: true })
     createFixture(workspace)
     const mock = await startMockLlm({ commands: COMMAND_LIST, toolArguments: command => ({ description: `Fixture: ${command}`, command }) })
-    const env = childEnv({ ...registry.env, HOME: home, DSH_HOME: dshHome, LIGHTCODE_HOME: lightcodeHome, MOCK_LLM_API_KEY: 'e2e',
+    const env = childEnv({ ...registry.env, HOME: home, DSH_HOME: dshHome, TOKENWISE_HOME: tokenwiseHome, MOCK_LLM_API_KEY: 'e2e',
       PATH: `${pnpmBin}:${bin}:${process.env.PATH}`, npm_config_cache: join(cache, 'npm-cache'), npm_config_store_dir: join(cache, 'pnpm-store') })
     run(dsh, ['plugin', '--profile', 'web', 'list'], { cwd: base, env, allowFailure: true })
     const profileDir = join(dshHome, 'profiles', 'web')
     writeFileSync(join(profileDir, 'cordis.patch.yml'), mockProfilePatch(mock.url, join(home, 'Documents')))
     const web = await startWeb({ dsh, env, cwd: base })
-    const browser = await chromium.launch({ headless: true, ...process.env.LIGHTCODE_E2E_BROWSER_PATH
-      ? { executablePath: process.env.LIGHTCODE_E2E_BROWSER_PATH } : { channel: process.env.LIGHTCODE_E2E_BROWSER_CHANNEL ?? 'chrome' } })
+    const browser = await chromium.launch({ headless: true, ...process.env.TOKENWISE_E2E_BROWSER_PATH
+      ? { executablePath: process.env.TOKENWISE_E2E_BROWSER_PATH } : { channel: process.env.TOKENWISE_E2E_BROWSER_CHANNEL ?? 'chrome' } })
     const page = await browser.newPage({ viewport: { width: 1400, height: 1000 } })
     const pageErrors = []
     page.on('pageerror', error => pageErrors.push(error.message))
     const shot = name => page.screenshot({ path: join(shots, `${name}.png`) })
     try {
       await page.goto(web.url)
-      await exercisePluginsPage({ page, label: `web ${version}`, profileDir, lightcodeHome, workspace, mock, shot, log, pageErrors })
+      await exercisePluginsPage({ page, label: `web ${version}`, profileDir, tokenwiseHome, workspace, mock, shot, log, pageErrors })
       log(`web ${version}: screenshots in ${shots}`)
     } catch (error) {
       await shot('failure').catch(() => {})

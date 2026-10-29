@@ -15,21 +15,21 @@
  *   to a head and tail is saved, and its marker names the observation to recall.
  *
  * Everything else (range selection, the transaction, retries, the session
- * log) stays DSH's. `lightcode_recall` reads a reference again.
+ * log) stays DSH's. `tokenwise_recall` reads a reference again.
  */
 import {
   RECALL_TOOL_DESCRIPTION, RECALL_TOOL_NAME, SHADOW_SUMMARY_INSTRUCTION, callLabel, checkpointRecord, cutNote, externalizeCut,
   fitCheckpoint, planShadow, recallIndex, recallObservation, referenceIndex, renderCheckpoint, renderRecall,
-} from '@lightcode-ai/mechanisms'
-import type { RecallResult, ShadowMessage, ShadowPlan } from '@lightcode-ai/mechanisms'
-import type { ArtifactPort, EconomyRecord, JournalPort, JournalRecord, MechanismMode, ShadowReference } from '@lightcode-ai/protocol'
+} from '@tokenwise/mechanisms'
+import type { RecallResult, ShadowMessage, ShadowPlan } from '@tokenwise/mechanisms'
+import type { ArtifactPort, EconomyRecord, JournalPort, JournalRecord, MechanismMode, ShadowReference } from '@tokenwise/protocol'
 import type { ContentBlock, HostSession } from './host.ts'
 
 /** DSH's pruner marker (`PRUNE_MARKER` of the pruner package, 0.2.x). */
 export const DSH_PRUNE_MARKER = '\n\n[... tool result middle pruned ...]\n\n'
 /** Room for DSH's checkpoint preamble and tags when comparing sizes. */
 const FRAMING_TOKENS = 96
-const WRAPPED = Symbol.for('lightcode.lightshadow.wrapped')
+const WRAPPED = Symbol.for('tokenwise.lightshadow.wrapped')
 
 interface HostMessage {
   readonly role: string
@@ -131,7 +131,7 @@ export function shadowMessages(messages: readonly HostMessage[]): { segment: Sha
 export interface DshShadow {
   /** Find compaction engines and pruners DSH mounted since the last call, and wrap them. */
   discover(events: unknown): void
-  /** The `lightcode_recall` tool's work, for one session. */
+  /** The `tokenwise_recall` tool's work, for one session. */
   recall(session: { id: string }, args: unknown, callId: string | null): { text: string; result: RecallResult }
   /** Engines and pruners wrapped so far. */
   readonly attached: { engines: number; pruners: number }
@@ -140,7 +140,7 @@ export interface DshShadow {
 export function createDshShadow(options: DshShadowOptions): DshShadow {
   const time = () => (options.now?.() ?? new Date()).toISOString()
   const append = (record: JournalRecord) => {
-    try { options.journal().append(record) } catch (error) { options.warn?.(`LightCode: ${String(error)}`) }
+    try { options.journal().append(record) } catch (error) { options.warn?.(`TokenWise: ${String(error)}`) }
   }
   const attached = { engines: 0, pruners: 0 }
   /** The session whose results the pruner is cutting (pruneSession runs synchronously). */
@@ -200,7 +200,7 @@ export function createDshShadow(options: DshShadowOptions): DshShadow {
         prepared = { plan, messages, spanTokens, measure }
       } catch (error) {
         if (signal?.aborted) throw error
-        options.warn?.(`LightCode LightShadow: ${String(error)}; using DSH's own compaction`)
+        options.warn?.(`TokenWise compaction: ${String(error)}; using DSH's own compaction`)
         append(checkpointRecord(base(), { kind: 'standard', plan: { references: [], contract: [], segmentTokens: 0 }, checkpointTokens: 0, reason: 'error', error }))
         return original(input, agent, signal)
       }
@@ -252,7 +252,7 @@ export function createDshShadow(options: DshShadowOptions): DshShadow {
           { kind: 'cut', plan: { references: [reference], contract: [], segmentTokens: Math.ceil(full.length / 4) }, checkpointTokens: Math.ceil(kept / 4) }))
         return next
       } catch (error) {
-        options.warn?.(`LightCode LightShadow: ${String(error)}; keeping DSH's cut`)
+        options.warn?.(`TokenWise compaction: ${String(error)}; keeping DSH's cut`)
         return pruned
       }
     }

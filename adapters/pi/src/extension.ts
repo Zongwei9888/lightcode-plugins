@@ -1,28 +1,28 @@
 /**
- * LightCode for pi. Economy: recognized bash output, and the results of pi's
+ * TokenWise for pi. Economy: recognized bash output, and the results of pi's
  * own grep and find, are replaced by a deterministic projection through pi's
  * `context_edit` boundary entries: pi's session file keeps the original
  * result, the model sees the projection from its first read on, and
- * LightCode's journal records the source map and a private copy. LightShadow
+ * TokenWise's journal records the source map and a private copy. LightShadow
  * (./shadow.ts): when pi compacts, tool results become references the model
- * can read again with `lightcode_recall`. Self-evolution (./panel.ts): the
- * `/lightcode` panel and the footer show learned rules and learning runs, and
+ * can read again with `tokenwise_recall`. Self-evolution (./panel.ts): the
+ * `/tokenwise` panel and the footer show learned rules and learning runs, and
  * start one in the background with the session's own model as the learner.
  */
 import { existsSync, statSync } from 'node:fs'
 import { basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { ExtensionAPI, ExtensionContext, ToolResultEvent, TurnEndEvent } from '@earendil-works/pi-coding-agent'
-import { sha256 } from '@lightcode-ai/core'
+import { sha256 } from '@tokenwise/core'
 import {
   cancelEvolution, collectSubagents, describeToolCall, formatTokens, isPrepared, EconomyEngine, LEARNER_INSTRUCTION, nodeBinary, normalizeShellCommand, onPath,
   outcomeSentence, readEvolveStatus, recordSubagent, RECALL_TOOL_NAME, refreshScan, startEvolution, summarizeEconomy, summarizeShadow, takeAnnouncement,
-} from '@lightcode-ai/mechanisms'
-import type { BackgroundOptions, EvolveStatus, Prepared } from '@lightcode-ai/mechanisms'
-import { HOST_PROFILES, V0_2_SPECS, negotiate } from '@lightcode-ai/protocol'
-import type { MechanismMode, Negotiation } from '@lightcode-ai/protocol'
-import { FileArtifactStore, FileJournal, RuleStore, collectDaily, dataDirs, loadConfig, readJournals, resolveDataDir, writableDataDir } from '@lightcode-ai/store'
-import type { LoadedConfig } from '@lightcode-ai/store'
+} from '@tokenwise/mechanisms'
+import type { BackgroundOptions, EvolveStatus, Prepared } from '@tokenwise/mechanisms'
+import { HOST_PROFILES, V0_2_SPECS, negotiate } from '@tokenwise/protocol'
+import type { MechanismMode, Negotiation } from '@tokenwise/protocol'
+import { FileArtifactStore, FileJournal, RuleStore, collectDaily, dataDirs, loadConfig, readJournals, resolveDataDir, writableDataDir } from '@tokenwise/store'
+import type { LoadedConfig } from '@tokenwise/store'
 import { bashShellResult } from './bash.ts'
 import { NATIVE_TOOLS, nativeResult } from './native.ts'
 import { evolveBadge, panelKey, renderPanel } from './panel.ts'
@@ -31,7 +31,7 @@ import { registerLightShadow } from './shadow.ts'
 import type { PiShadowOptions } from './shadow.ts'
 
 const HOST = 'pi'
-const STATUS_KEY = 'lightcode'
+const STATUS_KEY = 'tokenwise'
 /**
  * Subagents run as `pi` processes started from this one (the subagent example
  * extension and packages built on it), so the session that starts them hands
@@ -40,14 +40,14 @@ const STATUS_KEY = 'lightcode'
  * the same process (`/new`, `/resume`, `/fork`, `/reload`) or a `pi` started
  * from some other long-lived descendant is no subagent.
  */
-export const PARENT_SESSION_ENV = 'LIGHTCODE_PARENT_SESSION'
+export const PARENT_SESSION_ENV = 'TOKENWISE_PARENT_SESSION'
 const PARENT_VALUE = /^pi:([1-9]\d*):(.+)$/
 /** pi's own tools; anything else (a subagent tool among them) may have started subagents. */
 const BUILT_IN_TOOLS = new Set(['bash', 'read', 'edit', 'write', 'grep', 'find', 'ls'])
 const MODES = new Set<MechanismMode>(['apply', 'observe', 'off'])
 
-export interface LightCodePiOptions {
-  /** Defaults to `$LIGHTCODE_HOME` or `~/.lightcode`. */
+export interface TokenWisePiOptions {
+  /** Defaults to `$TOKENWISE_HOME` or `~/.tokenwise`. */
   readonly dataDir?: string
   readonly env?: NodeJS.ProcessEnv
   /** This process and its parent; tests stand in for separate processes. */
@@ -97,8 +97,8 @@ interface SessionState {
   subagentSavedTokens: number
 }
 
-export function createLightCodeExtension(options: LightCodePiOptions = {}) {
-  return function lightcode(pi: ExtensionAPI): void {
+export function createTokenWiseExtension(options: TokenWisePiOptions = {}) {
+  return function tokenwise(pi: ExtensionAPI): void {
     const env = options.env ?? process.env
     const configDir = options.dataDir ?? resolveDataDir(env)
     const dataDir = options.dataDir ?? writableDataDir(env) ?? configDir
@@ -107,13 +107,13 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
     const artifacts = new FileArtifactStore(dataDir)
     // Learned rules live with the configuration; a session pins the set active when it starts.
     const ruleStore = new RuleStore(configDir)
-    // Learning runs in its own process, which reads the same LightCode home.
+    // Learning runs in its own process, which reads the same TokenWise home.
     const runner = options.runner ?? fileURLToPath(new URL('./evolve.js', import.meta.url))
     const background = (): BackgroundOptions | { unavailable: string } => {
       if (!existsSync(runner)) return { unavailable: 'this installation has no learning runner' }
       const node = nodeBinary(env)
       if (!node) return { unavailable: 'needs Node.js on PATH' }
-      const childEnv: NodeJS.ProcessEnv = { ...env, LIGHTCODE_HOME: configDir }
+      const childEnv: NodeJS.ProcessEnv = { ...env, TOKENWISE_HOME: configDir }
       delete childEnv[PARENT_SESSION_ENV]
       return { runner, node, env: childEnv, ...options.runnerNodeArgs ? { nodeArgs: options.runnerNodeArgs } : {} }
     }
@@ -130,13 +130,13 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
     }
     const startLearning = (ctx: ExtensionContext): { ok: boolean; text: string } => {
       const learner = learnerFor(ctx)
-      if ('unavailable' in learner) return { ok: false, text: `LightCode cannot learn from here: ${learner.unavailable}.` }
+      if ('unavailable' in learner) return { ok: false, text: `TokenWise cannot learn from here: ${learner.unavailable}.` }
       const runnerOptions = background()
-      if ('unavailable' in runnerOptions) return { ok: false, text: `LightCode cannot learn from here: ${runnerOptions.unavailable}.` }
+      if ('unavailable' in runnerOptions) return { ok: false, text: `TokenWise cannot learn from here: ${runnerOptions.unavailable}.` }
       const started = startEvolution(configDir, { ...runnerOptions, host: HOST, learner })
       if ('error' in started) return { ok: false, text: started.error === 'running' ? 'A learning run is already in progress.' : 'The learning run did not start.' }
       watch(ctx)
-      return { ok: true, text: `Learning with ${learner.label} in the background. Keep working; LightCode tells you when it is done.` }
+      return { ok: true, text: `Learning with ${learner.label} in the background. Keep working; TokenWise tells you when it is done.` }
     }
     /** The footer and announcements follow learning runs: every second while one runs, every 15 s otherwise. */
     let watchTimer: ReturnType<typeof setTimeout> | undefined
@@ -145,7 +145,7 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
       if (!ctx.hasUI) return
       const run = takeAnnouncement(configDir, HOST)
       if (run?.outcome && run.outcome.result !== 'nothing-to-learn') {
-        ctx.ui.notify(`LightCode learning ${outcomeSentence(run.outcome)}.${run.outcome.result === 'adopted' ? ' /lightcode to review or roll back.' : ''}`,
+        ctx.ui.notify(`TokenWise learning ${outcomeSentence(run.outcome)}.${run.outcome.result === 'adopted' ? ' /tokenwise to review or roll back.' : ''}`,
           run.outcome.result === 'adopted' ? 'info' : run.outcome.result === 'failed' || run.outcome.result === 'interrupted' ? 'warning' : 'info')
       }
     }
@@ -182,11 +182,11 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
       return saved
     }
 
-    pi.registerFlag('lightcode', { type: 'string', default: '', description: 'LightCode ceiling for Economy and LightShadow: apply, observe or off' })
+    pi.registerFlag('tokenwise', { type: 'string', default: '', description: 'TokenWise ceiling for output filtering and compaction: apply, observe or off' })
 
     const start = (ctx: ExtensionContext): SessionState => {
       const loaded = loadConfig({ dataDir: configDir, cwd: ctx.cwd, env })
-      const flag = String(pi.getFlag('lightcode') ?? '').trim() as MechanismMode
+      const flag = String(pi.getFlag('tokenwise') ?? '').trim() as MechanismMode
       const lower = (own: MechanismMode) => MODES.has(flag) && rank(flag) < rank(own) ? flag : own
       const economyCeiling = lower(loaded.config.economy.mode)
       const negotiated = negotiate(V0_2_SPECS, HOST_PROFILES[HOST]!.capabilities, {
@@ -228,7 +228,7 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
       const badge = evolve ? evolveBadge(evolve, ctx.ui.theme, Date.now()) : ''
       // Nothing to show any more (a run ended, nothing saved yet): clear what was there.
       if (saved <= 0 && !badge) { ctx.ui.setStatus(STATUS_KEY, undefined); return }
-      ctx.ui.setStatus(STATUS_KEY, [saved > 0 ? `LightCode −${formatTokens(saved)} tok` : 'LightCode', badge].filter(Boolean).join(' · '))
+      ctx.ui.setStatus(STATUS_KEY, [saved > 0 ? `TokenWise −${formatTokens(saved)} tok` : 'TokenWise', badge].filter(Boolean).join(' · '))
     }
 
     pi.on('session_start', (_event, ctx) => {
@@ -313,7 +313,7 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
         session.savedTokens += prepared.record.raw!.tokens - prepared.record.projected!.tokens
       }
       if (drafts.length === 0) return
-      // A shortened output names its original for lightcode_recall: make sure the model can call it.
+      // A shortened output names its original for tokenwise_recall: make sure the model can call it.
       if (drafts.some(draft => draft.replacement.content[0]!.text.includes(RECALL_TOOL_NAME))) {
         try { const active = pi.getActiveTools(); if (!active.includes(RECALL_TOOL_NAME)) pi.setActiveTools([...active, RECALL_TOOL_NAME]) } catch { /* Status only. */ }
       }
@@ -331,8 +331,8 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
       const shadow = summarizeShadow(session.sessionId ? read(session.sessionId) : [])
       const run = evolveStatus()?.run
       const lines = [
-        `LightCode Economy: ${summary.projected} outputs filtered, ~${formatTokens(summary.savedTokens)} tokens saved, ${summary.passed} passed unchanged`,
-        ...shadow.checkpoints + shadow.standard > 0 ? [`LightShadow: ${shadow.checkpoints} compaction${shadow.checkpoints === 1 ? '' : 's'} with ${shadow.references} tool results kept recallable (~${formatTokens(shadow.referencedTokens)} tokens), ${shadow.recalls} recalled`
+        `TokenWise output: ${summary.projected} outputs filtered, ~${formatTokens(summary.savedTokens)} tokens saved, ${summary.passed} passed unchanged`,
+        ...shadow.checkpoints + shadow.standard > 0 ? [`Compaction: ${shadow.checkpoints} compaction${shadow.checkpoints === 1 ? '' : 's'} with ${shadow.references} tool results kept recallable (~${formatTokens(shadow.referencedTokens)} tokens), ${shadow.recalls} recalled`
           + `${shadow.standard ? `; ${shadow.standard} left to pi` : ''}`] : [],
         ...n > 0 && children ? [`Subagents (${n} session${n === 1 ? '' : 's'}): ${children.projected} outputs filtered, ~${formatTokens(children.savedTokens)} tokens saved, ${children.passed} passed unchanged`] : [],
         learnedRulesLine(ruleStore, session.loaded.config.economy.learnedRules),
@@ -366,7 +366,7 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
       if (action === 'off') {
         if (!active) return 'Learned rules are already off.'
         ruleStore.deactivate()
-        return 'Learned rules are off. /lightcode on switches them back on.'
+        return 'Learned rules are off. /tokenwise on switches them back on.'
       }
       if (action === 'on' && active) return `Learned rules ${active.slice(0, 12)} are already on.`
       if (action === 'rollback' && !active) return 'No learned rules are active.'
@@ -427,8 +427,8 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
       showStatus(ctx, session, evolveStatus())
     }
 
-    pi.registerCommand('lightcode', {
-      description: 'LightCode: savings, learned rules and learning (/lightcode learn, cancel, rules, rollback, off, on, status)',
+    pi.registerCommand('tokenwise', {
+      description: 'TokenWise: savings, learned rules and learning (/tokenwise learn, cancel, rules, rollback, off, on, status)',
       getArgumentCompletions: (prefix: string) => {
         const items = SUBCOMMANDS.filter(item => item.value.startsWith(prefix.trim())).map(item => ({ value: item.value, label: item.value, description: item.description }))
         return items.length ? items : null
@@ -439,9 +439,9 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
         if (sub === '' || sub === 'status') { const { text, warn } = statusText(ctx); ctx.ui.notify(text, warn ? 'warning' : 'info'); return }
         if (sub === 'learn') {
           const learner = learnerFor(ctx)
-          if ('unavailable' in learner) { ctx.ui.notify(`LightCode cannot learn from here: ${learner.unavailable}.`, 'warning'); return }
-          if (!ctx.hasUI) { ctx.ui.notify('Run /lightcode learn in an interactive session, or lc evolve in a terminal.', 'warning'); return }
-          const ok = await ctx.ui.confirm('Learn output rules?', `LightCode runs ${learner.label} in the background. It reads up to 40 recorded outputs from this machine, sends them to that model's provider, and stops after 20 minutes. Rules are adopted only if verified.`)
+          if ('unavailable' in learner) { ctx.ui.notify(`TokenWise cannot learn from here: ${learner.unavailable}.`, 'warning'); return }
+          if (!ctx.hasUI) { ctx.ui.notify('Run /tokenwise learn in an interactive session, or tokenwise evolve in a terminal.', 'warning'); return }
+          const ok = await ctx.ui.confirm('Learn output rules?', `TokenWise runs ${learner.label} in the background. It reads up to 40 recorded outputs from this machine, sends them to that model's provider, and stops after 20 minutes. Rules are adopted only if verified.`)
           if (!ok) return
           const started = startLearning(ctx)
           ctx.ui.notify(started.text, started.ok ? 'info' : 'warning')
@@ -451,11 +451,11 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
         if (sub === 'rules') {
           const view = evolveStatus()?.rules
           ctx.ui.notify(view?.active ? [`Learned rules ${view.active.slice(0, 12)}:`, ...view.rules.map(rule => `  ${rule.id} (${rule.transformation})`)].join('\n')
-            : 'No learned rules are active. /lightcode learn learns some from your recorded sessions.', 'info')
+            : 'No learned rules are active. /tokenwise learn learns some from your recorded sessions.', 'info')
           return
         }
         if (sub === 'rollback' || sub === 'off' || sub === 'on') { ctx.ui.notify(rulesAction(sub), 'info'); watch(ctx); return }
-        ctx.ui.notify(`Unknown /lightcode ${sub}. Try: ${SUBCOMMANDS.map(item => item.value).join(', ')}.`, 'warning')
+        ctx.ui.notify(`Unknown /tokenwise ${sub}. Try: ${SUBCOMMANDS.map(item => item.value).join(', ')}.`, 'warning')
       },
     })
   }
@@ -467,16 +467,16 @@ function sameText(content: readonly { type: string; text?: string }[], prepared:
     && sha256(content[0]!.text ?? '') === prepared.record.raw.sha256
 }
 
-/** The learned rules new sessions use, for `/lightcode`. */
+/** The learned rules new sessions use, for `/tokenwise`. */
 export function learnedRulesLine(store: RuleStore, enabled: boolean): string {
   const active = store.state().active
-  if (!active) return 'Learned rules: none (/lightcode learn learns them from your sessions)'
+  if (!active) return 'Learned rules: none (/tokenwise learn learns them from your sessions)'
   const set = store.load()
-  return `Learned rules: ${active.slice(0, 12)}, ${set ? `${set.rules.length} rule${set.rules.length === 1 ? '' : 's'}` : 'not loadable'}${enabled ? '' : ' (off: economy.learnedRules is false)'}`
+  return `Learned rules: ${active.slice(0, 12)}, ${set ? `${set.rules.length} rule${set.rules.length === 1 ? '' : 's'}` : 'not loadable'}${enabled ? '' : ' (off: output.learnedRules is false)'}`
 }
 
 function rank(mode: MechanismMode): number {
   return mode === 'apply' ? 2 : mode === 'observe' ? 1 : 0
 }
 
-export default createLightCodeExtension()
+export default createTokenWiseExtension()

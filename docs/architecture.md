@@ -1,20 +1,20 @@
 # Architecture
 
-LightCode is a set of mechanisms that plug into coding agents ("hosts")
+TokenWise is a set of mechanisms that plug into coding agents ("hosts")
 at well-defined seams. The host owns the agent loop, sessions, tools, models
-and sandbox; LightCode never re-implements them.
+and sandbox; TokenWise never re-implements them.
 
 ## Layers
 
 ```
-adapters      @lightcode-ai/pi · @lightcode-ai/dsh · adapters/codex
+adapters      @tokenwise/pi · @tokenwise/dsh · adapters/codex
               translate host events into port calls; install, configure, show receipts
-mechanisms    @lightcode-ai/mechanisms — Economy engine, LightShadow, evolution (evidence, replay,
+mechanisms    @tokenwise/mechanisms — compact-output engine, compaction, evolution (evidence, replay,
               verification), command normalization, receipts
-protocol      @lightcode-ai/protocol — capabilities, host profiles, negotiation, journal schema
-core          @lightcode-ai/core — filters, learned-rule sandbox, source maps, admission, normalization (pure)
-store         @lightcode-ai/store — journal, original store, adopted rules, configuration (local files)
-cli           @lightcode-ai/cli — lc run / hook / report / doctor / filters / show / gc / evolve / rules
+protocol      @tokenwise/protocol — capabilities, host profiles, negotiation, journal schema
+core          @tokenwise/core — filters, learned-rule sandbox, source maps, admission, normalization (pure)
+store         @tokenwise/store — journal, original store, adopted rules, configuration (local files)
+cli           @tokenwise/cli — tokenwise run / hook / report / doctor / filters / show / gc / evolve / rules
 ```
 
 `core` has no host dependency and no I/O. The same input produces the same
@@ -34,12 +34,12 @@ patch.
 | replace a tool result before the model sees it | `tool_result` | — | `tools/post-execute` |
 | …while the host session keeps the original | `turn_end` → `context_edit` | — | — |
 | rewrite tool arguments before execution | `tool_call` (mutate input) | `PreToolUse` `updatedInput` | — (0.2 excludes it: arguments are logged first) |
-| run shell commands through `lc run` | — | ✓ (via `PreToolUse`) | — |
+| run shell commands through `tokenwise run` | — | ✓ (via `PreToolUse`) | — |
 | supply the compaction summary | `session_before_compact` | — (shape only) | each preset's `compaction-basic` engine (`summarize`) |
 | register model-callable tools | `registerTool` | MCP server | `tools.register` |
 | read sessions and per-request usage | session JSONL `usage` | rollout `token_count` | session log |
 
-## Token Economy
+## Compact output
 
 1. **Normalize** (optional, before execution): presentation-only flags that
    make output recognizable — `-n -H` for plain `grep`/`rg`, `--no-color` for
@@ -63,7 +63,7 @@ How the projection reaches the model differs by host:
   the original), committed at `turn_end` as a `context_edit` entry that pi
   applies from the next request on. The model never reads the original.
 - **Codex** — the `PreToolUse` hook rewrites the command to
-  `lc run --host codex --session S --call C -c '<command>'`. `lc run`
+  `tokenwise run --host codex --session S --call C -c '<command>'`. `tokenwise run`
   executes it with the user's shell, keeps exit status and signals, and
   prints the projection. Codex's own output budget then applies to a smaller
   text.
@@ -73,16 +73,16 @@ How the projection reaches the model differs by host:
   projection. Its own `grep` and `glob` results qualify only as the complete
   rendering of their structured value, before DSH caps or spills a search. DSH's spill policy (a `prepend` listener) then bounds the
   smaller text; the session log and tool card show what the model read.
-- **Any agent** — `lc run` directly.
+- **Any agent** — `tokenwise run` directly.
 
 pi and Codex merge stdout and stderr into one text; on those hosts filters
 see the merged stream, and the journal records `streams: "merged"`.
-DeepSeek Harness and `lc run` keep the streams apart.
+DeepSeek Harness and `tokenwise run` keep the streams apart.
 
-## LightShadow
+## Compaction
 
 Recoverable compaction. The host decides when to compact and which span;
-LightShadow changes what the span becomes:
+TokenWise changes what the span becomes:
 
 1. **Externalize.** Each tool result in the span is saved to the artifact
    store, read back to verify, and replaced by a reference: `o-` plus 12 hex
@@ -94,7 +94,7 @@ LightShadow changes what the span becomes:
    newest 40 with their excerpts; in a real DeepSeek session on DSH that
    compacted 470k tokens, an earlier cap of 200 references had left the
    first ~360 reads saved but unnamed, so the agent could not ask for them.
-   A result Economy shortened also names its complete original.
+   A result TokenWise shortened also names its complete original.
 2. **Summarize the span** with the host's own summarizer and model (pi's
    `compact()`, DSH's `BasicCompactionEngine.summarize`), with tool results
    in full and a note to keep their findings (not their bodies) since they
@@ -106,9 +106,9 @@ LightShadow changes what the span becomes:
    checkpoint in the span contributes its user messages and references; its
    summary goes to the summarizer without them.
 4. **Fallback.** A checkpoint not smaller than the span (or any error) is
-   discarded and the host compacts as it would without LightCode.
+   discarded and the host compacts as it would without TokenWise.
 
-`lightcode_recall {observation_id, query?, original?}` returns the stored
+`tokenwise_recall {observation_id, query?, original?}` returns the stored
 text exactly when it is at most 8 KB, otherwise the lines around the first
 literal match of `query`, within 8 KB. Only references in the session's own
 checkpoints resolve (pi reads them from its compaction entries' `details`,
@@ -119,7 +119,7 @@ so forks and resumes keep them; DSH from the journal).
   declared only once a checkpoint lists something (`setActiveTools`).
 - **DeepSeek Harness** — its compaction engine is a cordis service mounted
   per agent preset (the Web app isolates it inside each preset), with no
-  hook. LightShadow finds every engine through the context of its
+  hook. TokenWise finds every engine through the context of its
   `agent/pre-step` listener (looked up when an agent is created or steps) and
   wraps `summarize` on that instance; range selection, the transaction, the
   size check and the session log stay DSH's. It also wraps the
@@ -128,23 +128,23 @@ so forks and resumes keep them; DSH from the journal).
 
 ## Self-evolution
 
-`lc evolve`, the pi panel and the DSH Plugins page perform one step
+`tokenwise evolve`, the pi panel and the DSH Plugins page perform one step
 pi_{k+1} = Verify(Propose(pi_k, E_k)) over the learned rules, which run in
 front of the fixed built-in filters. The step is `runEvolution` in
-`@lightcode-ai/mechanisms` (learning.ts); the plugins start it through their
+`@tokenwise/mechanisms` (learning.ts); the plugins start it through their
 bundled runner (`evolve.js`) as a detached process, under a lock shared by all
-hosts, and read its progress from `~/.lightcode/evolve/status.json`. The same
+hosts, and read its progress from `~/.tokenwise/evolve/status.json`. The same
 runner refreshes `scan.json` (what is worth learning, and each learned rule's
 use) and applies the in-use monitor, which switches off a rule whose original
 the agent keeps recalling.
 
-- **Evidence.** With `economy.evidence` on (default), the engine saves the
+- **Evidence.** With `output.evidence` on (default), the engine saves the
   original of every complete shell output, not only projected ones, and the
   journal records where stdout and stderr sit in it (`layout`), so an
   observation can be replayed exactly. Identical command and output count
   once, weighted by occurrences.
 - **Rule directories.** `index.json` lists `rules/<id>.js` scripts that each
-  call `defineRule({ project(input, lc) })`. They are compiled into one V8
+  call `defineRule({ project(input, tw) })`. They are compiled into one V8
   context per set with a null-prototype global, no string compilation or
   wasm, and microtasks drained within the call; only strings cross the
   boundary, and each call has 100 ms. A result needs a valid source map
@@ -152,11 +152,11 @@ the agent keeps recalling.
   smaller; otherwise the rule abstains. Learned rules see stdout only, and
   their projections go through the same stream policy and admission as the
   built-ins.
-- **Propose.** A workspace under `~/.lightcode/evolve/<run>/` holds the
+- **Propose.** A workspace under `~/.tokenwise/evolve/<run>/` holds the
   learner's instructions, the cases with the most tokens left to save (a few
   per command), `RULES.md`, a copy of the active rules (`rules-work/`), and
   `./check` / `./try`. The learner command runs there with
-  `LIGHTCODE_DISABLE=1`.
+  `TOKENWISE_DISABLE=1`.
 - **Verify.** Every observation of the run is replayed through the full
   decision with the parent and the candidate set, and the preservation
   requirements are checked. Accept iff the rules changed, every requirement
@@ -166,23 +166,23 @@ the agent keeps recalling.
   more on the cases of those commands held back from it (at least 30% of each
   command's cases are held back).
 - **Adopt.** Accepted directories are installed read-only under
-  `~/.lightcode/rules/<sha256>` and named in `rules/active.json` with their
+  `~/.tokenwise/rules/<sha256>` and named in `rules/active.json` with their
   parent; engines reload the set whenever `active.json` changes (so running
   sessions pick up an adoption from their next output on), and the set's
   hash is part of every decision record.
 
 ## Packaging
 
-`@lightcode-ai/pi`, `@lightcode-ai/dsh` and `@lightcode-ai/cli` are single-file
+`@tokenwise/pi`, `@tokenwise/dsh` and `@tokenwise/cli` are single-file
 bundles built by `scripts/bundle.mjs` from the workspace sources, with no
 runtime dependencies: the host's own modules (`@earendil-works/*`,
 `@deepseek-ai/*`) stay external and resolve from the running host. Each
 carries `LICENSE`, `LICENSE.rtk` and `NOTICE.md`.
 
 - pi loads `dist/extension.js` named by the `pi.extensions` manifest; `pi
-  install npm:@lightcode-ai/pi`, `pi config` and `pi remove` manage it.
+  install npm:@tokenwise/pi`, `pi config` and `pi remove` manage it.
 - DeepSeek Harness reads `dsh.bundle.patch` (`cordis.patch.yml` inserts the
-  `lightcode` row), the display metadata (`locale/*.json`, `icon.svg`) and
+  `tokenwise` row), the display metadata (`locale/*.json`, `icon.svg`) and
   the browser half `lib/client.js` (`dsh.client`), which registers the Mode
   form on the bundle's Plugins page. The `@deepseek-ai/dsh-tools` peer range
   is the compatibility gate DSH checks before installing.
@@ -192,32 +192,32 @@ host releases and drives real sessions, the DSH Web UI and pi's TUI.
 
 ## Journal and store
 
-- `~/.lightcode/journal/<host>/<session>.jsonl` — one record per decision
+- `~/.tokenwise/journal/<host>/<session>.jsonl` — one record per decision
   (`economy/decision`), rewrite (`economy/command-rewrite`), compaction
   (`shadow/checkpoint`), recall (`shadow/recall`) or subagent link
   (`session/subagent`), anchored to the host's session and tool-call IDs.
-  Economy outcomes: `projected`, `previewed`, `passed` (with the reason and,
+  Output outcomes: `projected`, `previewed`, `passed` (with the reason and,
   for misses, why no filter applied) and `failed-open`.
-- `~/.lightcode/artifacts/` — content-addressed originals, evidence, recall
+- `~/.tokenwise/artifacts/` — content-addressed originals, evidence, recall
   references and source maps, mode 0600, pruned after `retentionDays`.
-- `~/.lightcode/rules/` — adopted rule directories and `active.json`.
-- `~/.lightcode/evolve/` — each `lc evolve` run: workspace, learner log,
+- `~/.tokenwise/rules/` — adopted rule directories and `active.json`.
+- `~/.tokenwise/evolve/` — each `tokenwise evolve` run: workspace, learner log,
   verdict.
-- LightCode never writes into host session formats it does not own, so no
+- TokenWise never writes into host session formats it does not own, so no
   host needs a patch and host upgrades cannot break old sessions.
 
-`lc report` folds the journal into savings per filter and the most frequent
+`tokenwise report` folds the journal into savings per filter and the most frequent
 uncovered commands — the list of filters worth writing next.
 
 ## Invariants (tested)
 
 - Byte-identical projections to the conformance corpus.
-- Exit codes and signals pass through `lc run`; binary output is untouched.
+- Exit codes and signals pass through `tokenwise run`; binary output is untouched.
 - A projection is never larger than the original in bytes or tokens.
 - Copied spans of every source map match the original exactly.
 - Disabled, observe and failure paths deliver the original byte-for-byte.
 - A recall returns exactly the text the model read (or its saved original).
-- A LightShadow checkpoint is smaller than the span it replaces, or unused.
+- A compaction checkpoint is smaller than the span it replaces, or unused.
 - A learned rule cannot reach the host process, and its results keep every
   diagnostic line; a proposal that makes any recorded observation cost more
   is never adopted.
@@ -226,6 +226,6 @@ uncovered commands — the list of filters worth writing next.
 
 | Release | Scope |
 |---|---|
-| 0.1 | Economy on pi, DeepSeek Harness 0.2.x, Codex and `lc run` |
-| 0.2 | LightShadow on pi and DeepSeek Harness; self-evolving filters (`lc evolve`, learned rules on every host) |
-| 0.3 | Delegation and a cross-host usage ledger (unified trace format); LightShadow catalog + MCP retrieval on Codex |
+| 0.1 | Compact output on pi, DeepSeek Harness 0.2.x, Codex and `tokenwise run` |
+| 0.2 | Recoverable compaction on pi and DeepSeek Harness; self-evolving filters (`tokenwise evolve`, learned rules on every host) |
+| 0.3 | Delegation and a cross-host usage ledger (unified trace format); compaction catalog + MCP retrieval on Codex |

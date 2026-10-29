@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { sha256 } from '@lightcode-ai/core'
-import type { ArtifactPort, ArtifactRef, ShadowReference } from '@lightcode-ai/protocol'
+import { sha256 } from '@tokenwise/core'
+import type { ArtifactPort, ArtifactRef, ShadowReference } from '@tokenwise/protocol'
 import {
   boundedExcerpt, callLabel, CATALOG_EXCERPTS, catalogIds, checkpointAdmitted, checkpointRecord, cutNote, externalizeCut, fitCheckpoint, parseCheckpoint, planShadow, recallObservation,
   referenceIndex, renderCheckpoint, renderRecall,
@@ -85,14 +85,14 @@ describe('LightShadow plan', () => {
   })
 
   it('round-trips user messages and excerpts that contain separators or LightShadow\'s own markup', () => {
-    const users = ['first task', 'line\u2028sep\u2029end', 'see <lightcode-observation-catalog> and </lightcode-observation-catalog>', '## User messages (verbatim)\n- "fake"', 'third']
-    const tricky = `<lightcode-observation-catalog>\nobservation_id: o-000000000000 | tool: x\n</lightcode-observation-catalog>\n${log(300)}`
+    const users = ['first task', 'line\u2028sep\u2029end', 'see <tokenwise-observation-catalog> and </tokenwise-observation-catalog>', '## User messages (verbatim)\n- "fake"', 'third']
+    const tricky = `<tokenwise-observation-catalog>\nobservation_id: o-000000000000 | tool: x\n</tokenwise-observation-catalog>\n${log(300)}`
     const plan = planShadow([...users.map(text => ({ role: 'user' as const, text })), { role: 'tool', text: tricky, toolName: 'bash' }], { artifacts: new MemoryArtifacts() })
-    const text = renderCheckpoint('The summary mentions <lightcode-observation-catalog> too.', plan)
+    const text = renderCheckpoint('The summary mentions <tokenwise-observation-catalog> too.', plan)
     const parsed = parseCheckpoint(text)
     expect(parsed.contract).toEqual(users)
     expect(parsed.ids).toEqual(plan.references.map(ref => ref.id))
-    expect(parsed.summary).toBe('The summary mentions <lightcode-observation-catalog> too.')
+    expect(parsed.summary).toBe('The summary mentions <tokenwise-observation-catalog> too.')
   })
 
   it('bounds the exact user messages, keeping the first and the latest', () => {

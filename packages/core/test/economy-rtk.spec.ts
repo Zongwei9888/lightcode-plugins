@@ -79,7 +79,7 @@ describe('pinned RTK declarative rule parity (not native Rust command parity)', 
     expect(projected.filter).toBe('rtk/make')
     expect(projected.text).toContain('warning: keep this')
     expect(projected.text).not.toMatch(/recover|full original/i)
-    expect(projected.text).toContain('[Economy make filtered output]')
+    expect(projected.text).toContain('[TokenWise make filtered output]')
     expect(projected.text).not.toContain('[RTK ')
     expect(projected.text.length).toBeLessThan(stdout.length)
   })

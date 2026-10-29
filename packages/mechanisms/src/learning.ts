@@ -3,7 +3,7 @@
  * run a coding agent in it, verify, adopt), its status on disk for the hosts'
  * interfaces, a background launcher, the evidence scan that says when a run
  * is worth it, and the monitor that switches off a learned rule the agent
- * keeps needing the original for. `lc evolve` and the pi and DSH plugins all
+ * keeps needing the original for. `tokenwise evolve` and the pi and DSH plugins all
  * run the same code; the plugins start it as a separate process, so a session
  * never waits for it.
  */
@@ -12,10 +12,10 @@ import type { SpawnOptionsWithStdioTuple } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { accessSync, appendFileSync, closeSync, constants, existsSync, linkSync, openSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { basename, delimiter, join, resolve } from 'node:path'
-import { compileLearnedRules, createPolicy, parseRuleIndex, RuleDirectoryError } from '@lightcode-ai/core'
-import type { LearnedRuleSet, RuleFile } from '@lightcode-ai/core'
-import type { ArtifactPort, EconomyRecord, JournalRecord, ShadowRecallRecord } from '@lightcode-ai/protocol'
-import { FileArtifactStore, RuleStore, dataDirs, ensurePrivateDir, loadConfig, readJournals, readRuleDirectory, removeTree, resolveDataDir } from '@lightcode-ai/store'
+import { compileLearnedRules, createPolicy, parseRuleIndex, RuleDirectoryError } from '@tokenwise/core'
+import type { LearnedRuleSet, RuleFile } from '@tokenwise/core'
+import type { ArtifactPort, EconomyRecord, JournalRecord, ShadowRecallRecord } from '@tokenwise/protocol'
+import { FileArtifactStore, RuleStore, dataDirs, ensurePrivateDir, loadConfig, readJournals, readRuleDirectory, removeTree, resolveDataDir } from '@tokenwise/store'
 import { collectEvidence, commandHead, replayCase, verifyRules } from './evolution.ts'
 import type { EvidenceCase, VerificationReport } from './evolution.ts'
 import { formatTokens } from './receipts.ts'
@@ -23,7 +23,7 @@ import { recallIndex } from './shadow.ts'
 
 /** What a learning run reads: the journal, the stored originals and the Economy settings the policy runs with. */
 export interface EvolveContext {
-  /** Where learned rules and runs live (`$LIGHTCODE_HOME` or `~/.lightcode`). */
+  /** Where learned rules and runs live (`$TOKENWISE_HOME` or `~/.tokenwise`). */
   readonly dataDir: string
   readJournal(filter?: { host?: string; sessionId?: string | null }): JournalRecord[]
   readArtifact(sha256: string): string | undefined
@@ -83,7 +83,7 @@ export function onPath(name: string, env: NodeJS.ProcessEnv = process.env): stri
   return undefined
 }
 
-/** A Node.js binary to run LightCode's own scripts with: this process's when it is Node, else `node` on PATH. */
+/** A Node.js binary to run TokenWise's own scripts with: this process's when it is Node, else `node` on PATH. */
 export function nodeBinary(env: NodeJS.ProcessEnv = process.env): string | undefined {
   if (/^node(\.exe)?$/iu.test(basename(process.execPath)) || process.versions.bun === undefined && /node/iu.test(basename(process.execPath))) return process.execPath
   return onPath('node', env)
@@ -190,7 +190,7 @@ export function writeRunStatus(dataDir: string, status: EvolveRunStatus): void {
   writeJsonAtomic(statusFile(dataDir), status)
 }
 
-const CHECKS_FILE = '.lightcode-checks.jsonl'
+const CHECKS_FILE = '.tokenwise-checks.jsonl'
 
 function readChecks(runDir: string): EvolveCheck[] {
   try {
@@ -410,9 +410,9 @@ function learnerCases(cases: readonly EvidenceCase[], parent: LearnedRuleSet | u
 }
 
 export function learnerPrompt(workspace: string): string {
-  return `# Improve LightCode's learned output rules
+  return `# Improve TokenWise's learned output rules
 
-You are improving the rules LightCode uses to shorten shell command output before a coding agent reads it.
+You are improving the rules TokenWise uses to shorten shell command output before a coding agent reads it.
 Fewer tokens are good; losing information the agent needs is not.
 
 Read, in order: RULES.md (how a rule is written), evidence-index.json, then the case files it lists
@@ -427,7 +427,7 @@ What to do:
   command (input.argv) and the output itself; anything unfamiliar or ambiguous must return null.
 - Keep every error, warning, failure, assertion, file:line location, summary/count line and anything
   the agent would act on. Lines starting with # or blank lines can be literal data, not decoration.
-  LightCode rejects any result that drops a line mentioning error, warning, failure, panic or traceback.
+  TokenWise rejects any result that drops a line mentioning error, warning, failure, panic or traceback.
 - Generalize: a rule must help on other runs of the same tool, not on these exact samples. The checker
   holds back some observations of every command you are shown and rejects rules that do not also save
   tokens on those.
@@ -447,25 +447,25 @@ Work only inside ${workspace}. Do not install packages or use the network.
 `
 }
 
-export const RULES_MD = `# Writing a LightCode rule
+export const RULES_MD = `# Writing a TokenWise rule
 
 A rule is one JavaScript file, rules/<id>.js, listed in index.json:
 
     { "schemaVersion": 1, "rules": [
       { "id": "pip-download-progress", "file": "rules/pip-download-progress.js", "transformation": "noise-removal" } ] }
 
-Rules run in order; the first that returns a result wins, and LightCode's built-in filters run after
+Rules run in order; the first that returns a result wins, and TokenWise's built-in filters run after
 the learned rules. "transformation" is "noise-removal", "preview" or "lossless-formatting".
 
 The file calls defineRule once:
 
     defineRule({
-      project(input, lc) {
+      project(input, tw) {
         // input: { kind: 'shell', command, argv, raw, exitCode, stream: 'stdout' }
         //   argv is the command as words, or null when the command uses pipes or other shell syntax
         //   raw is the command's stdout (stderr never reaches learned rules)
         if (!input.argv || input.argv[0] !== 'pip' || input.argv[1] !== 'install') return null
-        return lc.keepLines(input.raw, line => !/^\\s*(Downloading|Using cached) /.test(line.text),
+        return tw.keepLines(input.raw, line => !/^\\s*(Downloading|Using cached) /.test(line.text),
           omitted => '[' + omitted + ' download lines omitted]\\n')
       },
     })
@@ -473,18 +473,18 @@ The file calls defineRule once:
 Return null when the rule does not apply, or { text, sourceMap } built with the helpers, so that every
 copied piece of text is exact:
 
-- lc.lines(raw) -> [{ text, start, end }]           lines without their newline; start/end index raw
-- lc.keepLines(raw, keep(line, i, lines), note?)    keep the lines keep() accepts, then a note about the
+- tw.lines(raw) -> [{ text, start, end }]           lines without their newline; start/end index raw
+- tw.keepLines(raw, keep(line, i, lines), note?)    keep the lines keep() accepts, then a note about the
                                                     rest; null when nothing would be omitted
-- lc.builder(raw) -> b                              b.keep(start, end) copies raw.slice(start, end)
+- tw.builder(raw) -> b                              b.keep(start, end) copies raw.slice(start, end)
                                                     b.keepLine(line) copies a whole line with its newline
                                                     b.generate(note, reason) adds an omission note
                                                     b.newline(); b.finish() -> { text, sourceMap }
-- lc.stripAnsi(text)
+- tw.stripAnsi(text)
 
 Everything in a result is copied from the output, except omission notes of the form
 "[<number> <words> omitted]" (letters, digits and simple punctuation, at most 80 characters) and
-newlines. Any other text of the rule's own makes LightCode discard the result.
+newlines. Any other text of the rule's own makes TokenWise discard the result.
 
 The environment is plain JavaScript: no require/import, no file system, network, timers or eval,
 and nothing a rule keeps lasts from one output to the next. Each call has 100 ms. A result that is not
@@ -499,7 +499,7 @@ export function newRunId(now = new Date()): string {
 
 /**
  * Write the learner's workspace. `checker` is the command prefix that runs
- * this module's `check` and `try` (`lc evolve`, or a plugin's runner).
+ * this module's `check` and `try` (`tokenwise evolve`, or a plugin's runner).
  */
 export function prepareRun(context: EvolveContext, options: { checker: readonly string[]; since?: number; maxCases?: number; now?: Date; runId?: string }) {
   const store = new RuleStore(context.dataDir)
@@ -598,7 +598,7 @@ export function describeReport(report: VerificationReport, options: { learner?: 
 
 /** `check`: the learner's checker. Records each attempt for the run's progress. */
 export function workspaceCheck(context: EvolveContext, workspace: string, json: boolean): { code: number; text: string } {
-  if (!existsSync(join(workspace, 'rules-work'))) return { code: 2, text: 'check: --workspace must be an lc evolve workspace\n' }
+  if (!existsSync(join(workspace, 'rules-work'))) return { code: 2, text: 'check: --workspace must be an tokenwise evolve workspace\n' }
   const checked = checkWorkspace(context, resolve(workspace))
   const entry: EvolveCheck = checked.report
     ? { time: new Date().toISOString(), accepted: checked.report.accepted, gainTokens: checked.report.gainTokens, regressions: checked.report.regressions.length, reasons: checked.report.reasons }
@@ -637,7 +637,7 @@ export function workspaceTry(workspace: string, caseFile: string): { code: numbe
 export function runLearner(argv: readonly string[], options: { cwd: string; timeoutMs: number; shell: boolean; log: string; echo?: boolean; signal?: AbortSignal; env?: NodeJS.ProcessEnv }): Promise<number | null> {
   return new Promise(resolvePromise => {
     // The learner's own commands must reach it unfiltered and must not become evidence.
-    const env = { ...options.env ?? process.env, LIGHTCODE_DISABLE: '1', LIGHTCODE_EVOLVE_WORKSPACE: options.cwd, LIGHTCODE_EVOLVE_PROMPT: join(options.cwd, 'PROMPT.md') }
+    const env = { ...options.env ?? process.env, TOKENWISE_DISABLE: '1', TOKENWISE_EVOLVE_WORKSPACE: options.cwd, TOKENWISE_EVOLVE_PROMPT: join(options.cwd, 'PROMPT.md') }
     const spawnOptions: SpawnOptionsWithStdioTuple<'ignore', 'pipe', 'pipe'> = { cwd: options.cwd, env, stdio: ['ignore', 'pipe', 'pipe'], detached: true }
     const child = options.shell ? spawn('/bin/sh', ['-c', argv[0]!], spawnOptions) : spawn(argv[0]!, argv.slice(1), spawnOptions)
     const group = (signal: NodeJS.Signals) => { try { if (child.pid) process.kill(-child.pid, signal) } catch { /* Already gone. */ } }
@@ -646,7 +646,7 @@ export function runLearner(argv: readonly string[], options: { cwd: string; time
     const keep = (chunk: Buffer) => { log += chunk.toString('utf8'); if (log.length > 4_000_000) log = log.slice(-2_000_000); if (options.echo) process.stderr.write(chunk) }
     child.stdout.on('data', keep)
     child.stderr.on('data', keep)
-    const stop = (note: string) => { log += `\n[lc evolve: ${note}]\n`; group('SIGTERM'); setTimeout(() => group('SIGKILL'), 5000).unref() }
+    const stop = (note: string) => { log += `\n[tokenwise evolve: ${note}]\n`; group('SIGTERM'); setTimeout(() => group('SIGKILL'), 5000).unref() }
     const onAbort = () => stop('cancelled')
     options.signal?.addEventListener('abort', onAbort, { once: true })
     const finish = (code: number | null) => {
@@ -677,7 +677,7 @@ export interface EvolveRunOptions {
   readonly maxCases?: number
   readonly timeoutMs?: number
   readonly dryRun?: boolean
-  /** Copy the learner's output to stderr (`lc evolve` in a terminal). */
+  /** Copy the learner's output to stderr (`tokenwise evolve` in a terminal). */
   readonly echo?: boolean
   readonly signal?: AbortSignal
   readonly runId?: string
@@ -949,7 +949,7 @@ export function disabledRules(dataDir: string): (SwitchedOff & { time: string })
 /**
  * Switch off active learned rules whose original the agent recalled too
  * often: adopt the same directory without them (an ordinary adoption, so
- * `lc rules rollback` brings them back).
+ * `tokenwise rules rollback` brings them back).
  */
 export function reviewActiveRules(dataDir: string, uses: ReadonlyMap<string, RuleUse>, now = new Date()): SwitchedOff[] {
   const store = new RuleStore(dataDir)
@@ -1160,7 +1160,7 @@ export async function runnerMain(argv: readonly string[], env: NodeJS.ProcessEnv
       process.on('SIGTERM', () => abort.abort())
       process.on('SIGINT', () => abort.abort())
       const ctx = context()
-      // Only files in LightCode's own evolve directory are deleted.
+      // Only files in TokenWise's own evolve directory are deleted.
       const root = `${resolve(evolveDir(ctx.dataDir))}/`
       let result
       try {

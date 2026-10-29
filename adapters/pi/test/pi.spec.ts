@@ -3,14 +3,14 @@ import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { FileArtifactStore, FileJournal, readJournals } from '@lightcode-ai/store'
-import { collectSubagents, summarizeEconomy } from '@lightcode-ai/mechanisms'
-import type { EconomyRecord, JournalRecord } from '@lightcode-ai/protocol'
-import { createLightCodeExtension, PARENT_SESSION_ENV } from '../src/extension.ts'
+import { FileArtifactStore, FileJournal, readJournals } from '@tokenwise/store'
+import { collectSubagents, summarizeEconomy } from '@tokenwise/mechanisms'
+import type { EconomyRecord, JournalRecord } from '@tokenwise/protocol'
+import { createTokenWiseExtension, PARENT_SESSION_ENV } from '../src/extension.ts'
 import { runPi, textOf } from './harness.ts'
 
 const dirs: string[] = []
-const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'lightcode-pi-test-')); dirs.push(dir); return dir }
+const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'tokenwise-pi-test-')); dirs.push(dir); return dir }
 afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }) })
 
 function workspace() {
@@ -31,7 +31,7 @@ describe('pi adapter (real pi 1.1 session, faux model)', { timeout: 30_000 }, ()
   it('shows the model a projection while the session file keeps the original', async () => {
     const cwd = workspace(), dataDir = temp()
     const raw = spawnSync('/bin/sh', ['-c', 'grep -rn value src'], { cwd, encoding: 'utf8' }).stdout
-    const run = await runPi({ cwd, extension: createLightCodeExtension({ dataDir, env: {} }), commands: ['grep -rn value src'] })
+    const run = await runPi({ cwd, extension: createTokenWiseExtension({ dataDir, env: {} }), commands: ['grep -rn value src'] })
     const delivered = textOf(run.seen[0]![0])
     expect(delivered.length).toBeLessThan(raw.length)
     expect(delivered).toContain('omitted')
@@ -49,7 +49,7 @@ describe('pi adapter (real pi 1.1 session, faux model)', { timeout: 30_000 }, ()
   it('keeps the failure evidence and pi\'s exit-code footer of a failing test run', async () => {
     const cwd = workspace(), dataDir = temp()
     const command = 'node --test --test-reporter=tap failing.test.mjs'
-    const run = await runPi({ cwd, extension: createLightCodeExtension({ dataDir, env: {} }), commands: [command] })
+    const run = await runPi({ cwd, extension: createTokenWiseExtension({ dataDir, env: {} }), commands: [command] })
     const delivered = textOf(run.seen[0]![0])
     expect(delivered).toContain('necessary failure evidence')
     expect(delivered).toMatch(/\n\nCommand exited with code 1$/)
@@ -59,7 +59,7 @@ describe('pi adapter (real pi 1.1 session, faux model)', { timeout: 30_000 }, ()
 
   it('normalizes a search command, keeping the original in the assistant message', async () => {
     const cwd = workspace(), dataDir = temp()
-    const run = await runPi({ cwd, extension: createLightCodeExtension({ dataDir, env: {} }), commands: ['grep -i value src/f0.ts'] })
+    const run = await runPi({ cwd, extension: createTokenWiseExtension({ dataDir, env: {} }), commands: ['grep -i value src/f0.ts'] })
     const entries = sessionEntries(run.sessionFile)
     const call = entries.find(entry => entry.type === 'message' && entry.message.role === 'assistant')!.message.content
       .find((block: { type: string }) => block.type === 'toolCall')
@@ -72,9 +72,9 @@ describe('pi adapter (real pi 1.1 session, faux model)', { timeout: 30_000 }, ()
   it('leaves unrecognized output, and everything when disabled, untouched', async () => {
     const cwd = workspace(), dataDir = temp()
     const raw = spawnSync('/bin/sh', ['-c', 'grep -rn value src'], { cwd, encoding: 'utf8' }).stdout
-    const other = await runPi({ cwd, extension: createLightCodeExtension({ dataDir, env: {} }), commands: ['seq 1 400'] })
+    const other = await runPi({ cwd, extension: createTokenWiseExtension({ dataDir, env: {} }), commands: ['seq 1 400'] })
     expect(textOf(other.seen[0]![0])).toBe(spawnSync('seq', ['1', '400'], { encoding: 'utf8' }).stdout)
-    const off = await runPi({ cwd, extension: createLightCodeExtension({ dataDir, env: { LIGHTCODE_DISABLE: '1' } }), commands: ['grep -rn value src'] })
+    const off = await runPi({ cwd, extension: createTokenWiseExtension({ dataDir, env: { TOKENWISE_DISABLE: '1' } }), commands: ['grep -rn value src'] })
     expect(textOf(off.seen[0]![0])).toBe(raw)
     expect(sessionEntries(off.sessionFile).some(entry => entry.type === 'context_edit')).toBe(false)
   })
@@ -83,7 +83,7 @@ describe('pi adapter (real pi 1.1 session, faux model)', { timeout: 30_000 }, ()
     const cwd = workspace(), dataDir = temp()
     mkdirSync(join(cwd, 'src', 'deep', 'nested', 'modules'), { recursive: true })
     for (let f = 0; f < 12; f++) writeFileSync(join(cwd, 'src', 'deep', 'nested', 'modules', `module${f}.ts`), 'export {}\n')
-    const run = await runPi({ cwd, extension: createLightCodeExtension({ dataDir, env: {} }),
+    const run = await runPi({ cwd, extension: createTokenWiseExtension({ dataDir, env: {} }),
       commands: [{ tool: 'grep', args: { pattern: 'value', path: 'src' } }, { tool: 'find', args: { pattern: '*.ts', path: 'src/deep' } }] })
     const grep = textOf(run.seen[0]![0]), find = textOf(run.seen[1]![1])
     const entries = sessionEntries(run.sessionFile)
@@ -104,19 +104,19 @@ describe('pi adapter (real pi 1.1 session, faux model)', { timeout: 30_000 }, ()
     const cwd = workspace(), dataDir = temp()
     // The parent's environment is what the pi processes it starts inherit.
     const parentEnv: NodeJS.ProcessEnv = {}
-    const parent = await runPi({ cwd, extension: createLightCodeExtension({ dataDir, env: parentEnv, pid: 1001, ppid: 1 }), commands: ['seq 1 3'] })
+    const parent = await runPi({ cwd, extension: createTokenWiseExtension({ dataDir, env: parentEnv, pid: 1001, ppid: 1 }), commands: ['seq 1 3'] })
     expect(parentEnv[PARENT_SESSION_ENV]).toBe(`pi:1001:${parent.sessionId}`)
     const childEnv = { ...parentEnv }
-    const child = await runPi({ cwd, extension: createLightCodeExtension({ dataDir, env: childEnv, pid: 1002, ppid: 1001 }), commands: ['grep -rn value src'] })
+    const child = await runPi({ cwd, extension: createTokenWiseExtension({ dataDir, env: childEnv, pid: 1002, ppid: 1001 }), commands: ['grep -rn value src'] })
     expect(childEnv[PARENT_SESSION_ENV]).toBe(`pi:1002:${child.sessionId}`)
     const read = (sessionId: string) => readJournals([dataDir], { host: 'pi', sessionId })
     expect(read(parent.sessionId).filter(record => record.type === 'session/subagent')).toMatchObject([{ childSessionId: child.sessionId }])
     const subagents = collectSubagents(read, parent.sessionId)
     expect(subagents.sessions).toEqual([child.sessionId])
     expect(summarizeEconomy(subagents.records)).toMatchObject({ projected: 1 })
-    // A session that LightCode does not run in hands nothing down.
-    const offEnv: NodeJS.ProcessEnv = { LIGHTCODE_DISABLE: '1' }
-    await runPi({ cwd, extension: createLightCodeExtension({ dataDir, env: offEnv, pid: 1003, ppid: 1 }), commands: ['seq 1 3'] })
+    // A session that TokenWise does not run in hands nothing down.
+    const offEnv: NodeJS.ProcessEnv = { TOKENWISE_DISABLE: '1' }
+    await runPi({ cwd, extension: createTokenWiseExtension({ dataDir, env: offEnv, pid: 1003, ppid: 1 }), commands: ['seq 1 3'] })
     expect(offEnv[PARENT_SESSION_ENV]).toBeUndefined()
   })
 
@@ -124,10 +124,10 @@ describe('pi adapter (real pi 1.1 session, faux model)', { timeout: 30_000 }, ()
     const cwd = workspace(), dataDir = temp()
     const env: NodeJS.ProcessEnv = {}
     // /new, /resume, /fork and /reload run the extension again in the same process, with the same environment.
-    const first = await runPi({ cwd, extension: createLightCodeExtension({ dataDir, env, pid: 2001, ppid: 1 }), commands: ['grep -rn value src'] })
-    const second = await runPi({ cwd, extension: createLightCodeExtension({ dataDir, env, pid: 2001, ppid: 1 }), commands: ['grep -rn value src'] })
+    const first = await runPi({ cwd, extension: createTokenWiseExtension({ dataDir, env, pid: 2001, ppid: 1 }), commands: ['grep -rn value src'] })
+    const second = await runPi({ cwd, extension: createTokenWiseExtension({ dataDir, env, pid: 2001, ppid: 1 }), commands: ['grep -rn value src'] })
     // A pi started from a long-lived process (a shell, a tmux server) that itself came from this pi.
-    const later = await runPi({ cwd, extension: createLightCodeExtension({ dataDir, env: { ...env }, pid: 2003, ppid: 2002 }), commands: ['seq 1 3'] })
+    const later = await runPi({ cwd, extension: createTokenWiseExtension({ dataDir, env: { ...env }, pid: 2003, ppid: 2002 }), commands: ['seq 1 3'] })
     const read = (sessionId: string) => readJournals([dataDir], { host: 'pi', sessionId })
     for (const run of [first, second, later]) expect(read(run.sessionId).filter(record => record.type === 'session/subagent')).toEqual([])
     expect(collectSubagents(read, first.sessionId).sessions).toEqual([])
@@ -136,7 +136,7 @@ describe('pi adapter (real pi 1.1 session, faux model)', { timeout: 30_000 }, ()
   it('records previews without changing anything in observe mode', async () => {
     const cwd = workspace(), dataDir = temp()
     const raw = spawnSync('/bin/sh', ['-c', 'grep -rn value src'], { cwd, encoding: 'utf8' }).stdout
-    const run = await runPi({ cwd, extension: createLightCodeExtension({ dataDir, env: { LIGHTCODE_ECONOMY: 'observe' } }), commands: ['grep -rn value src'] })
+    const run = await runPi({ cwd, extension: createTokenWiseExtension({ dataDir, env: { TOKENWISE_OUTPUT: 'observe' } }), commands: ['grep -rn value src'] })
     expect(textOf(run.seen[0]![0])).toBe(raw)
     expect(new FileJournal(dataDir).read({ host: 'pi', sessionId: run.sessionId })).toMatchObject([{ outcome: 'previewed', filter: 'grep' }])
   })

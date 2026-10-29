@@ -56,7 +56,7 @@
   <text x="828" y="50" class="h">3 · LATER, THE AGENT RECALLS</text>
   <rect x="828" y="66" width="332" height="400" rx="14" fill="#0F172A"/>
   <g class="mc">
-    <text x="846" y="98" fill="#5EEAD4">lightcode_recall</text>
+    <text x="846" y="98" fill="#5EEAD4">tokenwise_recall</text>
     <text x="846" y="118">{ "observation_id": "o-8d02c6b1a9f3",</text>
     <text x="846" y="136">  "line": 230 }</text>
     <text x="846" y="174" fill="#64748B">227</text><text x="884" y="174">  try {</text>

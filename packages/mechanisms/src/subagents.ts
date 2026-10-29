@@ -3,7 +3,7 @@
  * report finds what its subagents saved through `session/subagent` records
  * kept under the session that started them.
  */
-import type { JournalPort, JournalRecord, SubagentRecord } from '@lightcode-ai/protocol'
+import type { JournalPort, JournalRecord, SubagentRecord } from '@tokenwise/protocol'
 
 export function recordSubagent(journal: JournalPort, host: string, sessionId: string, childSessionId: string, now = new Date()): void {
   journal.append({ schemaVersion: 1, type: 'session/subagent', time: now.toISOString(), host, sessionId, childSessionId })

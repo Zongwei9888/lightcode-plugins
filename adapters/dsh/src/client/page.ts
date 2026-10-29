@@ -1,4 +1,4 @@
-/** The `mode` form on LightCode's bundle page in Plugins. */
+/** The `mode` form on TokenWise's bundle page in Plugins. */
 import { jsx, jsxs } from 'react/jsx-runtime'
 import { SegmentedControl, SettingsForm, Tag } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SettingsFieldState, SettingsFormActions, SettingsFormShell } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -12,15 +12,15 @@ export interface ConfigState extends SettingsFormShell { mode: SettingsFieldStat
 interface Props extends SettingsFormActions {
   readonly t: (key: keyof Copy) => string
   readonly view: 'page' | 'summary'
-  readonly useLightcodeConfig: <S>(select: (state: ConfigState) => S) => S
+  readonly useTokenwiseConfig: <S>(select: (state: ConfigState) => S) => S
 }
 
 const text = { margin: 0, fontSize: '12.5px', lineHeight: '18px', color: 'var(--dsw-alias-label-tertiary)' }
 
 /** The bundle page's form, or its one-liner when the page asks for a summary. */
-export function LightCodeConfig(props: Props): unknown {
+export function TokenWiseConfig(props: Props): unknown {
   const { t } = props
-  const state = props.useLightcodeConfig(snapshot => snapshot)
+  const state = props.useTokenwiseConfig(snapshot => snapshot)
   if (props.view === 'summary') return t('summary')
   const mode: Mode = isMode(state.mode.text) ? state.mode.text : 'apply'
   const locked = !state.writable || state.saving
@@ -31,7 +31,7 @@ export function LightCodeConfig(props: Props): unknown {
     onDiscard: props.discard,
     children: [
       jsxs('div', {
-        'data-lightcode-mode': mode,
+        'data-tokenwise-mode': mode,
         style: { display: 'flex', flexDirection: 'column', gap: '8px' },
         children: [
           jsxs('div', {
@@ -52,11 +52,11 @@ export function LightCodeConfig(props: Props): unknown {
             ],
           }),
           jsx(SegmentedControl, {
-            id: 'lightcode-mode', value: mode, label: t('modeLabel'), disabled: locked,
+            id: 'tokenwise-mode', value: mode, label: t('modeLabel'), disabled: locked,
             options: MODES.map(value => ({ value, label: t(value) })),
             onChange: (next: Mode) => props.edit('mode', next),
           }),
-          jsx('p', { id: `lightcode-mode-${mode}-panel`, role: 'tabpanel', 'aria-labelledby': `lightcode-mode-${mode}`, style: text, children: t(`${mode}Hint`) }),
+          jsx('p', { id: `tokenwise-mode-${mode}-panel`, role: 'tabpanel', 'aria-labelledby': `tokenwise-mode-${mode}`, style: text, children: t(`${mode}Hint`) }),
         ],
       }),
       jsx('p', { style: text, children: t('savings') }),

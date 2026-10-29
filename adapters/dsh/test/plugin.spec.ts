@@ -7,11 +7,11 @@ import type { CommandRuntime, ConnectionRuntime, HostContext, PostToolDecision, 
 import { bashResult, pytestOutput } from './render.ts'
 
 let home: string
-const saved = process.env.LIGHTCODE_HOME
-beforeEach(() => { home = mkdtempSync(join(tmpdir(), 'lightcode-dsh-plugin-')); process.env.LIGHTCODE_HOME = home })
+const saved = process.env.TOKENWISE_HOME
+beforeEach(() => { home = mkdtempSync(join(tmpdir(), 'tokenwise-dsh-plugin-')); process.env.TOKENWISE_HOME = home })
 afterEach(() => {
-  if (saved === undefined) delete process.env.LIGHTCODE_HOME
-  else process.env.LIGHTCODE_HOME = saved
+  if (saved === undefined) delete process.env.TOKENWISE_HOME
+  else process.env.TOKENWISE_HOME = saved
   rmSync(home, { recursive: true, force: true })
 })
 
@@ -48,7 +48,7 @@ const call: ToolExecution = { callId: 'c1', name: 'bash', arguments: { command: 
 
 describe('DSH plugin entry', () => {
   it('declares what cordis needs to load it', () => {
-    expect(name).toBe('lightcode')
+    expect(name).toBe('tokenwise')
     expect(inject).toEqual(['tools'])
     // The Loader resolves `mode` to a live reference; `get()` reads the current value.
     expect(Config({}).mode.get()).toBe('apply')
@@ -64,10 +64,10 @@ describe('DSH plugin entry', () => {
     const decision = await listeners[0]!.listener(call, result, async () => ({ kind: 'accept' }))
     expect((decision as { content: { text: string }[] }).content[0]!.text).toContain('60 passed')
   })
-  it('registers lightcode_recall and looks for DSH\'s compaction engines whenever an agent starts or steps', async () => {
+  it('registers tokenwise_recall and looks for DSH\'s compaction engines whenever an agent starts or steps', async () => {
     const { ctx, others, tools } = fakeContext()
     apply(ctx, { mode: live('apply'), inlineLimitChars: 48_000 })
-    expect(tools.map(tool => tool.name)).toEqual(['lightcode_recall'])
+    expect(tools.map(tool => tool.name)).toEqual(['tokenwise_recall'])
     expect(others.map(item => [item.event, item.options])).toEqual([['agent/created', { global: true }], ['agent/pre-step', { global: true, prepend: true }]])
     // The pre-step listener only looks; it always hands on to DSH.
     await expect(others[1]!.listener({}, async () => 'continued')).resolves.toBe('continued')
@@ -75,23 +75,23 @@ describe('DSH plugin entry', () => {
     expect(output).toEqual({ text: expect.stringMatching(/^recall failed: unknown observation_id/), ok: false })
     expect(tools[0]!.output.render({}, output)).toEqual([{ type: 'text', text: (output as { text: string }).text }])
   })
-  it('declares no recall tool when LightCode\'s configuration switches LightShadow off', () => {
-    process.env.LIGHTCODE_LIGHTSHADOW = 'off'
+  it('declares no recall tool when TokenWise\'s configuration switches LightShadow off', () => {
+    process.env.TOKENWISE_COMPACTION = 'off'
     try {
       const { ctx, tools } = fakeContext()
       apply(ctx, { mode: live('apply'), inlineLimitChars: 48_000 })
       expect(tools).toEqual([])
-    } finally { delete process.env.LIGHTCODE_LIGHTSHADOW }
+    } finally { delete process.env.TOKENWISE_COMPACTION }
   })
   it('never swallows a downstream failure', async () => {
     const { ctx, listeners } = fakeContext()
     apply(ctx, { mode: live('apply'), inlineLimitChars: 48_000 })
     await expect(listeners[0]!.listener(call, bashResult({ stdout: 'x' }), () => Promise.reject(new Error('downstream')))).rejects.toThrow('downstream')
   })
-  it('registers /lightcode, which reports this session', async () => {
+  it('registers /tokenwise, which reports this session', async () => {
     const { ctx, listeners, commands } = fakeContext()
     apply(ctx, { mode: live('apply'), inlineLimitChars: 48_000 })
-    expect(commands.map(command => command.name)).toEqual(['lightcode'])
+    expect(commands.map(command => command.name)).toEqual(['tokenwise'])
     await listeners[0]!.listener(call, bashResult({ stdout: pytestOutput(60) }), async () => ({ kind: 'accept' }))
     const output = await commands[0]!.handler({ agent: { session: { id: 's1' } }, rawInput: '' })
     expect(output.kind).toBe('success')

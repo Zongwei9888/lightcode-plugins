@@ -1,7 +1,7 @@
 {
   "mcpServers": {
-    "lightcode": {
-      "command": "lc",
+    "tokenwise": {
+      "command": "tokenwise",
       "args": ["mcp", "--host", "codex"]
     }
   }

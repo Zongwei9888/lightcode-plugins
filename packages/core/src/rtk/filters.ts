@@ -50,7 +50,7 @@ export const RTK_FILTERS: readonly EconomyFilter[] = compiled.map(filter => {
     const builder = new ProjectionBuilder(input.stdout)
     builder.append(candidate)
     builder.newline()
-    builder.generate(`[Economy ${economyRuleDisplayName(filter.rule.id as EconomyFilterName)} filtered output]\n`, 'rtk-preview-warning')
+    builder.generate(`[TokenWise ${economyRuleDisplayName(filter.rule.id as EconomyFilterName)} filtered output]\n`, 'rtk-preview-warning')
     return builder.finish()
   }
   return {

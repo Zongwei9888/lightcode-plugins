@@ -1,5 +1,5 @@
-// Capture real tool outputs in a throwaway sandbox for the LightCode conformance corpus.
-// Usage: node capture-inputs.mjs <empty-sandbox-dir> <out.json> <lightcode-repo>
+// Capture real tool outputs in a throwaway sandbox for the TokenWise conformance corpus.
+// Usage: node capture-inputs.mjs <empty-sandbox-dir> <out.json> <tokenwise-repo>
 // Requires git, grep, find, ls, pytest, cargo and node. Absolute sandbox/home paths
 // and the local user name are replaced so captured outputs carry no personal data.
 import { execFileSync, spawnSync } from 'node:child_process'

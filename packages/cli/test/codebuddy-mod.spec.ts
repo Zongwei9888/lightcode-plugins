@@ -4,20 +4,20 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { RECALL_INPUT_SCHEMA, RECALL_TOOL_DESCRIPTION, SHADOW_SUMMARY_INSTRUCTION } from '@lightcode-ai/mechanisms'
+import { RECALL_INPUT_SCHEMA, RECALL_TOOL_DESCRIPTION, SHADOW_SUMMARY_INSTRUCTION } from '@tokenwise/mechanisms'
 
-// Each test starts real `lc` processes; under a full parallel run they take longer than the default 5 s.
+// Each test starts real `tokenwise` processes; under a full parallel run they take longer than the default 5 s.
 vi.setConfig({ testTimeout: 30_000 })
 
-const mod = fileURLToPath(new URL('../../../adapters/codebuddy/hooks/lightshadow.js', import.meta.url))
+const mod = fileURLToPath(new URL('../../../adapters/codebuddy/hooks/compaction.js', import.meta.url))
 const main = fileURLToPath(new URL('../src/main.ts', import.meta.url))
 const dirs: string[] = []
-const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'lightcode-cb-mod-')); dirs.push(dir); return dir }
+const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'tokenwise-cb-mod-')); dirs.push(dir); return dir }
 afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }) })
 
 type Handler = ($: unknown, e: Record<string, unknown>, next: (e: Record<string, unknown>) => Promise<unknown>) => Promise<unknown>
 
-/** The mod's handlers and a `$` whose process.run is the real `lc` (the mod runs `/bin/sh -c 'exec lc "$@"' lc …`). */
+/** The mod's handlers and a `$` whose process.run is the real `tokenwise` (the mod runs `/bin/sh -c 'exec tokenwise "$@"' tokenwise …`). */
 async function load(home: string, lcWorks = true) {
   const { register, spanOf } = await import(pathToFileURL(mod).href) as { register: (on: (name: string, fn: Handler) => void) => void; spanOf: (m: unknown) => unknown[] }
   const handlers = new Map<string, Handler>()
@@ -28,11 +28,11 @@ async function load(home: string, lcWorks = true) {
     session: { id: async () => 'cb-session-1' },
     tool: { register: async (spec: unknown) => { registered.push(spec) } },
     process: { run: async (argv: string[], init: { stdin?: string } = {}) => {
-      if (!lcWorks) return { exitCode: 127, stdout: '', stderr: 'lc: not found' }
+      if (!lcWorks) return { exitCode: 127, stdout: '', stderr: 'tokenwise: not found' }
       calls.push(argv[0]!)
-      // As on a machine whose `lc` is reached through a shell: the direct call cannot start.
-      if (argv[0] === 'lc') throw new Error('spawn lc ENOENT')
-      const done = spawnSync(process.execPath, ['--conditions=source', main, ...argv.slice(4)], { input: init.stdin, encoding: 'utf8', env: { ...process.env, LIGHTCODE_HOME: home } })
+      // As on a machine whose `tokenwise` is reached through a shell: the direct call cannot start.
+      if (argv[0] === 'tokenwise') throw new Error('spawn tokenwise ENOENT')
+      const done = spawnSync(process.execPath, ['--conditions=source', main, ...argv.slice(4)], { input: init.stdin, encoding: 'utf8', env: { ...process.env, TOKENWISE_HOME: home } })
       return { exitCode: done.status ?? 1, stdout: done.stdout, stderr: done.stderr }
     } },
   }
@@ -63,7 +63,7 @@ describe('CodeBuddy LightShadow mod', () => {
       { role: 'tool', text: rows('row'), tool_name: 'Bash', call_id: 't1', call_input: { command: 'cat export.csv' } },
     ])
     await fire('session.start', {})
-    expect(registered).toMatchObject([{ name: 'lightcode_recall', isDeferred: false }])
+    expect(registered).toMatchObject([{ name: 'tokenwise_recall', isDeferred: false }])
     const compact = await fire('session.compact', { trigger: 'manual', instructions: 'keep the totals', messages: transcript })
     expect(compact.passed!.instructions).toMatch(/^keep the totals\n\nAfter this compaction/u)
     // The compaction prompt also passes through session.append (door "prompt"); it does not start with the tag: left alone.
@@ -75,12 +75,12 @@ describe('CodeBuddy LightShadow mod', () => {
     expect(text).toMatch(/^<conversation_history_summary>\n<summary>\n1\. The export has 400 rows\./u)
     expect(text).toContain('"Check the export file."')
     expect(text).toContain('call: "cat export.csv"')
-    expect(text).toMatch(/<\/lightcode-observation-catalog>\n<\/summary>\n<\/conversation_history_summary>$/u)
+    expect(text).toMatch(/<\/tokenwise-observation-catalog>\n<\/summary>\n<\/conversation_history_summary>$/u)
     const id = /observation_id: (o-[a-f0-9]{12})/u.exec(text)![1]!
-    expect((await fire('tool.check', { tool: 'mcp__lightcode__lightcode_recall' })).answer).toEqual({ decision: 'allow' })
-    const recalled = await fire('tool.call', { tool: 'lightcode_recall', tool_use_id: 'x', observation_id: id, query: 'row 222:' })
+    expect((await fire('tool.check', { tool: 'mcp__tokenwise__tokenwise_recall' })).answer).toEqual({ decision: 'allow' })
+    const recalled = await fire('tool.call', { tool: 'tokenwise_recall', tool_use_id: 'x', observation_id: id, query: 'row 222:' })
     // The direct call could not start, so the shell was tried next; cmd was never needed.
-    expect([...new Set(calls)]).toEqual(['lc', '/bin/sh'])
+    expect([...new Set(calls)]).toEqual(['tokenwise', '/bin/sh'])
     expect((recalled.answer as { result: string }).result).toContain(`row 222: ${(222 * 7919) % 10007}`)
     // Only once: a later response that looks like a summary is not rewritten.
     const later = await fire('session.append', { door: 'response', message: summaryRow('again') })
@@ -97,11 +97,11 @@ describe('CodeBuddy LightShadow mod', () => {
     expect(block.type).toBe('input_text')
     const text = block.text
     expect(text).toMatch(/^<conversation_history_summary>\nSummary:\n\n1\. Export read\./u)
-    expect(text).toContain('<lightcode-observation-catalog>')
+    expect(text).toContain('<tokenwise-observation-catalog>')
     expect(text.endsWith('</conversation_history_summary>')).toBe(true)
   })
 
-  it('passes everything on unchanged when lc is missing, and other tools through', async () => {
+  it('passes everything on unchanged when tokenwise is missing, and other tools through', async () => {
     const { fire } = await load(temp(), false)
     await fire('session.compact', { trigger: 'auto', messages: transcript })
     const stored = await fire('session.append', { door: 'response', message: summaryRow('Summary.') })
@@ -113,7 +113,7 @@ describe('CodeBuddy LightShadow mod', () => {
   it('carries the same instruction and recall tool as the TypeScript core', async () => {
     const { fire, registered } = await load(temp())
     await fire('session.start', {})
-    expect(registered).toEqual([{ name: 'lightcode_recall', description: RECALL_TOOL_DESCRIPTION, inputSchema: RECALL_INPUT_SCHEMA, isDeferred: false }])
+    expect(registered).toEqual([{ name: 'tokenwise_recall', description: RECALL_TOOL_DESCRIPTION, inputSchema: RECALL_INPUT_SCHEMA, isDeferred: false }])
     const compact = await fire('session.compact', { trigger: 'auto', messages: transcript })
     expect(compact.passed!.instructions).toBe(SHADOW_SUMMARY_INSTRUCTION)
   })

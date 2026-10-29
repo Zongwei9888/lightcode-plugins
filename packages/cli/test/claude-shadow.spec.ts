@@ -6,24 +6,24 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { claudeSpan, CLAUDE_RECALL_TOOL } from '../src/claude-shadow.ts'
 
-// Each test starts real `lc` processes; under a full parallel run they take longer than the default 5 s.
+// Each test starts real `tokenwise` processes; under a full parallel run they take longer than the default 5 s.
 vi.setConfig({ testTimeout: 30_000 })
 
 const main = fileURLToPath(new URL('../src/main.ts', import.meta.url))
 const dirs: string[] = []
-const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'lightcode-cc-')); dirs.push(dir); return dir }
+const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'tokenwise-cc-')); dirs.push(dir); return dir }
 afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }) })
 
 function hook(input: object, home: string) {
   // As Claude Code runs it: no Grok or CodeBuddy markers in the environment.
   const { GROK_HOOK_EVENT: _grok, CODEBUDDY_SESSION_ID: _codebuddy, ...env } = process.env
   const result = spawnSync(process.execPath, ['--conditions=source', main, 'hook', 'claude'], {
-    input: JSON.stringify(input), encoding: 'utf8', env: { ...env, LIGHTCODE_HOME: home },
+    input: JSON.stringify(input), encoding: 'utf8', env: { ...env, TOKENWISE_HOME: home },
   })
   return { status: result.status, out: result.stdout.trim() }
 }
-function lc(args: string[], home: string) {
-  return spawnSync(process.execPath, ['--conditions=source', main, ...args], { encoding: 'utf8', env: { ...process.env, LIGHTCODE_HOME: home } }).stdout
+function tokenwise(args: string[], home: string) {
+  return spawnSync(process.execPath, ['--conditions=source', main, ...args], { encoding: 'utf8', env: { ...process.env, TOKENWISE_HOME: home } }).stdout
 }
 
 // Line shapes as Claude Code 2.1.312 writes them (see claude-shadow.ts).
@@ -62,8 +62,8 @@ describe('Claude Code transcript span', () => {
   })
 })
 
-describe('lc hook claude: LightShadow', () => {
-  it('adds the catalog after each compaction, keeps earlier references, and lc recall reads them', () => {
+describe('tokenwise hook claude: LightShadow', () => {
+  it('adds the catalog after each compaction, keeps earlier references, and tokenwise recall reads them', () => {
     const home = temp(), dir = temp(), transcript = join(dir, 's1.jsonl')
     const first = [user('Check the logs'), toolUse('t1', 'Bash', { command: 'cat alpha.log' }), toolResult('t1', log('alpha'))]
     write(transcript, first)
@@ -75,8 +75,8 @@ describe('lc hook claude: LightShadow', () => {
     write(transcript, [...first, boundary(), summary('Read alpha.log'), toolUse('t2', 'Bash', { command: 'cat beta.log' }), toolResult('t2', log('beta'))])
     const two = catalogOf(hook(start, home).out)
     expect(ids(two)).toHaveLength(2)
-    expect(lc(['recall', ids(two)[0]!, '--query', 'alpha 250:', '--session', 's1'], home)).toContain(`alpha 250: ${(250 * 7919) % 10007}`)
-    expect(JSON.parse(lc(['report', '--host', 'claude', '--json'], home)).lightshadow).toMatchObject({ assisted: 2, references: 2 })
+    expect(tokenwise(['recall', ids(two)[0]!, '--query', 'alpha 250:', '--session', 's1'], home)).toContain(`alpha 250: ${(250 * 7919) % 10007}`)
+    expect(JSON.parse(tokenwise(['report', '--host', 'claude', '--json'], home)).lightshadow).toMatchObject({ assisted: 2, references: 2 })
   })
 
   it('keeps the whole text of an output Claude Code moved to a file', () => {
@@ -86,7 +86,7 @@ describe('lc hook claude: LightShadow', () => {
       toolResult('t1', `<persisted-output>\nOutput too large. Full output saved to: ${saved}\nPreview:\ngamma 0: 0\n</persisted-output>`,
         { toolUseResult: { stdout: 'gamma 0', persistedOutputPath: saved, persistedOutputSize: 1 } })])
     const catalog = catalogOf(hook({ hook_event_name: 'SessionStart', source: 'compact', session_id: 's2', transcript_path: transcript }, home).out)
-    expect(lc(['recall', ids(catalog)[0]!, '--query', 'gamma 2999:'], home)).toContain('gamma 2999:')
+    expect(tokenwise(['recall', ids(catalog)[0]!, '--query', 'gamma 2999:'], home)).toContain('gamma 2999:')
   })
 
   it('catalogs the subagent\'s transcript when a subagent compacted', () => {

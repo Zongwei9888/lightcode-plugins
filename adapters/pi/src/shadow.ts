@@ -2,8 +2,8 @@
  * LightShadow for pi: recoverable compaction through `session_before_compact`.
  * Tool results in the segment pi is about to summarize are saved and replaced
  * by references; pi's own summarizer (`compact`, the same call and model pi
- * uses) condenses what is left; LightCode appends the user's messages word for
- * word and the catalog of references; `lightcode_recall` reads any of them
+ * uses) condenses what is left; TokenWise appends the user's messages word for
+ * word and the catalog of references; `tokenwise_recall` reads any of them
  * again. A checkpoint that is not smaller, or any failure, leaves the
  * compaction to pi.
  */
@@ -13,9 +13,9 @@ import type { TSchema } from '@earendil-works/pi-ai'
 import {
   RECALL_TOOL_DESCRIPTION, RECALL_TOOL_NAME, SHADOW_SUMMARY_INSTRUCTION, callLabel, checkpointAdmitted, checkpointRecord, fitCheckpoint, planShadow, recallIndex, recallObservation,
   renderCheckpoint, renderRecall,
-} from '@lightcode-ai/mechanisms'
-import type { ShadowMessage } from '@lightcode-ai/mechanisms'
-import type { ArtifactPort, EconomyRecord, JournalPort, JournalRecord, ShadowReference } from '@lightcode-ai/protocol'
+} from '@tokenwise/mechanisms'
+import type { ShadowMessage } from '@tokenwise/mechanisms'
+import type { ArtifactPort, EconomyRecord, JournalPort, JournalRecord, ShadowReference } from '@tokenwise/protocol'
 
 type AgentMessage = SessionBeforeCompactEvent['preparation']['messagesToSummarize'][number]
 
@@ -44,7 +44,7 @@ const RECALL_PARAMETERS = {
     observation_id: { type: 'string', description: 'An observation_id from the observation catalog, such as o-1a2b3c4d5e6f.' },
     query: { type: 'string', description: 'An exact string the result contains; for results over 8 KB, this or line.' },
     line: { type: 'integer', minimum: 1, description: 'A 1-based line number to read around; for results over 8 KB, this or query.' },
-    original: { type: 'boolean', description: 'Read the complete output LightCode shortened before you first read it.' },
+    original: { type: 'boolean', description: 'Read the complete output TokenWise shortened before you first read it.' },
   },
   required: ['observation_id'],
   additionalProperties: false,

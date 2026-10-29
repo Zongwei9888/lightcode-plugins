@@ -44,11 +44,11 @@ describe('self-evolution section', () => {
     const tree = EvolveView(base({ evolve: { rules: { active: null, rules: [], history: 0 },
       scan: { schemaVersion: 1, time: '', evidence: 69, newEvidence: 12, leftTokens: 9000, ready: true, rules: [], disabled: [],
         opportunities: [{ command: 'cargo', cases: 6, leftTokens: 8400 }, { command: 'npm', cases: 3, leftTokens: 2100 }] } } }, { onLearn }))
-    expect(by(tree, 'data-lightcode-state')[0]!.props['data-lightcode-state']).toBe('ready')
+    expect(by(tree, 'data-tokenwise-state')[0]!.props['data-tokenwise-state']).toBe('ready')
     expect(textOf(tree)).toContain('Ready to learn')
-    expect(textOf(by(tree, 'data-lightcode-worth'))).toContain('cargo6 outputs~8.4k tokens left')
-    expect(textOf(by(tree, 'data-lightcode-tile'))).toBe('Learned rules0 activeSaved by learned rules—Recorded outputs69')
-    const learn = by(tree, 'data-lightcode-action').find(el => el.props['data-lightcode-action'] === 'learn')!
+    expect(textOf(by(tree, 'data-tokenwise-worth'))).toContain('cargo6 outputs~8.4k tokens left')
+    expect(textOf(by(tree, 'data-tokenwise-tile'))).toBe('Learned rules0 activeSaved by learned rules—Recorded outputs69')
+    const learn = by(tree, 'data-tokenwise-action').find(el => el.props['data-tokenwise-action'] === 'learn')!
     expect(learn.type).toBe('Button')
     ;(learn.props.onClick as () => void)()
     expect(onLearn).toHaveBeenCalled()
@@ -57,10 +57,10 @@ describe('self-evolution section', () => {
   it('asks before learning, naming the learner and what leaves the machine', () => {
     const onConfirm = vi.fn()
     const tree = EvolveView(base({}, { confirming: true, onConfirm }))
-    expect(textOf(by(tree, 'data-lightcode-confirm'))).toContain('Learn with DSH · deepseek-v4-pro?')
-    expect(textOf(by(tree, 'data-lightcode-confirm'))).toContain('sends them to that model\'s provider')
-    expect(by(tree, 'data-lightcode-action').map(el => el.props['data-lightcode-action'])).toEqual(['confirm'])
-    ;(by(tree, 'data-lightcode-action')[0]!.props.onClick as () => void)()
+    expect(textOf(by(tree, 'data-tokenwise-confirm'))).toContain('Learn with DSH · deepseek-v4-pro?')
+    expect(textOf(by(tree, 'data-tokenwise-confirm'))).toContain('sends them to that model\'s provider')
+    expect(by(tree, 'data-tokenwise-action').map(el => el.props['data-tokenwise-action'])).toEqual(['confirm'])
+    ;(by(tree, 'data-tokenwise-action')[0]!.props.onClick as () => void)()
     expect(onConfirm).toHaveBeenCalled()
   })
 
@@ -69,12 +69,12 @@ describe('self-evolution section', () => {
       run: { schemaVersion: 1, runId: 'r', host: 'dsh', learner: 'DSH · deepseek-v4-pro', pid: 1, startedAt: '2026-10-14T11:57:29.000Z', phase: 'learning',
         evidence: 69, shown: 40, running: true, checks: 2, lastCheck: { time: '', accepted: true, gainTokens: 2628 } } } }))
     expect(textOf(walk(tree).find(el => el.type === 'TextShimmer'))).toBe('Learning 2:31')
-    const progress = by(tree, 'data-lightcode-progress')[0]!
+    const progress = by(tree, 'data-tokenwise-progress')[0]!
     expect(walk(progress).filter(el => el.type === 'StateDot').map(el => el.props.state)).toEqual(['done', 'ongoing', 'idle'])
     expect(textOf(progress)).toContain('DSH · deepseek-v4-pro · reading 40 of 69 recorded outputs')
     expect(textOf(progress)).toContain('2 so far · last one passes (+2.6k tokens)')
-    expect(by(tree, 'data-lightcode-action').map(el => el.props['data-lightcode-action'])).toEqual(['cancel'])
-    expect(by(tree, 'data-lightcode-worth')).toEqual([])
+    expect(by(tree, 'data-tokenwise-action').map(el => el.props['data-tokenwise-action'])).toEqual(['cancel'])
+    expect(by(tree, 'data-tokenwise-worth')).toEqual([])
   })
 
   it('lists the learned rules with their use, and switches them off or rolls back', () => {
@@ -87,30 +87,30 @@ describe('self-evolution section', () => {
       run: { schemaVersion: 1, runId: 'r', host: 'dsh', learner: 'x', pid: 1, startedAt: '2026-10-14T11:00:00.000Z', phase: 'done', finishedAt: '2026-10-14T11:03:00.000Z', running: false, checks: 3,
         outcome: { result: 'adopted', rules: ['pytest-verbose-passed', 'cargo-progress'], gainTokens: 2628, cases: 69, generalization: { status: 'confirmed', commands: ['pytest'], heldOutCases: 12, heldOutGain: 300 } } },
     } }, { onToggle, onRollback }))
-    expect(by(tree, 'data-lightcode-state')[0]!.props['data-lightcode-state']).toBe('active')
-    const rows = by(tree, 'data-lightcode-rule')
+    expect(by(tree, 'data-tokenwise-state')[0]!.props['data-tokenwise-state']).toBe('active')
+    const rows = by(tree, 'data-tokenwise-rule')
     expect(rows.map(el => textOf(el))).toEqual(['pytest-verbose-passednoise-removal1 recalls41×−11.2k', 'cargo-progressnoise-removalnot used yet'])
-    expect(textOf(by(tree, 'data-lightcode-tile'))).toContain('Saved by learned rules−11.2k')
-    expect(textOf(by(tree, 'data-lightcode-rules'))).toContain('Switched off npm-noise: the agent asked for the original 3 of 10 times')
+    expect(textOf(by(tree, 'data-tokenwise-tile'))).toContain('Saved by learned rules−11.2k')
+    expect(textOf(by(tree, 'data-tokenwise-rules'))).toContain('Switched off npm-noise: the agent asked for the original 3 of 10 times')
     const toggle = walk(tree).find(el => el.type === 'Switch')!
     expect(toggle.props.checked).toBe(true)
     ;(toggle.props.onChange as (next: boolean) => void)(false)
     expect(onToggle).toHaveBeenCalledWith(false)
-    ;(by(tree, 'data-lightcode-action').find(el => el.props['data-lightcode-action'] === 'rollback')!.props.onClick as () => void)()
+    ;(by(tree, 'data-tokenwise-action').find(el => el.props['data-tokenwise-action'] === 'rollback')!.props.onClick as () => void)()
     expect(onRollback).toHaveBeenCalled()
-    expect(textOf(by(tree, 'data-lightcode-last'))).toBe('Last runAdoptedpytest-verbose-passed, cargo-progress: +2.6k tokens on 69 recorded outputs, confirmed on 12 it had not seen· 57 min ago')
+    expect(textOf(by(tree, 'data-tokenwise-last'))).toBe('Last runAdoptedpytest-verbose-passed, cargo-progress: +2.6k tokens on 69 recorded outputs, confirmed on 12 it had not seen· 57 min ago')
   })
 
   it('explains when it cannot learn or reach the Host', () => {
     expect(textOf(EvolveView(base({ learner: { unavailable: 'no-dsh' } })))).toContain('The dsh command was not found.')
-    expect(by(EvolveView(base({ learner: { unavailable: 'no-dsh' } })), 'data-lightcode-action')).toEqual([])
-    expect(textOf(EvolveView({ ...base({}), payload: undefined, unreachable: true }))).toContain('LightCode is not answering')
+    expect(by(EvolveView(base({ learner: { unavailable: 'no-dsh' } })), 'data-tokenwise-action')).toEqual([])
+    expect(textOf(EvolveView({ ...base({}), payload: undefined, unreachable: true }))).toContain('TokenWise is not answering')
   })
 
-  it('appears only on LightCode\'s own page', () => {
+  it('appears only on TokenWise\'s own page', () => {
     expect(EvolveSection({ t, subject: { kind: 'bundle', pkg: { name: 'other-plugin' } } })).toBeNull()
     expect(EvolveSection({ t, subject: { kind: 'item' } })).toBeNull()
-    expect(EvolveSection({ t, subject: { kind: 'bundle', pkg: { name: '@lightcode-ai/dsh' } } })).not.toBeNull()
+    expect(EvolveSection({ t, subject: { kind: 'bundle', pkg: { name: '@tokenwise/dsh' } } })).not.toBeNull()
   })
 
   it('words outcomes and toasts in both languages', () => {
@@ -118,15 +118,15 @@ describe('self-evolution section', () => {
     const rejected = { result: 'rejected' as const, reasons: ['did-not-generalize', 'replay-token-regression'] }
     expect(outcomeText(t, rejected)).toBe('they only fit the examples the learner saw; they would have saved less on some outputs')
     expect(outcomeText(zt, rejected)).toBe('只适用于学习者看过的样本；在部分输出上省得更少')
-    expect(toastText(t, { schemaVersion: 1, runId: 'r', host: 'dsh', learner: 'x', pid: 1, startedAt: '', phase: 'done', outcome: rejected })).toBe('LightCode learning: Not adopted — they only fit the examples the learner saw; they would have saved less on some outputs')
+    expect(toastText(t, { schemaVersion: 1, runId: 'r', host: 'dsh', learner: 'x', pid: 1, startedAt: '', phase: 'done', outcome: rejected })).toBe('TokenWise learning: Not adopted — they only fit the examples the learner saw; they would have saved less on some outputs')
     const run = { schemaVersion: 1 as const, runId: 'r', host: 'dsh', learner: 'x', pid: 1, startedAt: '', phase: 'done' as const,
       outcome: { result: 'adopted' as const, rules: ['build-progress', 'compile-progress'], changes: { added: ['compile-progress'], changed: [], removed: [] }, gainTokens: 2628 } }
-    expect(toastText(t, run)).toBe('LightCode learned compile-progress (+2.6k tokens)')
-    expect(toastText(zt, run)).toBe('LightCode 学到了 compile-progress（+2.6k tokens）')
+    expect(toastText(t, run)).toBe('TokenWise learned compile-progress (+2.6k tokens)')
+    expect(toastText(zt, run)).toBe('TokenWise 学到了 compile-progress（+2.6k tokens）')
     expect(toastText(t, { ...run, outcome: { result: 'nothing-to-learn' } })).toBeUndefined()
     const ready = [{ command: 'cargo test', cases: 4, leftTokens: 5200 }, { command: 'pytest', cases: 3, leftTokens: 2400 }]
-    expect(readyText(t, ready)).toBe('LightCode can learn from your cargo test, pytest output (~7.6k tokens to save). Start it in Plugins → LightCode.')
-    expect(readyText(zt, ready)).toBe('LightCode 可以从 cargo test, pytest 的输出中学习了（约可省 7.6k tokens），在 插件 → LightCode 里开始。')
+    expect(readyText(t, ready)).toBe('TokenWise can learn from your cargo test, pytest output (~7.6k tokens to save). Start it in Plugins → TokenWise.')
+    expect(readyText(zt, ready)).toBe('TokenWise 可以从 cargo test, pytest 的输出中学习了（约可省 7.6k tokens），在 插件 → TokenWise 里开始。')
     expect(readyText(t, [])).toBeUndefined()
     expect(Object.keys(zh).sort()).toEqual(Object.keys(en).sort())
   })

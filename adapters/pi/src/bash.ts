@@ -1,8 +1,8 @@
 import type { ToolResultEvent } from '@earendil-works/pi-coding-agent'
-import type { ShellResult } from '@lightcode-ai/core'
+import type { ShellResult } from '@tokenwise/core'
 
 /**
- * pi's bash result as LightCode sees it. The model-facing text is the merged
+ * pi's bash result as TokenWise sees it. The model-facing text is the merged
  * stdout/stderr output, followed by `\n\nCommand exited with code N` when the
  * command failed. Truncated output (pi keeps the last 2000 lines / 50KB) and
  * results without an exit code (timeouts, aborts) are reported as such.

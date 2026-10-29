@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { JournalRecord } from '@lightcode-ai/protocol'
+import type { JournalRecord } from '@tokenwise/protocol'
 import { collectSubagents, recordSubagent } from '../src/index.ts'
 
 function journal() {

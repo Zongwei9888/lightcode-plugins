@@ -1,5 +1,5 @@
 /**
- * A small, deterministic project whose commands exercise LightCode the way a
+ * A small, deterministic project whose commands exercise TokenWise the way a
  * coding session does: a recursive search, a failing test run, a diff, and a
  * command no filter covers. Only Node.js and git are required.
  */

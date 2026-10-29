@@ -1,4 +1,4 @@
-import type { ShellResult } from '@lightcode-ai/core'
+import type { ShellResult } from '@tokenwise/core'
 
 /** OpenCode's `tool.execute.after` output for its `bash` tool (OpenCode 1.19). */
 export interface BashOutput {
@@ -9,7 +9,7 @@ export interface BashOutput {
 }
 
 /**
- * OpenCode's bash result as LightCode sees it. The model reads the merged
+ * OpenCode's bash result as TokenWise sees it. The model reads the merged
  * stdout/stderr text, with no exit status in it (the code is in
  * `metadata.exit`). A result OpenCode cut to its tail (its full text is saved
  * to `metadata.outputPath`) is reported as truncated; one without an exit code

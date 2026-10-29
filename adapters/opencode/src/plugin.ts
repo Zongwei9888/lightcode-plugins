@@ -1,16 +1,16 @@
 /**
- * LightCode for OpenCode. Economy: OpenCode's `tool.execute.after` hook hands
+ * TokenWise for OpenCode. Economy: OpenCode's `tool.execute.after` hook hands
  * plugins the bash result before it is stored and sent to the model; a
  * recognized result is replaced by its deterministic projection, after
- * LightCode saved the original and journaled the decision. The command runs
+ * TokenWise saved the original and journaled the decision. The command runs
  * as the model wrote it, so permissions are untouched. Any failure delivers
  * the original. LightShadow (./shadow.ts): OpenCode's compaction summary
- * becomes a checkpoint whose tool results `lightcode_recall` reads again.
+ * becomes a checkpoint whose tool results `tokenwise_recall` reads again.
  */
-import { EconomyEngine } from '@lightcode-ai/mechanisms'
-import { ECONOMY_SPEC, HOST_PROFILES, LIGHTSHADOW_SPEC, negotiate } from '@lightcode-ai/protocol'
-import type { ArtifactPort } from '@lightcode-ai/protocol'
-import { FileArtifactStore, FileJournal, RuleStore, collectDaily, dataDirs, loadConfig, readJournals, resolveDataDir, writableDataDir } from '@lightcode-ai/store'
+import { EconomyEngine } from '@tokenwise/mechanisms'
+import { ECONOMY_SPEC, HOST_PROFILES, LIGHTSHADOW_SPEC, negotiate } from '@tokenwise/protocol'
+import type { ArtifactPort } from '@tokenwise/protocol'
+import { FileArtifactStore, FileJournal, RuleStore, collectDaily, dataDirs, loadConfig, readJournals, resolveDataDir, writableDataDir } from '@tokenwise/store'
 import { bashShellResult } from './bash.ts'
 import type { BashOutput } from './bash.ts'
 import { createShadowHooks } from './shadow.ts'
@@ -18,21 +18,21 @@ import type { OpenCodeClient, ShadowHooks } from './shadow.ts'
 
 export const HOST = 'opencode'
 
-/** The part of OpenCode's plugin context LightCode reads. */
+/** The part of OpenCode's plugin context TokenWise reads. */
 export interface PluginInput { readonly directory?: string; readonly client?: OpenCodeClient }
 export interface ToolAfterInput { readonly tool: string; readonly sessionID?: string; readonly callID?: string; readonly args?: unknown }
 export interface Hooks extends Partial<ShadowHooks> {
   'tool.execute.after'?: (input: ToolAfterInput, output: BashOutput) => Promise<void>
 }
 
-export interface LightCodeOpenCodeOptions {
+export interface TokenWiseOpenCodeOptions {
   readonly env?: NodeJS.ProcessEnv
   /** Diagnostics; errors never reach the tool result or the compaction. */
   readonly onError?: (error: unknown) => void
 }
 
 /** The plugin: one instance per project directory OpenCode serves. */
-export function createLightCode(options: LightCodeOpenCodeOptions = {}): (input: PluginInput) => Promise<Hooks> {
+export function createTokenWise(options: TokenWiseOpenCodeOptions = {}): (input: PluginInput) => Promise<Hooks> {
   return async ({ directory, client }) => {
     const env = options.env ?? process.env
     const configDir = resolveDataDir(env)

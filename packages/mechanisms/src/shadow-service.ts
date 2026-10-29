@@ -8,13 +8,13 @@
  *   the user's exact messages, the catalog) replaces that summary.
  * - `shadowCatalog` (assisted tier): the host writes its own summary and
  *   lets a plugin add context after it; the catalog goes there.
- * - `recallFromJournal`: the recall tool, wherever it runs (in process, `lc
- *   recall`, the `lc mcp` server).
+ * - `recallFromJournal`: the recall tool, wherever it runs (in process, `tokenwise
+ *   recall`, the `tokenwise mcp` server).
  *
  * Every function journals what it did and throws nothing a host must handle
  * beyond its own fail-open path.
  */
-import type { ArtifactPort, EconomyRecord, JournalPort, JournalRecord, ShadowRecallRecord, ShadowReference } from '@lightcode-ai/protocol'
+import type { ArtifactPort, EconomyRecord, JournalPort, JournalRecord, ShadowRecallRecord, ShadowReference } from '@tokenwise/protocol'
 import {
   callLabel, checkpointAdmitted, checkpointRecord, fitCheckpoint, planShadow, recallIndex, recallObservation, referenceId, referenceIndex, renderCatalog, renderCheckpoint, renderRecall,
 } from './shadow.ts'
@@ -134,7 +134,7 @@ export interface CatalogResult {
 
 /** Opening line of an assisted catalog, naming the tool as the host shows it to the model. */
 export function catalogLead(toolName: string): string {
-  return `LightCode kept the tool results that context compaction removed from this conversation. `
+  return `TokenWise kept the tool results that context compaction removed from this conversation. `
     + `Read any of them again, exactly as first seen, with the ${toolName} tool and its observation_id instead of re-running the command or re-reading the file.`
 }
 
@@ -151,7 +151,7 @@ export function shadowCatalog(span: ShadowSpan & { readonly toolName?: string; r
   for (const reference of planned.references) { merged.delete(reference.id); merged.set(reference.id, reference) }
   const added = planned.references.filter(reference => !known.has(reference.id)).length
   const catalog = renderCatalog([...merged.values()], { budgetTokens: span.budgetTokens ?? 8_000 })
-  const text = catalog.text ? `${span.lead ?? catalogLead(span.toolName ?? 'lightcode_recall')}\n\n${catalog.text}` : ''
+  const text = catalog.text ? `${span.lead ?? catalogLead(span.toolName ?? 'tokenwise_recall')}\n\n${catalog.text}` : ''
   record(store, checkpointRecord(base, { kind: 'assisted', plan: planned, checkpointTokens: Math.ceil(text.length / 4) }))
   return { text, references: catalog.references.length, added }
 }
@@ -215,7 +215,7 @@ export const RECALL_INPUT_SCHEMA = {
     observation_id: { type: 'string', description: 'An observation_id from the observation catalog, such as o-1a2b3c4d5e6f.' },
     query: { type: 'string', description: 'An exact string the result contains; for results over 8 KB, this or line.' },
     line: { type: 'integer', minimum: 1, description: 'A 1-based line number to read around; for results over 8 KB, this or query.' },
-    original: { type: 'boolean', description: 'Read the complete output LightCode shortened before you first read it.' },
+    original: { type: 'boolean', description: 'Read the complete output TokenWise shortened before you first read it.' },
   },
   required: ['observation_id'],
   additionalProperties: false,

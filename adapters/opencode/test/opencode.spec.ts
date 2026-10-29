@@ -2,14 +2,14 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'n
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { FileArtifactStore } from '@lightcode-ai/store'
+import { FileArtifactStore } from '@tokenwise/store'
 import * as entry from '../src/index.ts'
 import { bashShellResult } from '../src/bash.ts'
 import type { BashOutput } from '../src/bash.ts'
-import { createLightCode } from '../src/plugin.ts'
+import { createTokenWise } from '../src/plugin.ts'
 
 const dirs: string[] = []
-const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'lightcode-opencode-')); dirs.push(dir); return dir }
+const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'tokenwise-opencode-')); dirs.push(dir); return dir }
 afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }) })
 
 /** `pytest -v` with 150 passing tests and one failure, merged as OpenCode's bash tool reads it. */
@@ -35,17 +35,17 @@ const bashOutput = (text: string, exit: number | null, extra: Record<string, unk
 async function plugin(env: NodeJS.ProcessEnv = {}) {
   const home = temp()
   const errors: unknown[] = []
-  const hooks = await createLightCode({ env: { LIGHTCODE_HOME: home, ...env }, onError: error => errors.push(error) })({ directory: temp() })
+  const hooks = await createTokenWise({ env: { TOKENWISE_HOME: home, ...env }, onError: error => errors.push(error) })({ directory: temp() })
   return { home, hooks, errors }
 }
 
 const records = (home: string) => readdirSync(join(home, 'journal', 'opencode'))
   .flatMap(file => readFileSync(join(home, 'journal', 'opencode', file), 'utf8').trim().split('\n').map(line => JSON.parse(line)))
 
-describe('LightCode for OpenCode', () => {
+describe('TokenWise for OpenCode', () => {
   it('exports the plugin and nothing else, since OpenCode starts every exported function', () => {
-    expect(Object.keys(entry)).toEqual(['LightCode'])
-    expect(typeof entry.LightCode).toBe('function')
+    expect(Object.keys(entry)).toEqual(['TokenWise'])
+    expect(typeof entry.TokenWise).toBe('function')
   })
 
   it('replaces a recognized bash result in place, failed commands included, and keeps the original', async () => {
@@ -80,11 +80,11 @@ describe('LightCode for OpenCode', () => {
   })
 
   it('does nothing when Economy is off or nothing can be saved', async () => {
-    expect(await (await plugin({ LIGHTCODE_DISABLE: '1' })).hooks).toEqual({})
+    expect(await (await plugin({ TOKENWISE_DISABLE: '1' })).hooks).toEqual({})
     // No directory can be made under a plain file, so neither the data directory nor the TMPDIR fallback is writable.
     const file = join(temp(), 'file')
     writeFileSync(file, '')
-    const hooks = await createLightCode({ env: { LIGHTCODE_HOME: join(file, 'home'), TMPDIR: join(file, 'tmp') } })({ directory: temp() })
+    const hooks = await createTokenWise({ env: { TOKENWISE_HOME: join(file, 'home'), TMPDIR: join(file, 'tmp') } })({ directory: temp() })
     expect(hooks).toEqual({})
   })
 

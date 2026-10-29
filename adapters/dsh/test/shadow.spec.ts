@@ -2,14 +2,14 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { FileArtifactStore, FileJournal } from '@lightcode-ai/store'
-import type { JournalRecord, MechanismMode, ShadowCheckpointRecord } from '@lightcode-ai/protocol'
-import { catalogIds } from '@lightcode-ai/mechanisms'
+import { FileArtifactStore, FileJournal } from '@tokenwise/store'
+import type { JournalRecord, MechanismMode, ShadowCheckpointRecord } from '@tokenwise/protocol'
+import { catalogIds } from '@tokenwise/mechanisms'
 import { DSH_PRUNE_MARKER, createDshShadow, shadowMessages } from '../src/shadow.ts'
 import type { SummarizationInput, SummaryResult } from '../src/shadow.ts'
 
 const dirs: string[] = []
-const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'lightcode-dsh-shadow-')); dirs.push(dir); return dir }
+const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'tokenwise-dsh-shadow-')); dirs.push(dir); return dir }
 afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }) })
 
 const text = (value: string) => [{ type: 'text', text: value }]
@@ -157,7 +157,7 @@ describe('LightShadow on DSH', () => {
     const result = await host.engine.summarize(span(), agent as never)
     expect(host.calls).toHaveLength(2)
     expect(host.calls[1]!.messages).toEqual(span().messages)
-    expect(String(result.summary[0]!.text)).not.toContain('lightcode-observation-catalog')
+    expect(String(result.summary[0]!.text)).not.toContain('tokenwise-observation-catalog')
     expect((read('s1') as ShadowCheckpointRecord[]).filter(record => record.type === 'shadow/checkpoint')).toMatchObject([{ kind: 'standard', reason: 'checkpoint-not-smaller' }])
   })
 

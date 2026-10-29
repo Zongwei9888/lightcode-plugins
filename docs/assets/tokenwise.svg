@@ -37,7 +37,7 @@
   <rect x="862.4" y="66" width="109.0" height="38" rx="19" class="card"/>
   <text x="916.9" y="90" class="chip" text-anchor="middle">Grok Build</text>
   <rect x="987.8" y="66" width="172.2" height="38" rx="19" class="card"/>
-  <text x="1073.9" y="90" class="chip" text-anchor="middle">any shell · lc run</text>
+  <text x="1073.9" y="90" class="chip" text-anchor="middle">any shell · tw run</text>
   <g stroke="#94A3B8" stroke-width="1.6" marker-end="url(#a)"><path d="M420 108v40"/><path d="M780 148v-40"/></g>
   <text x="432" y="134" class="s">tool output · compaction</text>
   <text x="792" y="134" class="s">what the model reads</text>

@@ -9,12 +9,12 @@ describe('DSH bundle package', () => {
   it('declares a bundle whose patch mounts the package root', () => {
     expect(manifest.dsh.bundle.patch).toBe('./cordis.patch.yml')
     const patch = readFileSync(at('cordis.patch.yml'), 'utf8')
-    expect(patch).toMatch(/- insert:\n\s+- id: lightcode\n\s+name: '@lightcode-ai\/dsh'\n/)
+    expect(patch).toMatch(/- insert:\n\s+- id: tokenwise\n\s+name: '@tokenwise\/dsh'\n/)
   })
   it('ships display metadata in both languages and a small self-contained icon', () => {
     for (const lang of ['en', 'zh']) {
       const meta = JSON.parse(readFileSync(at(`locale/${lang}.json`), 'utf8')).meta
-      expect(meta.title).toBe('LightCode')
+      expect(meta.title).toBe('TokenWise')
       expect(meta.description.length).toBeGreaterThan(20)
     }
     expect(manifest.icon).toBe('./icon.svg')
@@ -36,10 +36,10 @@ describe('DSH bundle package', () => {
     expect(manifest.peerDependencies['@deepseek-ai/dsh-tools']).toBe('>=0.2.0-0 <0.3.0-0')
     expect(manifest.peerDependencies['@deepseek-ai/schemastery']).toBe('*')
   })
-  it('keeps every LightCode import inside the bundle; only the harness modules stay external', () => {
+  it('keeps every TokenWise import inside the bundle; only the harness modules stay external', () => {
     const host = readFileSync(at('lib/index.js'), 'utf8')
     const imports = [...host.matchAll(/^import\s.*?from\s+["']([^"']+)["']/gm)].map(match => match[1]!)
     expect(imports.filter(specifier => !specifier.startsWith('node:')).sort()).toEqual(['@deepseek-ai/schemastery'])
-    expect(host).not.toMatch(/from\s+["']@lightcode-ai\//)
+    expect(host).not.toMatch(/from\s+["']@tokenwise\//)
   })
 })

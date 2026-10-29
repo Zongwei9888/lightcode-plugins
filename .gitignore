@@ -8,8 +8,8 @@ coverage/
 .env
 .env.*
 *.log
-# Local LightCode data written by tests or manual runs
-.lightcode/
+# Local TokenWise data written by tests or manual runs
+.tokenwise/
 /packages/*/dist/
 /adapters/*/dist/
 # Written by scripts/bundle.mjs into each distributable package
