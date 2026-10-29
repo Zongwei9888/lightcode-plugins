@@ -1,0 +1,98 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="brand.css">
+<style>
+  .card { width: 100vw; height: 100vh; display: grid; grid-template-columns: 470px 1fr; padding: 56px 0 56px 64px; gap: 40px; }
+  .copy { display: flex; flex-direction: column; }
+  .copy .mark { font-size: 22px; }
+  .copy .display { font-size: 108px; margin-top: auto; }
+  .zh .copy .display { font-size: 84px; }
+  .copy .lede { font-size: 22px; margin-top: 22px; max-width: 420px; }
+  .copy .fact { margin-top: 30px; padding-top: 18px; border-top: 2px solid var(--ink); display: flex; gap: 14px; align-items: baseline; }
+  .copy .fact .n { font-weight: 820; font-stretch: 66%; font-size: 44px; line-height: 1; white-space: nowrap; }
+  .copy .fact .l { font-size: 16px; color: #4F6B66; line-height: 1.35; font-stretch: 94%; }
+  .visual { position: relative; }
+  .visual .term { position: absolute; inset: 0 0 0 0; font-size: 13px; line-height: 18px; border-radius: 20px 0 0 20px; box-shadow: 0 30px 60px -30px rgba(14,42,38,.45); }
+  .visual .body { padding: 14px 22px; }
+  .hair { height: 2px; margin: 0 0 2px; background: #5FB8A6; border-radius: 1px; max-width: 100%; }
+  .ev { color: #FFE7A3; background: rgba(242,183,5,.13); box-shadow: inset 3px 0 0 var(--kept); margin-left: -22px; padding-left: 19px; }
+  .seam { height: 24px; margin: 4px 0 6px; display: flex; align-items: center; gap: 12px; color: var(--mint); font-family: Archivo; font-stretch: 86%; font-weight: 600; font-size: 14px; }
+  .seam::before, .seam::after { content: ''; height: 1px; flex: 1; background: linear-gradient(90deg, rgba(204,251,241,0), rgba(204,251,241,.55), rgba(204,251,241,0)); }
+  .dim { color: #6E9C94; }
+
+  /* keep: a session's history, compacted into references; one comes back. */
+  .hist { position: absolute; inset: 0; display: grid; grid-template-rows: auto auto 1fr; }
+  .blocks { display: flex; flex-direction: column; gap: 7px; }
+  .block { background: #fff; border: 1.5px solid var(--rule); border-radius: 12px; padding: 10px 14px; font-family: 'JetBrains Mono'; font-size: 13px; color: #3E5B56; position: relative; }
+  .block b { color: var(--ink); font-weight: 600; }
+  .block .lines { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+  .block .lines i { display: block; height: 5px; border-radius: 3px; background: #D5E3DF; }
+  .cut { margin: 14px 0 12px; display: flex; align-items: center; gap: 12px; font-weight: 650; font-stretch: 88%; color: var(--teal); font-size: 15px; }
+  .cut::before, .cut::after { content: ''; flex: 1; border-top: 2px dashed #8FC9BE; }
+  .catalog { background: var(--term); border-radius: 16px 0 0 16px; padding: 16px 20px; font-family: 'JetBrains Mono'; font-size: 13px; line-height: 20px; color: var(--term-ink); position: relative; margin-right: 0; }
+  .catalog .tag { white-space: pre; color: #9FD8CC; }
+  .catalog .tag em { font-style: normal; color: var(--mint); }
+  .catalog .tag.hit { color: #FFE7A3; background: rgba(242,183,5,.13); box-shadow: inset 3px 0 0 var(--kept); margin-left: -20px; padding-left: 17px; }
+  .recall { margin-top: 12px; border-top: 1px solid rgba(204,251,241,.18); padding-top: 12px; }
+  .recall .call { color: var(--mint); }
+  .recall .ln { white-space: pre; color: #BFE9DF; }
+  .recall .ln.at { color: #FFE7A3; }
+</style></head>
+<body><div class="card"><div class="copy"></div><div class="visual"></div></div>
+<script type="module">
+import { LOGO, esc } from './shared.js'
+const q = new URLSearchParams(location.search), lang = q.get('lang') ?? 'en', topic = q.get('topic') ?? 'read'
+document.body.classList.add(lang)
+const data = await (await fetch('data.json')).json()
+const kb = n => (n / 1024).toFixed(1) + ' KB'
+const T = {
+  read: { en: ['Read less.', 'Tests, builds, diffs and searches reach the model without the noise. Every failure, warning and total stays.', `${kb(data.rawBytes)} → ${data.projectedBytes} B`, 'one pytest run, filtered by TokenWise itself'],
+          zh: ['少读。', '测试、构建、diff 和搜索的输出，去掉噪音再交给模型。失败、警告和总数一行不少。', `${kb(data.rawBytes)} → ${data.projectedBytes} B`, '一次 pytest 运行，由 TokenWise 实际过滤'] },
+  keep: { en: ['Lose nothing.', 'When the agent compacts its history, every tool result becomes a reference it can read back in one call.', '949k → 29.5k', 'tokens after a real pi session compacted; 624 results kept'],
+          zh: ['不丢。', 'agent 压缩历史时，每个工具结果都变成一个引用，一次调用就能原样读回。', '949k → 29.5k', '真实 pi 会话压缩前后的 tokens；保留 624 个结果'] },
+  learn: { en: ['Get better.', 'Your own agent writes filters for your build scripts and logs. TokenWise keeps one only if it holds on output it never saw.', '+4.1k', 'tokens on 35 recorded outputs, confirmed on one it had not seen'],
+           zh: ['越用越好。', '由你自己的 agent 为构建脚本和日志写过滤规则；只有在没见过的输出上也成立，TokenWise 才会采用。', '+4.1k', '35 条记录输出上省下的 tokens，并在一条没见过的输出上确认'] },
+}[topic][lang]
+document.querySelector('.copy').innerHTML = `<div class="mark">${LOGO}<span>TokenWise</span></div>
+  <h1 class="display">${T[0]}</h1><p class="lede">${T[1]}</p>
+  <div class="fact"><span class="n counter">${T[2]}</span><span class="l">${T[3]}</span></div>`
+
+const v = document.querySelector('.visual')
+const evidence = t => /^(E |>|FAILED|tests\/.*FAILED|=+ 1 failed)/.test(t)
+if (topic === 'read') {
+  const raw = data.raw.trimEnd().split('\n').slice(3, 3 + 30)
+  const rows = raw.map((t, i) => {
+    const k = Math.max(0, i - 3), sq = Math.pow(0.78, k)
+    if (sq < 0.2) return `<div class="hair" style="width:${t.length}ch;opacity:${(0.6 - k * 0.01).toFixed(2)}"></div>`
+    return `<div class="row pass" style="height:${(18 * sq).toFixed(2)}px;transform:scaleY(${sq.toFixed(3)});transform-origin:0 100%;opacity:${Math.max(.4, 1 - k * .07).toFixed(2)}">${esc(t)}</div>`
+  }).join('')
+  const proj = data.projected.trimEnd().split('\n').map(t => `<div class="row${evidence(t) ? ' ev' : ''}" style="color:${evidence(t) ? '' : '#BFE9DF'}">${esc(t) || '&nbsp;'}</div>`).join('')
+  v.innerHTML = `<div class="term"><div class="bar"><i></i><i></i><i></i><b>python3 -m pytest -v</b></div><div class="body">${rows}
+    <div class="seam">${lang === 'zh' ? `模型不再需要读的 ${data.rawLines - data.projectedLines} 行` : `${data.rawLines - data.projectedLines} rows the model no longer reads`}</div>${proj}</div></div>`
+} else if (topic === 'keep') {
+  const calls = [['cat src/codec.ts', 'o-3f1c9a07e2b4', 3], ['cat src/content.ts', 'o-8d02c6b1a9f3', 4], ['git diff HEAD~3', 'o-51e7a2c4d880', 3], ['pnpm test', 'o-c4a9e01f7b26', 2]]
+  const blocks = calls.map(([c, , n]) => `<div class="block"><b>${esc(c)}</b><div class="lines">${Array.from({ length: n }, (_, i) => `<i style="width:${60 + ((i * 37) % 35)}%"></i>`).join('')}</div></div>`).join('')
+  const tags = calls.map(([c, id], i) => `<div class="tag${i === 1 ? ' hit' : ''}">observation_id: <em>${id}</em> | call: "${esc(c)}"</div>`).join('')
+  const win = [[227, '  try {'], [228, '    stored = await attachments.save(block)'], [229, '  } catch (error: unknown) {'], [230, '    throw new AcpContentError(block.uri, error)'], [231, '  }']]
+  v.innerHTML = `<div class="hist"><div class="blocks">${blocks}</div>
+    <div class="cut">${lang === 'zh' ? 'agent 在这里压缩历史' : 'the agent compacts here'}</div>
+    <div class="catalog">${tags}<div class="recall"><div class="call">tokenwise_recall { "observation_id": "o-8d02c6b1a9f3", "line": 230 }</div>
+      ${win.map(([n, t]) => `<div class="ln${n === 230 ? ' at' : ''}">${n === 230 ? '>' : ' '}${String(n).padStart(4)}  ${esc(t)}</div>`).join('')}</div></div></div>`
+} else {
+  const prog = Array.from({ length: 120 }, (_, i) => `[${String(i + 1).padStart(3)}/120] Compiling module_${i}`)
+  const rows = prog.slice(0, 22).map((t, i) => {
+    const k = Math.max(0, i - 2), sq = Math.pow(0.76, k)
+    if (sq < 0.2) return `<div class="hair" style="width:${t.length}ch;opacity:${(0.6 - k * 0.01).toFixed(2)}"></div>`
+    return `<div class="row pass" style="height:${(18 * sq).toFixed(2)}px;transform:scaleY(${sq.toFixed(3)});transform-origin:0 100%;opacity:${Math.max(.4, 1 - k * .08).toFixed(2)}">${esc(t)}</div>`
+  }).join('')
+  const rule = ['defineRule({ project(input, tw) {', "  if (input.argv?.[0] !== './build.sh') return null", '  return tw.keepLines(input.raw,', "    line => !/^\\[\\s*\\d+\\/\\d+\\] Compiling /.test(line.text),", "    n => `[${n} progress lines omitted]\\n`)", '} })']
+  const checks = lang === 'zh'
+    ? ['用当前规则和新规则重放全部 35 条记录', '每一行错误都保留', '没有任何一条输出省得更少', '在一条没见过的输出上也省了']
+    : ['replayed all 35 recorded outputs, old rules vs new', 'every error line kept', 'no output saves less', 'also saves on output it never saw']
+  v.innerHTML = `<div class="term"><div class="bar"><i></i><i></i><i></i><b>./build.sh</b></div><div class="body">${rows}
+    <div class="seam">${lang === 'zh' ? '学到的规则' : 'a learned filter'}</div>
+    <div class="row" style="color:#BFE9DF">Finished in 3.1s</div><div class="row ev">[120 progress lines omitted]</div>
+    <div style="margin-top:16px;border-top:1px solid rgba(204,251,241,.18);padding-top:12px">${rule.map(t => `<div class="row dim">${esc(t)}</div>`).join('')}</div>
+    <div style="margin-top:14px;font-family:Archivo;font-size:16px;line-height:26px;color:var(--mint)">${checks.map(c => `<div>✓ ${c}</div>`).join('')}</div></div></div>`
+}
+window.ready = true
+</script></body></html>

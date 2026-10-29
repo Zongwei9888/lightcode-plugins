@@ -1,0 +1,266 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="brand.css">
+<style>
+  body { width: 1920px; height: 1080px; position: relative; }
+  .abs { position: absolute; }
+  #mark { left: 120px; top: 84px; font-size: 34px; }
+  #cap { left: 120px; bottom: 120px; width: 600px; font-size: 64px; }
+  .zh #cap { font-size: 50px; width: 600px; }
+  #cap .line { position: absolute; left: 0; bottom: 0; width: 100%; }
+  .scene { position: absolute; inset: 0; opacity: 0; }
+
+  /* terminal used by the fold and the learning scenes */
+  .tw { left: 760px; top: 150px; width: 1040px; height: 800px; font-size: 15.5px; box-shadow: 0 40px 80px -40px rgba(14,42,38,.55); }
+  .tw .body { position: absolute; left: 0; right: 0; top: 34px; bottom: 0; padding: 14px 26px; overflow: hidden; }
+  .tw .rows .row { line-height: 22px; transform-origin: 0 100%; }
+  .tw .hairfill { position: absolute; left: 0; top: 0; height: 2px; background: #5FB8A6; border-radius: 1px; }
+  .tw .seam { height: 28px; margin: 6px 0; display: flex; align-items: center; gap: 14px; color: var(--mint); font-family: Archivo; font-stretch: 86%; font-weight: 600; font-size: 17px; }
+  .tw .seam::before, .tw .seam::after { content: ''; height: 1px; flex: 1; background: linear-gradient(90deg, rgba(204,251,241,0), rgba(204,251,241,.55), rgba(204,251,241,0)); }
+  .tw .proj .row { line-height: 22px; color: #BFE9DF; }
+  .tw .proj .row.ev { color: #FFE7A3; background: rgba(242,183,5,.14); box-shadow: inset 3px 0 0 var(--kept); margin-left: -26px; padding-left: 23px; }
+  .badge { background: var(--paper); border-radius: 18px; padding: 18px 26px 20px; box-shadow: 0 24px 50px -24px rgba(14,42,38,.55); }
+  .badge .n { font-weight: 820; font-stretch: 66%; font-size: 72px; line-height: .95; }
+  .badge .n s { text-decoration: none; color: var(--noise); }
+  .badge .l { font-size: 19px; color: #4F6B66; margin-top: 8px; font-stretch: 94%; }
+  .tokens { left: 120px; top: 360px; }
+  .tokens .n { font-weight: 820; font-stretch: 66%; font-size: 150px; line-height: .9; }
+  .tokens .l { font-size: 22px; color: #4F6B66; margin-top: 10px; }
+
+  /* compaction scene */
+  .ctx { left: 780px; top: 140px; width: 560px; height: 800px; border: 2px solid var(--rule); border-radius: 22px; background: rgba(255,255,255,.5); }
+  .ctx .lab { position: absolute; left: 22px; top: -34px; font-size: 18px; color: #4F6B66; font-weight: 600; font-stretch: 92%; }
+  .ctx .limit { position: absolute; left: -2px; right: -2px; top: 86px; border-top: 2px dashed #E08A6B; }
+  .ctx .limit span { position: absolute; right: 16px; top: -26px; font-size: 16px; color: #B5532F; font-weight: 600; font-stretch: 92%; }
+  .blk { position: absolute; left: 18px; right: 18px; border-radius: 12px; overflow: hidden; font-family: 'JetBrains Mono'; font-size: 15px; }
+  .blk .face { position: absolute; inset: 0; background: #fff; border: 1.5px solid var(--rule); border-radius: 12px; padding: 12px 16px; color: var(--ink); }
+  .blk .face .ln { height: 6px; border-radius: 3px; background: #D5E3DF; margin-top: 8px; }
+  .blk .tag { position: absolute; inset: 0; background: var(--term); color: #9FD8CC; padding: 0 16px; display: flex; align-items: center; white-space: pre; font-size: 14px; }
+  .blk .tag em { font-style: normal; color: var(--mint); }
+  .blk.hit .tag { color: #FFE7A3; box-shadow: inset 3px 0 0 var(--kept); background: #1D4A33; }
+  .summ { position: absolute; left: 18px; right: 18px; top: 18px; height: 120px; border-radius: 12px; background: var(--mint); padding: 14px 18px; color: var(--ink); font-size: 17px; line-height: 1.4; }
+  .summ b { display: block; font-weight: 700; margin-bottom: 4px; }
+  .rc { left: 1380px; top: 330px; width: 460px; border-radius: 18px; background: var(--term); color: var(--term-ink); font-family: 'JetBrains Mono'; font-size: 15px; line-height: 24px; padding: 20px 22px; box-shadow: 0 40px 80px -40px rgba(14,42,38,.55); }
+  .rc .call { color: var(--mint); white-space: pre-wrap; }
+  .rc .ln { white-space: pre; color: #BFE9DF; }
+  .rc .ln.at { color: #FFE7A3; background: rgba(242,183,5,.14); box-shadow: inset 3px 0 0 var(--kept); margin-left: -22px; padding-left: 19px; }
+
+  .rule, .rc, .chip.any, .end .url, .blk { font-variant-ligatures: none; font-feature-settings: 'liga' 0, 'calt' 0; }
+  /* learning scene */
+  .rule { left: 1180px; top: 520px; width: 660px; border-radius: 18px; background: #fff; border: 1.5px solid var(--rule); padding: 18px 20px; font-family: 'JetBrains Mono'; font-size: 13.5px; line-height: 22px; color: #2E4A45; box-shadow: 0 30px 60px -30px rgba(14,42,38,.4); white-space: pre; }
+  .checks { left: 1180px; top: 760px; font-size: 21px; line-height: 38px; color: var(--ink); font-stretch: 96%; }
+  .checks div { opacity: 0; }
+  .checks b { color: var(--teal); }
+
+  /* results scene */
+  .bars { left: 760px; top: 190px; width: 1060px; }
+  .bars .r { display: grid; grid-template-columns: 250px 1fr; align-items: center; height: 118px; }
+  .bars .who { font-size: 26px; font-weight: 650; font-stretch: 92%; line-height: 1.1; }
+  .bars .who small { display: block; font-size: 17px; font-weight: 420; color: #5B7671; margin-top: 4px; }
+  .bars .track { position: relative; height: 34px; }
+  .bars .hist { position: absolute; left: 0; top: 0; bottom: 0; background: #0B9182; border-radius: 0 4px 4px 0; }
+  .bars .keep { position: absolute; left: 0; top: 0; bottom: 0; background: #B87E00; box-shadow: 2px 0 0 var(--paper); }
+  .bars .val { position: absolute; top: -40px; font-size: 24px; font-weight: 720; font-stretch: 80%; white-space: nowrap; }
+
+  /* agents + end card */
+  .chips { left: 760px; top: 250px; width: 1060px; display: flex; flex-wrap: wrap; gap: 22px; }
+  .chip { padding: 22px 34px; border-radius: 999px; background: #fff; border: 2px solid var(--rule); font-size: 32px; font-weight: 650; font-stretch: 90%; opacity: 0; }
+  .chip.any { background: var(--term); color: var(--mint); border-color: var(--term); font-family: 'JetBrains Mono'; font-size: 26px; font-weight: 500; }
+  .end { inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  .end .big { display: flex; align-items: center; gap: 34px; font-size: 150px; }
+  .end .big svg { width: 170px; height: 170px; }
+  .end .tag { font-size: 52px; margin-top: 30px; font-weight: 700; font-stretch: 72%; color: #2E4A45; }
+  .end .url { font-family: 'JetBrains Mono'; font-size: 30px; margin-top: 44px; color: var(--teal); }
+  .end .lic { font-size: 22px; margin-top: 12px; color: #5B7671; }
+</style></head>
+<body>
+<div id="mark" class="abs mark"></div>
+<div id="cap" class="abs display"></div>
+<section class="scene" id="sFold"></section>
+<section class="scene" id="sCompact"></section>
+<section class="scene" id="sLearn"></section>
+<section class="scene" id="sResults"></section>
+<section class="scene" id="sAgents"></section>
+<section class="scene" id="sEnd"></section>
+<script type="module">
+import { LOGO, esc } from './shared.js'
+const lang = new URLSearchParams(location.search).get('lang') ?? 'en'
+document.body.classList.add(lang)
+const D = await (await fetch('data.json')).json()
+const zh = lang === 'zh'
+const fmt = n => Math.round(n).toLocaleString('en-US')
+
+// ---- timing helpers: everything below is a pure function of t ----
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x))
+const ease = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2
+const outc = x => 1 - Math.pow(1 - x, 3)
+const p = (t, a, b) => clamp((t - a) / (b - a))
+const lerp = (a, b, x) => a + (b - a) * x
+const window_ = (t, a, b, f = .5) => Math.min(outc(p(t, a, a + f)), 1 - p(t, b - f, b))
+
+const SCENES = { sFold: [0, 15.2], sCompact: [15, 29.2], sLearn: [29, 41.2], sResults: [41, 50.2], sAgents: [50, 55.8], sEnd: [55.6, 62] }
+window.DURATION = 62
+
+const CAPS = zh ? [
+  [0.4, 7, 'agent 会把这些<br>一行行全读进去。'], [7.4, 15, 'TokenWise 只给模型<br>看要紧的部分，<br>失败信息一行不少。'],
+  [15.4, 22, '会话一长就要压缩，<br>摘要没写到的内容<br>通常就丢了。'], [22, 29, '有了 TokenWise，<br>每个工具结果<br>都能一次调回。'],
+  [29.4, 41, '它还会学会你自己的工具，<br>只采用在没见过的输出上<br>也成立的规则。'], [41.4, 50, '真实会话、默认设置：<br>历史只留 3%–6%，<br>压缩后全部答对。'],
+  [50.4, 55.6, '装进你正在用的 agent。'],
+] : [
+  [0.4, 7, 'Your agent reads every line of this.'], [7.4, 15, 'TokenWise shows the model what matters. Every failure stays.'],
+  [15.4, 22, 'Long sessions get compacted. What the summary leaves out is usually gone.'], [22, 29, 'With TokenWise, every tool result stays one call away.'],
+  [29.4, 41, 'It learns your own tools, and keeps a filter only if it holds on output it never saw.'], [41.4, 50, 'Real sessions, default settings: 3–6% of the history kept, every answer right.'],
+  [50.4, 55.6, 'Works in the agent you already use.'],
+]
+const capEl = document.getElementById('cap')
+capEl.innerHTML = CAPS.map(c => `<div class="line">${c[2]}</div>`).join('')
+const capLines = [...capEl.children]
+document.getElementById('mark').innerHTML = `${LOGO}<span>TokenWise</span>`
+
+// ---- scene 1+2: the wall and the fold ----
+const raw = D.raw.trimEnd().split('\n'), proj = D.projected.trimEnd().split('\n')
+const ev = t => /^(E |>|FAILED|tests\/.*FAILED|=+ 1 failed)/.test(t)
+const fold = document.getElementById('sFold')
+fold.innerHTML = `<div class="term abs tw"><div class="bar"><i></i><i></i><i></i><b>python3 -m pytest -v</b></div>
+  <div class="body"><div class="rows">${raw.map(t => `<div class="row ${/FAILED/.test(t) ? 'fail' : /PASSED/.test(t) ? 'pass' : 'noise'}"><span>${esc(t) || '&nbsp;'}</span></div>`).join('')}</div>
+  <div class="seam">${zh ? `模型不再需要读的 ${D.rawLines - D.projectedLines} 行` : `${D.rawLines - D.projectedLines} rows the model no longer reads`}</div>
+  <div class="proj">${proj.map(t => `<div class="row${ev(t) ? ' ev' : ''}">${esc(t) || '&nbsp;'}</div>`).join('')}</div></div></div>
+  <div class="abs tokens"><div class="n counter"></div><div class="l">${zh ? '模型要读的 tokens' : 'tokens the model reads'}</div></div>
+  <div class="abs badge" style="left:120px;top:600px"><div class="n counter">${D.rawLines} <s>→</s> ${D.projectedLines}</div><div class="l">${zh ? '模型实际读到的行数' : 'lines the model actually reads'}</div></div>`
+const fRows = [...fold.querySelectorAll('.rows .row')], fSeam = fold.querySelector('.seam'), fProj = [...fold.querySelectorAll('.proj .row')]
+const fRowsBox = fold.querySelector('.rows'), fTok = fold.querySelector('.tokens .n'), fBadge = fold.querySelector('.badge'), fTokens = fold.querySelector('.tokens')
+const LH = 22
+// final height of raw row i after the fold: three full rows, a squeeze, hairlines, then nothing
+const finalH = i => i < 3 ? LH : i < 11 ? LH * Math.pow(0.76, i - 2) : i < 34 ? 4 : 0
+function renderFold(t) {
+  const shown = Math.min(raw.length, Math.floor(Math.max(0, t - .3) * 48))
+  const fp = ease(p(t, 7.6, 10.2))                              // the fold
+  const rewind = ease(p(t, 6.4, 7.4))
+  const scroll = Math.max(0, shown - 33) * LH * (1 - rewind)
+  fRowsBox.style.transform = `translateY(${-scroll}px)`
+  fRows.forEach((r, i) => {
+    const vis = i < shown || t > 6.4
+    const stagger = clamp(fp * 1.25 - (i % 40) * 0.006)
+    const h = lerp(LH, finalH(i), stagger)
+    r.style.height = h.toFixed(2) + 'px'
+    r.style.opacity = vis ? (fp > 0 ? lerp(1, i < 3 ? 1 : i < 11 ? .7 : .45, stagger).toFixed(2) : 1) : 0
+    const sq = h / LH
+    r.firstChild.style.display = 'inline-block'
+    r.firstChild.style.transform = `scaleY(${Math.max(sq, .02).toFixed(3)})`
+    r.firstChild.style.transformOrigin = '0 100%'
+    if (i >= 11 && i < 34) { r.style.background = `rgba(95,184,166,${(.6 * stagger).toFixed(2)})`; r.style.borderBottom = `${(2 * stagger).toFixed(2)}px solid var(--term)`; r.firstChild.style.opacity = (1 - stagger).toFixed(2) }
+  })
+  fSeam.style.opacity = outc(p(t, 9.6, 10.4))
+  fProj.forEach((r, i) => { const a = outc(p(t, 10 + i * .07, 10.5 + i * .07)); r.style.opacity = a; r.style.transform = `translateY(${(1 - a) * 14}px)` })
+  const tokens = t < 7.4 ? D.rawTokens * shown / raw.length : lerp(D.rawTokens, D.projectedTokens, ease(p(t, 9.8, 11.8)))
+  fTok.textContent = fmt(tokens)
+  fTokens.style.opacity = outc(p(t, .6, 1.4))
+  const b = outc(p(t, 12.2, 12.9)); fBadge.style.opacity = b; fBadge.style.transform = `translateY(${(1 - b) * 24}px)`
+}
+
+// ---- scene 3: compaction ----
+const comp = document.getElementById('sCompact')
+const CALLS = [['cat src/codec.ts', 'o-3f1c9a07e2b4', 3], ['cat src/content.ts', 'o-8d02c6b1a9f3', 4], ['git diff HEAD~3', 'o-51e7a2c4d880', 3], ['pnpm test', 'o-c4a9e01f7b26', 2],
+  ['grep -rn TurnEnd src', 'o-9a17c3e5b210', 2], ['cat docs/RULES.md', 'o-2b6e8d40f1c9', 4], ['tsc --noEmit', 'o-71d4a2f9c3e8', 2]]
+comp.innerHTML = `<div class="abs ctx"><div class="lab">${zh ? '上下文窗口' : 'context window'}</div><div class="limit"><span>${zh ? '压缩线' : 'compaction'}</span></div>
+  <div class="summ"><b>${zh ? '摘要' : 'Summary'}</b>${zh ? '你的原话一字不改，加上每个工具结果的目录。' : 'Your messages word for word, and a catalog of every tool result.'}</div>
+  ${CALLS.map(([c, id, n], i) => `<div class="blk${i === 1 ? ' hit' : ''}"><div class="face"><b>${esc(c)}</b>${Array.from({ length: n }, (_, k) => `<div class="ln" style="width:${62 + ((k * 29 + i * 13) % 34)}%"></div>`).join('')}</div>
+    <div class="tag">${id}  <em>${esc(c)}</em></div></div>`).join('')}</div>
+  <div class="abs rc"><div class="call"></div><div class="win"></div></div>`
+const blks = [...comp.querySelectorAll('.blk')], summ = comp.querySelector('.summ'), limit = comp.querySelector('.limit'), rc = comp.querySelector('.rc')
+const rcCall = comp.querySelector('.rc .call'), rcWin = comp.querySelector('.rc .win')
+const CALL_TXT = 'tokenwise_recall {\n  "observation_id": "o-8d02c6b1a9f3",\n  "line": 230\n}'
+const WIN = [[228, '  stored = await attachments.save(b)'], [229, '} catch (error: unknown) {'], [230, '  throw new AcpContentError(b.uri, error)'], [231, '}']]
+function renderCompact(t) {
+  // blocks stack bottom-up in the window, then compact into one-line tags under the summary
+  const heights = CALLS.map(([, , n]) => 46 + n * 14)
+  let y = 780
+  const stacked = heights.map(h => { y -= h + 10; return y })
+  const cp = ease(p(t, 20, 21.6))
+  blks.forEach((b, i) => {
+    const appear = outc(p(t, 15.6 + i * .5, 16.1 + i * .5))
+    const tagTop = 156 + i * 40
+    const top = lerp(stacked[i] + (1 - appear) * 40, tagTop, cp), h = lerp(heights[i], 32, cp)
+    b.style.top = top + 'px'; b.style.height = h + 'px'; b.style.opacity = appear
+    b.querySelector('.face').style.opacity = 1 - clamp(cp * 1.6)
+    b.querySelector('.tag').style.opacity = clamp(cp * 1.6 - .6)
+  })
+  summ.style.opacity = outc(p(t, 20.8, 21.6)); summ.style.transform = `translateY(${(1 - outc(p(t, 20.8, 21.6))) * -16}px)`
+  limit.style.opacity = outc(p(t, 18.6, 19.2)) * (1 - p(t, 21.6, 22.2))
+  const r = outc(p(t, 23, 23.6)); rc.style.opacity = r; rc.style.transform = `translateX(${(1 - r) * 30}px)`
+  rcCall.textContent = CALL_TXT.slice(0, Math.floor(CALL_TXT.length * p(t, 23.4, 25)))
+  rcWin.innerHTML = WIN.map(([n, s], k) => `<div class="ln${n === 230 ? ' at' : ''}" style="opacity:${outc(p(t, 25.4 + k * .12, 25.9 + k * .12))}">${n === 230 ? '>' : ' '}${n} ${esc(s)}</div>`).join('')
+  blks[1].style.boxShadow = t > 23 ? `0 0 0 ${3 * outc(p(t, 23, 23.5))}px rgba(242,183,5,.75)` : 'none'
+}
+
+// ---- scene 4: learning ----
+const learn = document.getElementById('sLearn')
+const PROG = Array.from({ length: 120 }, (_, i) => `[${String(i + 1).padStart(3)}/120] Compiling module_${i}`)
+const RULE = ["defineRule({ project(input, tw) {", "  if (input.argv?.[0] !== './build.sh') return null", "  return tw.keepLines(input.raw,", "    line => !/Compiling /.test(line.text),", "    n => `[${n} progress lines omitted]\\n`)", "} })"].join('\n')
+const CHECKS = zh ? ['用当前规则和新规则重放全部 35 条记录', '每一行错误都保留', '没有任何一条输出省得更少', '在没见过的输出上也省了'] : ['replayed all 35 recorded outputs', 'every error line kept', 'no output saves less', 'also saves on output it never saw']
+learn.innerHTML = `<div class="term abs tw" style="width:560px;left:760px;height:760px;top:150px"><div class="bar"><i></i><i></i><i></i><b>./build.sh</b></div>
+  <div class="body"><div class="rows">${PROG.map(t => `<div class="row pass"><span>${t}</span></div>`).join('')}</div>
+  <div class="seam" style="font-size:16px">${zh ? '学到的规则' : 'a learned filter'}</div>
+  <div class="proj"><div class="row">Finished in 3.1s</div><div class="row ev">[120 progress lines omitted]</div></div></div></div>
+  <div class="abs rule" style="left:1370px;top:150px;width:470px"></div><div class="abs checks" style="left:1370px;top:400px">${CHECKS.map(c => `<div><b>✓</b> ${c}</div>`).join('')}</div>
+  <div class="abs badge" style="left:1370px;top:640px"><div class="n counter">+4.1k</div><div class="l">${zh ? '35 条记录上省下的 tokens' : 'tokens on 35 recorded outputs'}</div></div>`
+const lRows = [...learn.querySelectorAll('.rows .row')], lBox = learn.querySelector('.rows'), lSeam = learn.querySelector('.seam'), lProj = [...learn.querySelectorAll('.proj .row')]
+const lRule = learn.querySelector('.rule'), lChecks = [...learn.querySelectorAll('.checks div')], lBadge = learn.querySelector('.badge')
+function renderLearn(t) {
+  const shown = Math.min(120, Math.floor(Math.max(0, t - 29.5) * 50))
+  const fp = ease(p(t, 37.4, 39.4)), rewind = ease(p(t, 36.6, 37.3))
+  lBox.style.transform = `translateY(${-Math.max(0, shown - 28) * LH * (1 - rewind)}px)`
+  lRows.forEach((r, i) => {
+    const s = clamp(fp * 1.25 - (i % 30) * .008), h = lerp(LH, finalH(i), s)
+    r.style.height = h.toFixed(2) + 'px'; r.style.opacity = i < shown ? lerp(1, i < 3 ? 1 : .5, s).toFixed(2) : 0
+    r.firstChild.style.display = 'inline-block'; r.firstChild.style.transformOrigin = '0 100%'; r.firstChild.style.transform = `scaleY(${Math.max(h / LH, .02).toFixed(3)})`
+    if (i >= 11 && i < 34) { r.style.background = `rgba(95,184,166,${(.6 * s).toFixed(2)})`; r.style.borderBottom = `${(2 * s).toFixed(2)}px solid var(--term)`; r.firstChild.style.opacity = (1 - s).toFixed(2) }
+  })
+  lSeam.style.opacity = outc(p(t, 39, 39.6))
+  lProj.forEach((r, i) => { const a = outc(p(t, 39.4 + i * .15, 39.9 + i * .15)); r.style.opacity = a })
+  const rr = outc(p(t, 31.6, 32.2)); lRule.style.opacity = rr
+  lRule.textContent = RULE.slice(0, Math.floor(RULE.length * p(t, 32, 34.6)))
+  lChecks.forEach((c, i) => { const a = outc(p(t, 34.9 + i * .55, 35.3 + i * .55)); c.style.opacity = a; c.style.transform = `translateX(${(1 - a) * 16}px)` })
+  const b = outc(p(t, 39.8, 40.4)); lBadge.style.opacity = b; lBadge.style.transform = `translateY(${(1 - b) * 20}px)`
+}
+
+// ---- scene 5: results ----
+const res = document.getElementById('sResults')
+const R = [['pi', 'DeepSeek V4, 1M', 949, 29.5], ['DeepSeek Harness', 'DeepSeek V4, 1M', 539, 30.8], ['pi', 'Kimi K2.6, 262k', 274, 8.0], ['OpenCode', 'Kimi K2.6, 262k', 190, 7.1], ['Hermes Agent', 'Kimi K2.6, 262k', 180, 8.9]]
+res.innerHTML = `<div class="abs bars">${R.map(([n, m]) => `<div class="r"><div class="who">${n}<small>${m}</small></div><div class="track"><div class="hist"></div><div class="keep"></div><div class="val counter"></div></div></div>`).join('')}</div>`
+const rRows = [...res.querySelectorAll('.r')]
+function renderResults(t) {
+  rRows.forEach((row, i) => {
+    const [, , h, k] = R[i], g = ease(p(t, 41.6 + i * .25, 43 + i * .25)), shrink = ease(p(t, 44.6, 46.4))
+    const W = 790
+    row.querySelector('.hist').style.width = (W * h / 1000 * g) + 'px'
+    row.querySelector('.hist').style.opacity = lerp(1, .22, shrink)
+    row.querySelector('.keep').style.width = (W * k / 1000 * g) + 'px'
+    const v = row.querySelector('.val'); v.style.left = (W * h / 1000 * g + 18) + 'px'; v.style.top = '0px'
+    v.style.opacity = outc(p(t, 42.6 + i * .25, 43.2 + i * .25))
+    v.innerHTML = shrink < .5 ? `${h}k` : `${h}k → <span style="color:#8A5E00">${k.toFixed(1)}k</span>`
+  })
+}
+
+// ---- scene 6 + 7: agents, end card ----
+const ag = document.getElementById('sAgents')
+ag.innerHTML = `<div class="abs chips">${['Claude Code', 'Codex', 'pi', 'DeepSeek Harness', 'OpenCode', 'Hermes Agent', 'CodeBuddy', 'Grok Build'].map(a => `<div class="chip">${a}</div>`).join('')}<div class="chip any">tw run -c 'cargo test'</div></div>`
+const chips = [...ag.querySelectorAll('.chip')]
+const endEl = document.getElementById('sEnd')
+endEl.innerHTML = `<div class="abs end"><div class="big mark">${LOGO}<span>TokenWise</span></div>
+  <div class="tag">${zh ? '让 agent 的每个 token 都物有所值' : 'Make every token count for your agent.'}</div>
+  <div class="url">github.com/Zongwei9888/tokenwise</div><div class="lic">${zh ? '开源，MIT 许可' : 'Open source, MIT licensed'}</div></div>`
+
+window.render = t => {
+  for (const [id, [a, b]] of Object.entries(SCENES)) document.getElementById(id).style.opacity = (a === 0 ? (t < b - .5 ? 1 : 1 - p(t, b - .5, b)) : window_(t, a, b)).toFixed(3)
+  capLines.forEach((el, i) => { const [a, b] = CAPS[i]; const o = window_(t, a, b, .45); el.style.opacity = o.toFixed(3); el.style.transform = `translateY(${((1 - outc(p(t, a, a + .45))) * 18).toFixed(1)}px)` })
+  const markO = 1 - p(t, 55.2, 55.7); document.getElementById('mark').style.opacity = markO
+  if (t < 15.3) renderFold(t)
+  if (t > 14.8 && t < 29.4) renderCompact(t)
+  if (t > 28.8 && t < 41.4) renderLearn(t)
+  if (t > 40.8 && t < 50.4) renderResults(t)
+  chips.forEach((c, i) => { const a = outc(p(t, 50.5 + i * .16, 50.95 + i * .16)); c.style.opacity = a; c.style.transform = `translateY(${(1 - a) * 18}px) scale(${lerp(.96, 1, a)})` })
+  const e = outc(p(t, 55.8, 56.6)); endEl.firstChild.style.transform = `translateY(${(1 - e) * 20}px)`
+}
+window.render(0)
+window.ready = true
+</script></body></html>

@@ -1,0 +1,49 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="brand.css">
+<style>
+  .page { width: 100vw; height: 100vh; padding: 56px 72px 0; display: grid; grid-template-rows: auto 1fr; }
+  .head { display: flex; justify-content: space-between; align-items: flex-end; gap: 40px; }
+  .mark { font-size: 24px; }
+  h1 { font-size: 84px; margin-top: 22px; }
+  .zh h1 { font-size: 60px; }
+  .nums { text-align: right; padding-bottom: 6px; }
+  .nums .n { font-weight: 820; font-stretch: 66%; font-size: 52px; line-height: 1; }
+  .nums .l { font-size: 17px; color: #4F6B66; margin-top: 6px; }
+  .panes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 36px; margin-top: 34px; min-height: 0; }
+  .pane { display: flex; flex-direction: column; min-height: 0; }
+  .pane h2 { font-size: 22px; font-weight: 650; font-stretch: 90%; margin-bottom: 12px; display: flex; justify-content: space-between; }
+  .pane h2 span { font-weight: 450; color: #5B7671; }
+  .pane .term { flex: 1; border-radius: 16px 16px 0 0; min-width: 0; }
+  .dense { padding: 12px 18px; font-size: 13.4px; line-height: 14px; }
+  .dense .row { color: #4F8F84; height: 2.02px; overflow: visible; transform: scaleY(.15); transform-origin: 0 0; }
+  .dense .row.ev { color: #FFE7A3; background: rgba(242,183,5,.95); height: 2.6px; }
+  .clear { padding: 18px 22px; font-size: 15px; line-height: 26px; }
+  .clear .row { color: #BFE9DF; white-space: pre; overflow: hidden; }
+  .clear .row.ev { color: #FFE7A3; background: rgba(242,183,5,.13); box-shadow: inset 3px 0 0 var(--kept); margin-left: -22px; padding-left: 19px; }
+</style></head>
+<body><div class="page"></div>
+<script type="module">
+import { LOGO, esc } from './shared.js'
+const lang = new URLSearchParams(location.search).get('lang') ?? 'en'
+document.body.classList.add(lang)
+const d = await (await fetch('data.json')).json()
+const ev = t => /^(E |>|FAILED|tests\/.*FAILED|=+ 1 failed)/.test(t)
+const raw = d.raw.trimEnd().split('\n'), proj = d.projected.trimEnd().split('\n')
+const T = lang === 'zh' ? {
+  h: `同一次运行，模型只读 ${d.projectedLines} 行`, n: `${(d.rawBytes / 1024).toFixed(1)} KB → ${d.projectedBytes} B`, l: '由 TokenWise 实际过滤，约省 96% tokens',
+  a: ['agent 运行的输出', `${d.rawLines} 行`], b: ['模型读到的', `${d.projectedLines} 行，失败信息一行不少`],
+} : {
+  h: `Same run. The model reads ${d.projectedLines} lines.`, n: `${(d.rawBytes / 1024).toFixed(1)} KB → ${d.projectedBytes} B`, l: 'filtered by TokenWise itself, about 96% fewer tokens',
+  a: ['What the agent ran', `${d.rawLines} lines`], b: ['What the model reads', `${d.projectedLines} lines, every failure kept`],
+}
+document.querySelector('.page').innerHTML = `
+  <div class="head"><div><div class="mark">${LOGO}<span>TokenWise</span></div><h1 class="display">${T.h}</h1></div>
+    <div class="nums"><div class="n counter">${T.n}</div><div class="l">${T.l}</div></div></div>
+  <div class="panes">
+    <div class="pane"><h2>${T.a[0]}<span>${T.a[1]}</span></h2><div class="term"><div class="bar"><i></i><i></i><i></i><b>python3 -m pytest -v</b></div>
+      <div class="dense">${raw.map(t => `<div class="row${ev(t) ? ' ev' : ''}">${esc(t) || '&nbsp;'}</div>`).join('')}</div></div></div>
+    <div class="pane"><h2>${T.b[0]}<span>${T.b[1]}</span></h2><div class="term"><div class="bar"><i></i><i></i><i></i><b>python3 -m pytest -v</b></div>
+      <div class="clear">${proj.map(t => `<div class="row${ev(t) ? ' ev' : ''}">${esc(t) || '&nbsp;'}</div>`).join('')}</div></div></div>
+  </div>`
+window.ready = true
+</script></body></html>

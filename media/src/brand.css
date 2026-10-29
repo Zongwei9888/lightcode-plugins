@@ -1,0 +1,46 @@
+/* TokenWise media kit: one stylesheet for every still and the video. */
+@font-face { font-family: Archivo; src: url(fonts/Archivo.ttf) format('truetype'); font-weight: 100 900; font-stretch: 62% 125%; }
+@font-face { font-family: 'JetBrains Mono'; src: url(fonts/JetBrainsMono.ttf) format('truetype'); font-weight: 100 800; }
+
+:root {
+  --paper: #EEF3F1;     /* cool mint-grey ground */
+  --ink: #0E2A26;       /* teal-black text */
+  --teal: #0F766E;      /* brand */
+  --mint: #CCFBF1;      /* brand tint */
+  --noise: #8FA6A0;     /* output the model no longer reads */
+  --kept: #F2B705;      /* evidence that stays: the bolt's amber */
+  --kept-ink: #5A4300;
+  --rule: #C9D8D3;
+  --term: #0B3B36;      /* terminal ground: deep teal, not black */
+  --term-ink: #D7F5EE;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; }
+body { background: var(--paper); color: var(--ink); font-family: Archivo, 'PingFang SC', 'Hiragino Sans GB', sans-serif; font-stretch: 100%; -webkit-font-smoothing: antialiased; overflow: hidden; }
+
+/* The wordmark: the logo square and the name set narrow and heavy. */
+.mark { display: flex; align-items: center; gap: .42em; font-weight: 760; font-stretch: 82%; letter-spacing: -.01em; }
+.mark svg { width: 1.25em; height: 1.25em; flex: none; }
+
+/* Headlines are set compressed: the type does what the product does. */
+.display { font-weight: 820; font-stretch: 64%; line-height: .9; letter-spacing: -.012em; }
+.lede { font-weight: 420; font-stretch: 96%; line-height: 1.38; color: #2E4A45; }
+.zh .display { font-stretch: 100%; letter-spacing: 0; line-height: 1.12; font-weight: 800; }
+.zh .lede { line-height: 1.6; }
+
+/* Terminal: the subject itself, so it may take real space. */
+.term { background: var(--term); color: var(--term-ink); font-family: 'JetBrains Mono', ui-monospace, monospace; border-radius: 18px; overflow: hidden; position: relative; }
+.term .row { white-space: pre; overflow: hidden; text-overflow: clip; }
+.term .noise { color: #6E9C94; }
+.term .pass { color: #7FD9C6; }
+.term .fail { color: #FFB4A8; }
+.term .kept { background: rgba(242,183,5,.16); box-shadow: inset 3px 0 0 var(--kept); color: #FFE7A3; }
+.term .note { color: var(--mint); font-style: italic; }
+.term .bar { height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 16px; background: rgba(0,0,0,.18); }
+.term .bar i { width: 11px; height: 11px; border-radius: 50%; background: rgba(215,245,238,.22); display: block; }
+.term .bar b { margin-left: 10px; font-weight: 500; color: rgba(215,245,238,.6); font-size: 13px; }
+
+/* Code is shown as typed: no ligatures turning !== or => into symbols. */
+.term, .term *, [class*=mono], .block, .catalog, code { font-variant-ligatures: none; font-feature-settings: 'liga' 0, 'calt' 0; }
+
+.counter { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }

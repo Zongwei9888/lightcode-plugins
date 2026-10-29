@@ -25,3 +25,6 @@ packages/core/LICENSE.rtk
 packages/protocol/LICENSE
 packages/store/LICENSE
 packages/mechanisms/LICENSE
+
+# media kit preview frames
+/media/src/.frames/

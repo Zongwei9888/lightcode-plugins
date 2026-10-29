@@ -1,13 +1,6 @@
 <div align="center">
 
-<img src="docs/assets/logo.svg" alt="TokenWise logo" width="84">
-
-# TokenWise
-
-### Make Every Token Count for Your Agent
-
-A plugin for the coding agent you already use. It shows the model less tool output,<br>
-loses nothing when the agent compacts, and learns your own tools as you work.
+<img src="media/images/banner.png" alt="TokenWise: Make every token count for your agent. TokenWise shows your coding agent less tool output, loses nothing when the agent compacts, and learns your own tools." width="100%">
 
 <p>
   <img alt="Version" src="https://img.shields.io/badge/version-0.3.0_(unreleased)-0F766E?style=flat-square">
@@ -21,6 +14,8 @@ loses nothing when the agent compacts, and learns your own tools as you work.
   <a href="README.md"><img alt="English" height="28" src="https://img.shields.io/badge/English-BCDCF7?style=flat-square"></a>&nbsp;
   <a href="docs/zh/README.md"><img alt="简体中文" height="28" src="https://img.shields.io/badge/简体中文-CDCFD4?style=flat-square"></a>
 </p>
+
+**[Watch the 1-minute video](media/video/tokenwise-en.mp4)** · [中文视频](media/video/tokenwise-zh.mp4)
 
 [Why](#why-tokenwise) · [How it works](#how-it-works) · [Results](#results-on-real-sessions) · [Install](#install) · [Agents](#supported-agents) · [Commands](#commands) · [Development](#development)
 
@@ -60,7 +55,7 @@ output is saved on your machine, and the shortened version ends with one line
 telling the model how to read it if it needs to.
 
 <div align="center">
-<img src="docs/assets/compact-output.svg" alt="pytest -v: 266 lines reduced to 23, with the failure kept in full" width="100%">
+<img src="media/video/fold.gif" alt="A 260-line pytest run folds into the 17 lines the model reads; the failure stays" width="100%">
 </div>
 
 **Every compaction keeps what it drops.** Long sessions get compacted: the
@@ -106,6 +101,10 @@ switched off on its own, and any adoption can be rolled back.
 Long real tasks, each agent at its **default** compaction settings, run until
 the agent compacted on its own. Afterwards the agent had to quote, exactly,
 lines it had read before the compaction.
+
+<div align="center">
+<img src="media/images/results.png" alt="Real sessions at default settings: each agent kept 3 to 6 percent of the compacted history" width="100%">
+</div>
 
 | Agent · model | Compacted history → what the model kept | Saved results | Afterwards |
 |---|---|---|---|
@@ -269,7 +268,7 @@ conformance/         the byte-for-byte corpus
 e2e/                 end-to-end suite against published agent releases
 ```
 
-Design: [docs/architecture.md](docs/architecture.md) · New agents:
+Media kit (images, video, social preview): [media/](media/README.md) · Design: [docs/architecture.md](docs/architecture.md) · New agents:
 [docs/adapters.md](docs/adapters.md) · Releasing:
 [docs/releasing.md](docs/releasing.md) · Changes: [CHANGELOG.md](CHANGELOG.md)
 

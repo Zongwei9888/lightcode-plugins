@@ -1,13 +1,6 @@
 <div align="center">
 
-<img src="../assets/logo.svg" alt="TokenWise logo" width="84">
-
-# TokenWise
-
-### Make Every Token Count for Your Agent
-
-装进你正在用的编程 agent 的插件：让模型少读工具输出，<br>
-agent 压缩历史时不丢东西，并在使用中学会你自己的工具。
+<img src="../../media/images/banner-zh.png" alt="TokenWise：让 agent 的每个 token 都物有所值。TokenWise 让编程 agent 少读工具输出，压缩历史时不丢东西，还会学会你自己的工具。" width="100%">
 
 <p>
   <img alt="Version" src="https://img.shields.io/badge/version-0.3.0_(unreleased)-0F766E?style=flat-square">
@@ -21,6 +14,8 @@ agent 压缩历史时不丢东西，并在使用中学会你自己的工具。
   <a href="../../README.md"><img alt="English" height="28" src="https://img.shields.io/badge/English-CDCFD4?style=flat-square"></a>&nbsp;
   <a href="README.md"><img alt="简体中文" height="28" src="https://img.shields.io/badge/简体中文-BCDCF7?style=flat-square"></a>
 </p>
+
+**[观看 1 分钟视频](../../media/video/tokenwise-zh.mp4)** · [English video](../../media/video/tokenwise-en.mp4)
 
 [为什么](#为什么需要-tokenwise) · [怎么工作](#怎么工作) · [真实效果](#真实会话里的效果) · [安装](#安装) · [支持的 agent](#支持的-agent) · [命令](#命令) · [开发](#开发)
 
@@ -45,7 +40,7 @@ TokenWise 从 agent 开放给插件的位置接进去，只改变一件事：**�
 **每次工具输出都精简显示。** agent 运行 `pytest`、`cargo test`、`git diff`、`grep -rn`、`tsc`、装依赖，或其他约 80 种能识别的命令时，模型读到的是一份更短、确定的版本：通过的测试只计数不逐行列出，进度条和重复行被折叠，过长的搜索和 diff 只预览，并写明省略了多少。失败、警告、总数和退出码一律保留。完整输出存在本机，精简版末尾有一行，告诉模型需要时怎么读原文。
 
 <div align="center">
-<img src="../assets/compact-output.svg" alt="pytest -v：266 行精简到 23 行，失败信息完整保留" width="100%">
+<img src="../../media/video/fold-zh.gif" alt="260 行的 pytest 输出折叠成模型实际读到的 17 行，失败信息保留" width="100%">
 </div>
 
 **每次压缩都留住被删掉的内容。** 会话一长，agent 就会压缩：把较早的历史总结一下然后丢掉。有了 TokenWise，这段历史里的每个工具结果都会被保存，并换成一个引用，写明是哪条命令或哪个文件产生的。新的上下文里有摘要、你自己的原话（一字不改），以及这些引用的目录。agent 再需要某一行原文时，调用一次 `tokenwise_recall` 就能读回：可以是它当时看到的原文，可以是某行或某个字符串附近的一段，也可以是精简之前的完整输出。
@@ -71,6 +66,10 @@ TokenWise 从 agent 开放给插件的位置接进去，只改变一件事：**�
 ## 真实会话里的效果
 
 用真实的长任务，每个 agent 都用**默认**压缩设置，一直跑到它自己压缩为止。压缩之后，agent 必须一字不差地引用压缩前读过的内容。
+
+<div align="center">
+<img src="../../media/images/results-zh.png" alt="真实会话、默认设置：每个 agent 只保留了被压缩历史的 3% 到 6%" width="100%">
+</div>
 
 | Agent · 模型 | 被压缩的历史 → 模型保留的内容 | 保存的结果数 | 压缩之后 |
 |---|---|---|---|
@@ -210,7 +209,7 @@ conformance/         逐字节对照的测试语料
 e2e/                 针对已发布 agent 版本的端到端测试
 ```
 
-设计：[docs/architecture.md](../architecture.md) · 接入新 agent：[docs/adapters.md](../adapters.md) · 发布：[docs/releasing.md](../releasing.md) · 变更：[CHANGELOG.md](../../CHANGELOG.md)
+宣传素材（图片、视频、社交预览图）：[media/](../../media/README.md) · 设计：[docs/architecture.md](../architecture.md) · 接入新 agent：[docs/adapters.md](../adapters.md) · 发布：[docs/releasing.md](../releasing.md) · 变更：[CHANGELOG.md](../../CHANGELOG.md)
 
 ## 许可证
 
