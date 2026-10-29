@@ -156,7 +156,8 @@ describe('lc usage errors', () => {
     expect(bad.status).toBe(2)
     expect(bad.err).toBe("lc report: Unknown option '--bogus'\nRun `lc --help` for usage.\n")
     // `lc run` hands its arguments to the command.
-    expect(lc(['run', '--', 'echo', '--help']).out).toBe('--help\n')
+    // `lc run` hands --help to the program (printf: GNU echo would answer --help itself).
+    expect(lc(['run', '--', 'printf', '%s\\n', '--help']).out).toBe('--help\n')
   })
 })
 

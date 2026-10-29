@@ -47,7 +47,9 @@ Verified against CodeBuddy Code 2.175.0 in real `codebuddy -p` sessions:
 - `session.append` sees the summary row as it is stored and rewrites its
   summary into the checkpoint: CodeBuddy's summary, your messages word for
   word, and the catalog of the tool results LightCode kept (`lc shadow
-  checkpoint`);
+  checkpoint`). Both shapes CodeBuddy stores are handled: `/compact` (an
+  assistant row) and automatic compaction when the context would overflow
+  (a user row);
 - `lightcode_recall`, registered as a mod tool, reads any of them again
   (`lc recall`); `tool.check` lets it run without a prompt.
 

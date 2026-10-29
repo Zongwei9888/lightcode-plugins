@@ -71,6 +71,18 @@ describe('shadowCatalog (assisted tier)', () => {
   })
 })
 
+describe('shadowCatalog under a tight budget', () => {
+  it('lists more references by leaving out excerpts when they would not fit otherwise', () => {
+    const store = memoryStore()
+    const messages: ShadowMessage[] = Array.from({ length: 300 }, (_, i) => ({ role: 'tool' as const, text: log(60, `part${i}`), toolName: 'Bash', callId: `c${i}`, call: `cat part-${i}.log` }))
+    const result = shadowCatalog({ host: 'claude', sessionId: 's1', messages, budgetTokens: 2_000 }, store)
+    expect(result.text.length).toBeLessThan(2_000 * 4 + 1_000)
+    // About 70 characters per call-only line: well over the ~40 that fit with excerpts.
+    expect(result.references).toBeGreaterThan(80)
+    expect(result.text).toContain('call: "cat part-299.log"')
+  })
+})
+
 describe('shadowCheckpoint (full tier)', () => {
   it('appends the user messages and the catalog to the host summary', () => {
     const store = memoryStore()
@@ -80,6 +92,13 @@ describe('shadowCheckpoint (full tier)', () => {
     expect(result.text).toContain('"Look at alpha."')
     expect(catalogIds(result.text!)).toHaveLength(1)
     expect((store.records[0] as ShadowCheckpointRecord).kind).toBe('lightshadow')
+  })
+
+  it('keeps the host summary, saying so, when the span had no tool result worth keeping and the host keeps the user messages', () => {
+    const store = memoryStore()
+    const result = shadowCheckpoint({ host: 'hermes', sessionId: 's1', messages: [{ role: 'user', text: 'hi' }, { role: 'tool', text: 'ok' }], summary: 'Said hi.', userMessages: false }, store)
+    expect(result.text).toBeUndefined()
+    expect(store.records[0]).toMatchObject({ kind: 'standard', reason: 'nothing-recallable' })
   })
 
   it('keeps the host summary when the checkpoint would not be smaller', () => {
@@ -102,6 +121,9 @@ describe('recallFromJournal', () => {
     const anywhere = recallFromJournal({ observation_id: id, query: 'alpha 123:' }, { ...base, sessionId: null, readAll: () => store.records })
     expect(anywhere.ok).toBe(true)
     expect(anywhere.text).toContain('alpha 123: value 861')
-    expect(store.records.filter(record => record.type === 'shadow/recall').map(record => (record as { outcome: string }).outcome)).toEqual(['window', 'failed', 'window'])
+    const recalls = store.records.filter(record => record.type === 'shadow/recall') as { outcome: string; sessionId: string | null }[]
+    expect(recalls.map(record => record.outcome)).toEqual(['window', 'failed', 'window'])
+    // Found without knowing the session (the MCP server): journaled under the session that owns the reference.
+    expect(recalls.map(record => record.sessionId)).toEqual(['s1', null, 's1'])
   })
 })

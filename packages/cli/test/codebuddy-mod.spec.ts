@@ -23,11 +23,15 @@ async function load(home: string, lcWorks = true) {
   const handlers = new Map<string, Handler>()
   register((name, fn) => { handlers.set(name, fn) })
   const registered: unknown[] = []
+  const calls: string[] = []
   const $ = {
     session: { id: async () => 'cb-session-1' },
     tool: { register: async (spec: unknown) => { registered.push(spec) } },
     process: { run: async (argv: string[], init: { stdin?: string } = {}) => {
       if (!lcWorks) return { exitCode: 127, stdout: '', stderr: 'lc: not found' }
+      calls.push(argv[0]!)
+      // As on a machine whose `lc` is reached through a shell: the direct call cannot start.
+      if (argv[0] === 'lc') throw new Error('spawn lc ENOENT')
       const done = spawnSync(process.execPath, ['--conditions=source', main, ...argv.slice(4)], { input: init.stdin, encoding: 'utf8', env: { ...process.env, LIGHTCODE_HOME: home } })
       return { exitCode: done.status ?? 1, stdout: done.stdout, stderr: done.stderr }
     } },
@@ -37,7 +41,7 @@ async function load(home: string, lcWorks = true) {
     const answer = await handlers.get(name)!($, e, async next => { passed = next; return { ok: true } })
     return { answer, passed }
   }
-  return { fire, registered, spanOf }
+  return { fire, registered, spanOf, calls }
 }
 
 const rows = (tag: string) => Array.from({ length: 400 }, (_, i) => `${tag} ${i}: ${(i * 7919) % 10007}`).join('\n')
@@ -52,7 +56,7 @@ const summaryRow = (inner: string) => ({ role: 'assistant', content: [{ type: 't
 describe('CodeBuddy LightShadow mod', () => {
   it('reads the span, rewrites the stored summary into a checkpoint, and recalls a listed result', async () => {
     const home = temp()
-    const { fire, registered, spanOf } = await load(home)
+    const { fire, registered, spanOf, calls } = await load(home)
     expect(spanOf(transcript)).toEqual([
       { role: 'user', text: 'Check the export file.' },
       { role: 'assistant', text: 'Reading it.\nBash {"command":"cat export.csv"}' },
@@ -62,9 +66,10 @@ describe('CodeBuddy LightShadow mod', () => {
     expect(registered).toMatchObject([{ name: 'lightcode_recall', isDeferred: false }])
     const compact = await fire('session.compact', { trigger: 'manual', instructions: 'keep the totals', messages: transcript })
     expect(compact.passed!.instructions).toMatch(/^keep the totals\n\nAfter this compaction/u)
-    // The compaction prompt also passes through session.append (door "prompt"): left alone.
-    const prompt = await fire('session.append', { door: 'prompt', message: summaryRow('template') })
-    expect(prompt.passed!.message).toEqual(summaryRow('template'))
+    // The compaction prompt also passes through session.append (door "prompt"); it does not start with the tag: left alone.
+    const promptRow = { role: 'user', content: [{ type: 'text', text: 'Summarize the conversation. Answer inside <conversation_history_summary><summary>...</summary></conversation_history_summary>.' }] }
+    const prompt = await fire('session.append', { door: 'prompt', message: promptRow })
+    expect(prompt.passed!.message).toEqual(promptRow)
     const stored = await fire('session.append', { door: 'response', uuid: 'u1', message: summaryRow('1. The export has 400 rows.') })
     const text = (stored.passed!.message as { content: { text: string }[] }).content[0]!.text
     expect(text).toMatch(/^<conversation_history_summary>\n<summary>\n1\. The export has 400 rows\./u)
@@ -74,10 +79,26 @@ describe('CodeBuddy LightShadow mod', () => {
     const id = /observation_id: (o-[a-f0-9]{12})/u.exec(text)![1]!
     expect((await fire('tool.check', { tool: 'mcp__lightcode__lightcode_recall' })).answer).toEqual({ decision: 'allow' })
     const recalled = await fire('tool.call', { tool: 'lightcode_recall', tool_use_id: 'x', observation_id: id, query: 'row 222:' })
+    // The direct call could not start, so the shell was tried next; cmd was never needed.
+    expect([...new Set(calls)]).toEqual(['lc', '/bin/sh'])
     expect((recalled.answer as { result: string }).result).toContain(`row 222: ${(222 * 7919) % 10007}`)
     // Only once: a later response that looks like a summary is not rewritten.
     const later = await fire('session.append', { door: 'response', message: summaryRow('again') })
     expect(later.passed!.message).toEqual(summaryRow('again'))
+  })
+
+  it('rewrites the summary of an automatic (emergency) compaction too: a user row with no inner <summary>', async () => {
+    const home = temp()
+    const { fire } = await load(home)
+    await fire('session.compact', { trigger: 'auto', messages: transcript })
+    const row = { role: 'user', content: [{ type: 'input_text', text: '<conversation_history_summary>\nSummary:\n\n1. Export read.\n</conversation_history_summary>' }] }
+    const stored = await fire('session.append', { door: 'prompt', message: row })
+    const block = (stored.passed!.message as { content: { type: string; text: string }[] }).content[0]!
+    expect(block.type).toBe('input_text')
+    const text = block.text
+    expect(text).toMatch(/^<conversation_history_summary>\nSummary:\n\n1\. Export read\./u)
+    expect(text).toContain('<lightcode-observation-catalog>')
+    expect(text.endsWith('</conversation_history_summary>')).toBe(true)
   })
 
   it('passes everything on unchanged when lc is missing, and other tools through', async () => {

@@ -54,6 +54,17 @@ describe('pinned RTK declarative rule parity (not native Rust command parity)', 
       if (test.expected.trim() !== '') expect(result?.text).toContain(test.expected.trim())
     }
   })
+  it.each(RTK_FILTER_IDS)('routes %s when the program is given by its path, with the same projection', id => {
+    const name = id.slice(4)
+    const command = commands[name] ?? `${name} fixture`
+    const byPath = `/usr/local/bin/${command}`
+    expect(matchesRtkCommand(byPath)).toBe(true)
+    const adapter = RTK_FILTERS.find(filter => filter.name === id)!
+    for (const test of RTK_CASES.filter(item => `rtk/${item.filter}` === id)) {
+      expect(adapter.projectMapped({ command: byPath, stdout: test.input, exitCode: 0 })?.text)
+        .toBe(adapter.projectMapped({ command, stdout: test.input, exitCode: 0 })?.text)
+    }
+  })
   it.each(RTK_CASES)('$filter / $name', test => {
     const projected = compiled.get(`rtk/${test.filter}`)!.project(test.input)
     // Upstream verification ignores surrounding whitespace in inline TOML fixtures.

@@ -83,13 +83,31 @@ export function spanOf(messages) {
   return out
 }
 
-/** `lc <args>` with JSON on stdin; the parsed reply, or undefined. Runs through the shell so `lc` resolves as the hooks' does. */
+/**
+ * `lc <args>` with JSON on stdin. A mod cannot tell the platform, so the ways
+ * to start it are tried in turn, moving on when one cannot start (`lc` on
+ * PATH; a POSIX shell, whose PATH may differ; Windows' `cmd`, which runs the
+ * `lc.cmd` npm installs there).
+ */
 async function lc($, args, payload) {
-  return $.process.run(['/bin/sh', '-c', 'exec lc "$@"', 'lc', ...args],
-    { ...payload === undefined ? {} : { stdin: JSON.stringify(payload) }, timeoutMs: LC_TIMEOUT_MS })
+  const init = { ...payload === undefined ? {} : { stdin: JSON.stringify(payload) }, timeoutMs: LC_TIMEOUT_MS }
+  const ways = [['lc', ...args], ['/bin/sh', '-c', 'exec lc "$@"', 'lc', ...args], ['cmd.exe', '/d', '/s', '/c', 'lc', ...args]]
+  for (const argv of ways) {
+    try {
+      const done = await $.process.run(argv, init)
+      // 127: the shell started but found no lc; 9009: the same from cmd.
+      if (done && done.exitCode !== 127 && done.exitCode !== 9009) return done
+    } catch { /* This way cannot start here; try the next. */ }
+  }
+  return undefined
 }
 
+// The stored summary, in the two shapes CodeBuddy 2.175 writes: `/compact` (an assistant row with an inner
+// <summary>) and an automatic emergency compaction (a user row, the summary directly inside).
 const SUMMARY = /^(\s*<conversation_history_summary>\s*<summary>)([\s\S]*?)(<\/summary>[\s\S]*)$/u
+const BARE_SUMMARY = /^(\s*<conversation_history_summary>)([\s\S]*?)(<\/conversation_history_summary>\s*)$/u
+
+const TEXT_BLOCKS = new Set(['text', 'input_text', 'output_text'])
 
 /** The text of a stored row, when all of its content is text. */
 function rowText(message) {
@@ -98,10 +116,16 @@ function rowText(message) {
   if (!Array.isArray(content)) return undefined
   let text = ''
   for (const block of content) {
-    if (block?.type !== 'text' || typeof block.text !== 'string') return undefined
+    if (!TEXT_BLOCKS.has(block?.type) || typeof block.text !== 'string') return undefined
     text += block.text
   }
   return text
+}
+
+/** The row with its text replaced, in the same block type it was stored with. */
+function withText(message, text) {
+  if (typeof message.content === 'string') return { ...message, content: text }
+  return { ...message, content: [{ ...message.content[0], text }] }
 }
 
 export function register(on) {
@@ -126,14 +150,16 @@ export function register(on) {
   on('session.append', async ($, e, next) => {
     try {
       const entry = pending.get(e.agentId ?? '')
-      const text = entry && e.door === 'response' ? rowText(e.message) : undefined
-      const match = text === undefined ? null : SUMMARY.exec(text)
+      // Any door: an automatic compaction stores its summary as a user row. The compaction prompt, which also
+      // mentions the tag, does not start with it.
+      const text = entry ? rowText(e.message) : undefined
+      const match = text === undefined ? null : SUMMARY.exec(text) ?? BARE_SUMMARY.exec(text)
       if (match) {
         pending.delete(e.agentId ?? '')
         const done = await lc($, ['shadow', 'checkpoint'], { host: 'codebuddy', session_id: entry.sessionId, messages: entry.span, summary: match[2].trim() })
         const reply = done && done.exitCode === 0 ? JSON.parse(done.stdout || '{}') : undefined
         if (typeof reply?.text === 'string' && reply.text.trim()) {
-          return next({ ...e, message: { ...e.message, content: [{ type: 'text', text: `${match[1]}\n${reply.text}\n${match[3]}` }] } })
+          return next({ ...e, message: withText(e.message, `${match[1]}\n${reply.text}\n${match[3]}`) })
         }
       }
     } catch { /* CodeBuddy's summary stays. */ }

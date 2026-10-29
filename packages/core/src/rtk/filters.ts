@@ -1,4 +1,4 @@
-import { literalCommand } from '../command.ts'
+import { literalCommand, toolArgv } from '../command.ts'
 import { ProjectionBuilder, sourceLines } from '../projection-map.ts'
 import type { EconomyFilter } from '../types.ts'
 import type { EconomyFilterName } from '../filter-names.ts'
@@ -11,18 +11,29 @@ import { compileRtkRule } from './engine.ts'
 const compiled = RTK_BUILTINS.map(rule => compileRtkRule(rule.id === 'rtk/gradle'
   ? { ...rule, match_command: '^(?:gradle|gradlew|\\./gradlew)(?:\\s|$)' } : rule))
 
+/**
+ * The ways a rule may see a command: as written, and with the program named by
+ * its file name (`/usr/local/bin/terraform plan` reads as `terraform plan`).
+ */
+function spellings(command: string): string[] {
+  const written = literalCommand(command)?.join(' ')
+  const tool = toolArgv(command)?.join(' ')
+  return [...new Set([written, tool].filter((item): item is string => item !== undefined))]
+}
+
 /** Distinguish command coverage from unsupported output or syntax. */
 export function matchesRtkCommand(command: string): boolean {
-  return compiled.some(filter => filter.matches(command))
+  const forms = [command, ...spellings(command)]
+  return compiled.some(filter => forms.some(form => filter.matches(form)))
 }
 
 /** Output-only adapters; execution and status stay with the host, the original stays in the private store. */
 export const RTK_FILTERS: readonly EconomyFilter[] = compiled.map(filter => {
   const projectMapped: EconomyFilter['projectMapped'] = input => {
-    const argv = literalCommand(input.command)
+    const forms = spellings(input.command)
     // Upstream shortcuts/caps are previews, not a proof of failure-diagnostic safety.
     // Preserve failed commands and partial/massive control-bearing reports intact.
-    if (!argv || !filter.matches(argv.join(' ')) || input.exitCode !== 0
+    if (!forms.some(form => filter.matches(form)) || input.exitCode !== 0
       || input.stdout.length > 1_048_576 || /\0|\r(?!\n)/.test(input.stdout)
       || input.stdout.split('\n').some(line => line.length > 16384)) return undefined
     const candidate = filter.project(input.stdout)

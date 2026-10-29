@@ -16,7 +16,7 @@
  */
 import type { ArtifactPort, EconomyRecord, JournalPort, JournalRecord, ShadowRecallRecord, ShadowReference } from '@lightcode-ai/protocol'
 import {
-  callLabel, checkpointAdmitted, checkpointRecord, fitCheckpoint, planShadow, recallIndex, recallObservation, referenceIndex, renderCatalog, renderCheckpoint, renderRecall,
+  callLabel, checkpointAdmitted, checkpointRecord, fitCheckpoint, planShadow, recallIndex, recallObservation, referenceId, referenceIndex, renderCatalog, renderCheckpoint, renderRecall,
 } from './shadow.ts'
 import type { RecallArguments, ShadowMessage, ShadowPlan } from './shadow.ts'
 
@@ -108,6 +108,11 @@ export function shadowCheckpoint(span: ShadowSpan & { readonly summary: string
   const base = { host: span.host, sessionId: span.sessionId, time: time(store) }
   const { plan: full } = plan(span, store)
   const planned = span.userMessages === false ? { ...full, contract: [], contractOmitted: 0 } : full
+  // No tool result worth keeping in the span: the host's summary is all there is to say.
+  if (planned.references.length === 0 && span.userMessages === false) {
+    record(store, checkpointRecord(base, { kind: 'standard', plan: planned, checkpointTokens: 0, reason: 'nothing-recallable' }))
+    return { text: undefined, references: 0, list: [] }
+  }
   const text = fitCheckpoint(span.summary, planned, candidate => checkpointAdmitted(candidate, planned))
   if (text === undefined) {
     const compact = renderCheckpoint(span.summary, planned, { excerpts: 0 })
@@ -168,20 +173,39 @@ export function recallFromJournal(args: RecallArguments, options: {
   readonly now?: () => Date
 }): { ok: boolean; text: string } {
   const session = options.sessionId ? recallIndex(options.read(options.sessionId)) : new Map<string, ShadowReference>()
-  let everywhere: Map<string, ShadowReference> | undefined
-  const lookup = (id: string) => session.get(id) ?? (options.readAll ? (everywhere ??= recallIndex(options.readAll())).get(id) : undefined)
+  let all: readonly JournalRecord[] | undefined, everywhere: Map<string, ShadowReference> | undefined
+  // A caller that does not know its session (the MCP server) has the recall journaled under the session that owns the reference.
+  let owner = options.sessionId
+  const lookup = (id: string) => {
+    const hit = session.get(id)
+    if (hit || !options.readAll) return hit
+    all ??= options.readAll()
+    const found = (everywhere ??= recallIndex(all)).get(id)
+    if (found && owner === null) owner = ownerOf(all, id)
+    return found
+  }
   const result = recallObservation(args, { lookup, artifacts: options.artifacts })
   const id = typeof args.observation_id === 'string' ? args.observation_id.trim() : ''
   const text = renderRecall(id, result)
   if (options.journal) {
     const entry: ShadowRecallRecord = {
-      schemaVersion: 1, type: 'shadow/recall', time: (options.now?.() ?? new Date()).toISOString(), host: options.host, sessionId: options.sessionId,
+      schemaVersion: 1, type: 'shadow/recall', time: (options.now?.() ?? new Date()).toISOString(), host: options.host, sessionId: owner,
       callId: options.callId ?? null, id, original: args.original === true || args.original === 'true',
       outcome: !result.ok ? 'failed' : result.complete ? 'returned' : 'window', bytes: Buffer.byteLength(text),
     }
     try { options.journal.append(entry) } catch { /* The answer matters more than its record. */ }
   }
   return { ok: result.ok, text }
+}
+
+/** The session whose checkpoint listed a reference, or whose Economy decision saved it (the latest one). */
+function ownerOf(records: readonly JournalRecord[], id: string): string | null {
+  for (let i = records.length - 1; i >= 0; i--) {
+    const record = records[i]!
+    if (record.type === 'shadow/checkpoint' && record.references.some(reference => reference.id === id)) return record.sessionId
+    if (record.type === 'economy/decision' && record.outcome === 'projected' && record.raw && referenceId(record.raw.sha256) === id) return record.sessionId
+  }
+  return null
 }
 
 /** The recall tool's parameters as JSON Schema, for hosts that declare tools that way (MCP, OpenAI-style function tools). */

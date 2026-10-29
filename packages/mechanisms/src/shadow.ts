@@ -246,11 +246,11 @@ export function planShadow(segment: readonly ShadowMessage[], options: ShadowOpt
 }
 
 /** The newest references whose catalog lines fit `budget` tokens (the newest `CATALOG_EXCERPTS` in full, older ones by their call). */
-function withinCatalogBudget(references: readonly ShadowReference[], budget: number, estimate: TokenEstimator): ShadowReference[] {
+function withinCatalogBudget(references: readonly ShadowReference[], budget: number, estimate: TokenEstimator, excerpts = CATALOG_EXCERPTS): ShadowReference[] {
   let total = 0
   let first = references.length
   for (let i = references.length - 1; i >= 0; i--) {
-    const cost = estimate(catalogLine(references[i]!, references.length - i <= CATALOG_EXCERPTS)) + 1
+    const cost = estimate(catalogLine(references[i]!, references.length - i <= excerpts)) + 1
     if (total + cost > budget && first < references.length) break
     total += cost
     first = i
@@ -350,8 +350,15 @@ export function fitCheckpoint(summary: string, plan: Pick<ShadowPlan, 'contract'
  * `CATALOG_EXCERPTS` with their excerpts. Empty text when there are none.
  */
 export function renderCatalog(references: readonly ShadowReference[], options: { budgetTokens?: number; estimateTokens?: TokenEstimator } = {}): { text: string; references: ShadowReference[] } {
-  const kept = withinCatalogBudget(references, options.budgetTokens ?? 8_000, options.estimateTokens ?? defaultEstimate)
-  return { text: renderCheckpoint('', { contract: [], contractOmitted: 0, references: kept }), references: kept }
+  const budget = options.budgetTokens ?? 8_000, estimate = options.estimateTokens ?? defaultEstimate
+  // A tight budget (Claude Code takes 10,000 characters) fits more IDs when fewer lines carry excerpts:
+  // list as many references as fit, then keep as many excerpts as still allow that.
+  let best = { excerpts: CATALOG_EXCERPTS, kept: withinCatalogBudget(references, budget, estimate) }
+  for (const excerpts of [20, 10, 5, 0]) {
+    const kept = withinCatalogBudget(references, budget, estimate, excerpts)
+    if (kept.length > best.kept.length) best = { excerpts, kept }
+  }
+  return { text: renderCheckpoint('', { contract: [], contractOmitted: 0, references: best.kept }, { excerpts: best.excerpts }), references: best.kept }
 }
 
 /** Whether a checkpoint is used: it must be smaller than the segment it replaces. */

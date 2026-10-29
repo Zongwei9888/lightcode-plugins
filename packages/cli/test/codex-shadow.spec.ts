@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -14,8 +14,15 @@ const dirs: string[] = []
 const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'lightcode-codex-')); dirs.push(dir); return dir }
 afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }) })
 
+/** An `lc` on PATH: the hook only rewrites to `lc run` when one is there to run it. */
+function lcOnPath() {
+  const bin = temp()
+  writeFileSync(join(bin, 'lc'), '#!/bin/sh\n')
+  chmodSync(join(bin, 'lc'), 0o755)
+  return `${bin}:${process.env.PATH ?? ''}`
+}
 const run = (args: string[], home: string, input?: string) =>
-  spawnSync(process.execPath, ['--conditions=source', main, ...args], { input, encoding: 'utf8', env: { ...process.env, LIGHTCODE_HOME: home } }).stdout
+  spawnSync(process.execPath, ['--conditions=source', main, ...args], { input, encoding: 'utf8', env: { ...process.env, LIGHTCODE_HOME: home, PATH: lcOnPath() } }).stdout
 
 // Rollout lines as Codex 0.165 writes them.
 const item = (payload: Record<string, unknown>) => ({ timestamp: 't', type: 'response_item', payload })

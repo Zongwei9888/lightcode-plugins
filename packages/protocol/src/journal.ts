@@ -124,7 +124,7 @@ export interface ShadowCheckpointRecord extends JournalBase {
   readonly userMessages: number
   readonly segmentTokens: number
   readonly checkpointTokens: number
-  readonly reason?: 'checkpoint-not-smaller' | 'observe' | 'error'
+  readonly reason?: 'checkpoint-not-smaller' | 'nothing-recallable' | 'observe' | 'error'
   /** With `reason: 'error'`: what failed, in at most 300 characters. */
   readonly error?: string
 }

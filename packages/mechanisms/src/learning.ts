@@ -585,7 +585,8 @@ export function describeReport(report: VerificationReport, options: { learner?: 
   ]
   const g = report.generalization
   if (g && g.commands.length && !options.learner) {
-    lines.push(g.status === 'untested' ? `  held-out check: no unseen observations of ${g.commands.join(', ')}`
+    const unseen = g.commands.filter(command => !g.byCommand?.some(item => item.command === command))
+    lines.push(g.status === 'untested' ? `  held-out check: no unseen observations of ${unseen.join(', ')}`
       : `  held-out check (${g.commands.join(', ')}): ${g.heldOutCases} unseen observations, ${g.heldOutGain >= 0 ? '+' : ''}${g.heldOutGain} tokens — ${g.status === 'confirmed' ? 'generalizes' : 'does not generalize'}`)
   }
   if (report.reasons.length) lines.push(`  reasons: ${report.reasons.join(', ')}`)

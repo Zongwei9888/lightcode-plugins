@@ -74,11 +74,22 @@ allows it (in full on five, assisted on three), and self-evolving filters. (0.1.
   counts toward switching the rule off.
 - A program given by its path (`.venv/bin/pytest`,
   `/opt/homebrew/bin/python3 -m pytest`, `/usr/bin/git diff`) is recognized
-  by the built-in filters like the bare name; learned rules still see the
-  command as written. (Commands the RTK filter catalog covers still match by
-  bare name only.)
+  by the built-in filters, the RTK filter catalog included, like the bare
+  name; learned rules still see the command as written.
 - Recall on a line longer than its 8 KB window (minified JSON, a
   JSON-escaped log) returns the part around the match, not the line's start.
+- An assisted catalog under a tight limit (Claude Code's 10,000 characters)
+  gives fewer lines an excerpt when that lists more IDs: 128 instead of 43
+  in a 1,000-result session.
+- A recall through `lc mcp`, which does not know its session, is journaled
+  under the session whose checkpoint (or Economy decision) holds the ID, so
+  `lc report` and learning count it.
+- A compaction whose span has no tool result to keep records `standard`
+  with reason `nothing-recallable` instead of an empty catalog.
+- CodeBuddy: an automatic (emergency) compaction's summary, stored as a user
+  row with `input_text` and no inner `<summary>`, is rewritten like a
+  `/compact` one; before, LightShadow skipped it. The mod starts `lc` through
+  `/bin/sh` or `cmd.exe` when CodeBuddy's launcher does not find it on PATH.
 - Claude Code, CodeBuddy Code and Grok Build plugins (`adapters/claude-code`,
   `adapters/codebuddy`, `adapters/grok`; the checkout is a marketplace for
   each), all running `lc hook <host>`. Claude Code: `PostToolUse` replaces a
