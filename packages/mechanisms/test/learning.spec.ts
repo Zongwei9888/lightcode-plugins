@@ -88,6 +88,14 @@ describe('learned rules in use', () => {
     expect(uses.get('quiet')).toEqual({ id: 'quiet', projections: 1, savedTokens: 90, originalRecalls: 0 })
   })
 
+  it('counts an original read by the ID Economy\'s hint named, without original: true, as a recall of the original', () => {
+    const records: JournalRecord[] = [
+      decision({ callId: 'h1', rule: 'hinted', raw: { sha256: 'c'.repeat(64), bytes: 400, tokens: 100, stored: true } }),
+      { schemaVersion: 1, type: 'shadow/recall', time: '2026-10-14T12:00:00.000Z', host: 'pi', sessionId: 's', callId: 'r1', id: `o-${'c'.repeat(12)}`, original: false, outcome: 'window', bytes: 1 },
+    ]
+    expect(ruleUse(records).get('hinted')).toMatchObject({ projections: 1, originalRecalls: 1 })
+  })
+
   it('switches off a rule the agent keeps needing the original for, as an adoption that can be rolled back', () => {
     const home = temp()
     const store = new RuleStore(home)

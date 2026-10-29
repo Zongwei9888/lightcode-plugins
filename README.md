@@ -9,7 +9,7 @@
 Plugins for [pi](https://github.com/earendil-works/pi), DeepSeek Harness and [Codex](https://github.com/openai/codex) that shrink what the model reads,<br>make compaction recoverable, and learn filters for your own tools.
 
 <p>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.2.0_(unreleased)-0F766E?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.3.0_(unreleased)-0F766E?style=flat-square">
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue?style=flat-square"></a>
   <img alt="Node.js 22+" src="https://img.shields.io/badge/Node.js-22%2B-339933?style=flat-square&logo=node.js&logoColor=white">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white">
@@ -35,8 +35,8 @@ Plugins for [pi](https://github.com/earendil-works/pi), DeepSeek Harness and [Co
 
 > **Status: 0.2 in development.** Token Economy, LightShadow and self-evolving
 > filters ship as installable plugins for pi and DeepSeek Harness, all on by
-> default. Codex gets Token Economy through a plugin, any other agent through
-> `lc run`. Delegation accounting follows in 0.3. Nothing is published to npm
+> default. Codex, Claude Code, CodeBuddy, Grok, OpenCode and Hermes get Token
+> Economy through a plugin, any other agent through `lc run`. Delegation accounting follows in 0.3. Nothing is published to npm
 > yet; until then, [install from a checkout](#install-from-a-checkout).
 
 ## 📰 News
@@ -80,6 +80,11 @@ fails open: if anything goes wrong, the model gets the original output.
 | **DeepSeek Harness** (Web, Desktop) | **Plugins** → **Add plugin** → `@lightcode-ai/dsh` → **Install** → **Enable now** |
 | **DeepSeek Harness** (terminal) | `dsh plugin --profile web add @lightcode-ai/dsh` (needs pnpm 11+) |
 | **Codex** | `codex plugin marketplace add <checkout>` → `codex plugin add lightcode@lightcode`, then trust the hooks in `/hooks` |
+| **Claude Code** | `claude plugin marketplace add <checkout>` → `claude plugin install lightcode@lightcode` |
+| **CodeBuddy** | `codebuddy plugin marketplace add <checkout>` → `codebuddy plugin install lightcode@lightcode` |
+| **Grok Build** | `grok plugin marketplace add <checkout>` → `grok plugin install lightcode --trust` |
+| **OpenCode** | copy `adapters/opencode/dist/index.js` to `~/.config/opencode/plugins/lightcode.js` |
+| **Hermes Agent** | copy `adapters/hermes/lightcode` to `~/.hermes/plugins/`, then `hermes plugins enable lightcode` |
 | **Anything else** | `npm install -g @lightcode-ai/cli`, then `lc run -c 'cargo test'` |
 
 Nothing to configure: Economy and LightShadow are on from the next tool call.
@@ -100,8 +105,11 @@ npm install -g ./packages/cli                            # the lc command
 ```
 
 In the DeepSeek Harness Desktop app, quit it and use its bundled `dsh` with
-`--profile desktop`. Codex installs from the checkout as a marketplace (see
-[`adapters/codex`](adapters/codex/README.md)).
+`--profile desktop`. Codex, Claude Code, CodeBuddy and Grok install from the
+checkout as a marketplace (see [`adapters/codex`](adapters/codex/README.md),
+[`adapters/claude-code`](adapters/claude-code/README.md),
+[`adapters/codebuddy`](adapters/codebuddy/README.md) and
+[`adapters/grok`](adapters/grok/README.md)); they need `lc` on `PATH`.
 
 ## 🖥️ In your agent
 
@@ -146,7 +154,9 @@ DeepSeek Harness Desktop app and pi's terminal UI with a scripted model.
 </div>
 
 When an agent runs `pytest`, `cargo test`, `git diff`, `grep -rn`, `tsc`,
-`find`, a package install or one of ~80 other recognized commands, LightCode
+`find`, a package install or one of ~80 other recognized commands (also as
+agents tend to write them: after `cd <dir> &&`, with `2>&1` or `| tee <file>`,
+or by path, as in `.venv/bin/pytest`), LightCode
 replaces the output the model would read with a deterministic **projection**:
 passing-test rows are counted instead of listed, progress bars and repeated
 rows are folded, oversized search results and diff hunks are previewed with
@@ -166,10 +176,13 @@ The rules it never bends:
 - **Deterministic and first-seen-final.** The same output always gives the
   same bytes, and a result is never re-rendered later, so prompt caches stay
   valid.
-- **The original is kept.** pi keeps it in its own session file; with every
-  host LightCode also saves it privately (`~/.lightcode`, user-only
-  permissions, 14-day retention) with a source map from projection to
-  original.
+- **The original is kept, and the model is told where.** pi keeps it in its
+  own session file; with every host LightCode also saves it privately
+  (`~/.lightcode`, user-only permissions, 14-day retention) with a source map
+  from projection to original. A shortened output ends with one line naming
+  its original's ID, which the `lightcode_recall` tool (or `lc recall`)
+  reads, so nothing a projection left out is out of reach, before or after
+  any compaction. Lossless layouts get no such line.
 - **Fail-open.** Any LightCode error delivers the original output.
 
 
@@ -181,8 +194,8 @@ The rules it never bends:
 
 Long sessions get compacted: the host asks the model to summarize older
 history and drops it. Whatever the summary leaves out is gone, including
-tool output the agent may need again. With LightShadow, when pi or DeepSeek
-Harness compacts:
+tool output the agent may need again. With LightShadow, when the host
+compacts:
 
 - the host's own summarizer reads the span as usual and is asked to keep the
   findings the agent needs to carry on (paths, line numbers, values,
@@ -203,6 +216,17 @@ Harness compacts:
 
 A checkpoint that would not be smaller, or any failure, leaves the
 compaction to the host, unchanged.
+
+How much of this a host gets depends on what its plugin interface allows
+(`lc doctor` shows it):
+
+| Tier | Hosts | What happens |
+|---|---|---|
+| **Full** | pi, DeepSeek Harness, OpenCode, Hermes Agent, CodeBuddy | the checkpoint above replaces the host's summary |
+| **Assisted** | Claude Code, Codex, Grok Build | the host keeps writing its own summary (no plugin may replace it); LightShadow saves the span's tool results and puts the catalog into the context right after the compaction, and the recall tool comes from the plugin's MCP server (`lc mcp`) |
+
+Any other agent that speaks MCP can read what LightShadow kept with
+`lc mcp`; see [docs/adapters.md](docs/adapters.md) for connecting a new one.
 
 ### Self-evolving filters
 
@@ -276,8 +300,13 @@ list, switch off and roll back adoptions.
 |---|---|---|---|---|---|
 | **pi** 1.1+ | `pi install npm:@lightcode-ai/pi` | in-process extension; the projection reaches the model through `context_edit`, so pi's session keeps the original; compaction through `session_before_compact` | apply | apply | yes |
 | **DeepSeek Harness** 0.2.x | Plugins → Add plugin → `@lightcode-ai/dsh`, or `dsh plugin --profile web add @lightcode-ai/dsh` | in-process plugin on `tools/post-execute`; compaction through each agent preset's own compaction engine; Mode is editable on its Plugins page | apply | apply | yes |
-| **Codex** 0.162+ | `codex plugin marketplace add <checkout>` then `codex plugin add lightcode@lightcode` | plugin `PreToolUse` hook rewrites recognizable commands to `lc run -c '<command>'`; the model's history keeps the original command | apply | — (Codex lets plugins shape, not supply, compaction) | for the commands its hook wraps |
-| **Any agent / terminal** | `npm install -g @lightcode-ai/cli` | call `lc run -c '<command>'` | apply | — | yes |
+| **Codex** 0.162+ | `codex plugin marketplace add <checkout>` then `codex plugin add lightcode@lightcode` | plugin `PreToolUse` hook rewrites recognizable commands to `lc run -c '<command>'`; the model's history keeps the original command; `SessionStart(compact)` adds the catalog, the plugin's MCP server the recall tool | apply | assisted | for the commands its hook wraps |
+| **Claude Code** 2.1+ | `claude plugin marketplace add <checkout>` then `claude plugin install lightcode@lightcode` | plugin `PostToolUse` hook replaces a successful Bash call's output; in `bypassPermissions` mode `PreToolUse` wraps commands in `lc run` so failed calls are filtered too; `SessionStart(compact)` adds the catalog, the plugin's MCP server the recall tool | apply | assisted | yes |
+| **CodeBuddy** 2.175+ | `codebuddy plugin marketplace add <checkout>` then `codebuddy plugin install lightcode@lightcode` | plugin `PreToolUse` hook rewrites recognizable commands to `lc run`, with no permission decision, so CodeBuddy's own checks still apply; the plugin's mod turns the stored summary into the checkpoint | apply | apply | for the commands its hook wraps |
+| **Grok Build** 1.0+ | `grok plugin marketplace add <checkout>` then `grok plugin install lightcode --trust` | plugin `PostToolUse` hook replaces the model's copy of a shell result, failed commands included; Grok keeps the original; after a compaction the next tool result carries the catalog, the plugin's MCP server the recall tool | apply | assisted | yes |
+| **OpenCode** 1.19+ | copy the bundle to `~/.config/opencode/plugins/` | in-process plugin on `tool.execute.after`; replaces the bash result before OpenCode stores it, failed commands included; compaction through its (experimental) compaction hooks | apply | apply | yes |
+| **Hermes Agent** 0.22+ | copy the plugin to `~/.hermes/plugins/`, then `hermes plugins enable lightcode` | Python plugin on `transform_terminal_output` hands the terminal output to `lc hook hermes`, before Hermes limits and redacts it; LightShadow is a context engine (`hermes config set context.engine lightcode`) | apply | apply | yes |
+| **Any agent / terminal** | `npm install -g @lightcode-ai/cli` | call `lc run -c '<command>'`; `lc mcp` serves the recall tool to any MCP client | apply | recall only | yes |
 
 Learning starts from `/lightcode` in pi and from the Plugins page in DSH;
 `lc evolve` and `lc rules` (from `@lightcode-ai/cli`) do the same in a terminal.
@@ -321,6 +350,24 @@ Off) on the plugin's page applies to the next tool call and compaction. See
 See [`adapters/codex`](adapters/codex/README.md). `lc` must be on `PATH`,
 and Codex runs plugin hooks only after you trust them in `/hooks`.
 
+#### Claude Code, CodeBuddy, Grok Build
+
+See [`adapters/claude-code`](adapters/claude-code/README.md),
+[`adapters/codebuddy`](adapters/codebuddy/README.md) and
+[`adapters/grok`](adapters/grok/README.md). Each plugin runs `lc hook <host>`,
+so `lc` must be on `PATH`. Grok and CodeBuddy also run Claude Code hooks;
+the Claude Code hook leaves their events alone, so nothing is filtered twice.
+
+#### OpenCode
+
+See [`adapters/opencode`](adapters/opencode/README.md): one file in
+`~/.config/opencode/plugins/`, loaded in-process by new sessions.
+
+#### Hermes Agent
+
+See [`adapters/hermes`](adapters/hermes/README.md): a Python plugin that
+calls `lc hook hermes`, so `lc` must be installed.
+
 #### Anything else
 
 ```sh
@@ -342,6 +389,10 @@ lc gc [--days N]                              delete saved originals
 lc evolve --learner pi|dsh|claude|codex|"<command>" [--since 7d] [--max-cases N] [--timeout 30m] [--dry-run]
                                               learn rules from your evidence; adopt only if verified
 lc rules [list|show|path|off|rollback]        learned rules
+lc recall <observation_id> [--query Q | --line N] [--original]
+                                              read again a tool result LightShadow kept
+lc mcp [--host H]                             MCP server (stdio) with the lightcode_recall tool
+lc shadow checkpoint|catalog|instruction      LightShadow for host adapters (JSON on stdin; see docs/adapters.md)
 ```
 
 A custom learner command runs with `sh -c` in the workspace; `{prompt}` is
@@ -392,7 +443,7 @@ evidence at all.
 
 | Layer | What runs |
 |---|---|
-| Unit tests | 961 tests across core, protocol, store, mechanisms, cli and the pi and DSH adapters; pi's run a real pi session with a scripted model |
+| Unit tests | 1,020 tests across core, protocol, store, mechanisms, cli and the adapters; pi's run a real pi session with a scripted model; the hook-based hosts' are built from payloads and transcripts captured from each host |
 | Conformance | `conformance/economy`: every implementation must reproduce the expected projections byte for byte |
 | End to end | `pnpm e2e` installs the packed plugins from a local registry into published pi and DeepSeek Harness releases (two Web versions and the Desktop app) and drives them through their own plugin commands and UI; 51 checks locally, and on Linux and macOS in CI (all but the Desktop app) |
 | Real models | long DeepSeek sessions with each host's **default** compaction settings, until the host compacts on its own; the agent then has to quote lines it read before compaction |
@@ -403,6 +454,22 @@ From the real DeepSeek runs (LightShadow checkpoint, reference count, recall):
 |---|---|---|---|
 | pi | ~949k → 29.5k tokens | 624 | 2 recalls by line, every question answered correctly |
 | DeepSeek Harness | ~539k → 30.8k tokens | 589 | 2 recalls, every question answered correctly |
+
+Every host was also run on a real model with a lowered compaction threshold
+(about 20–35k tokens; DeepSeek V4 Flash on Volcengine Ark unless named): the
+agent reads ten 7 KB files, the host compacts, and the agent must quote one
+line of the first file without reading it again.
+
+| Host | Tier | Result |
+|---|---|---|
+| pi 1.1.0 | full | checkpoint with 8 references; answered from one `lightcode_recall` |
+| DeepSeek Harness 0.2.1 | full | 2 checkpoints; answered from one recall |
+| OpenCode 1.19.4 | full | 3 checkpoints (two automatic compactions in one turn); answered from one recall |
+| Hermes Agent 0.22.5 | full | Hermes's compressor with the `lightcode` engine; answered from one recall, out of a single 37 KB JSON-escaped line |
+| CodeBuddy 2.175.0 | full | the stored summary became a checkpoint with 10 references after `/compact`; answered from one recall |
+| Claude Code 2.1.312 (Haiku) | assisted | catalog added after the automatic compaction; answered from the plugin's MCP recall tool |
+| Codex 0.165.0 (GPT) | assisted | 3 automatic compactions, catalog after each; answered from the MCP recall tool |
+| Grok Build 1.0.70 (grok-4.7) | assisted | catalog with the first turn after `/compact`; answered from the MCP recall tool |
 
 ## 🏗️ Repository
 
@@ -415,11 +482,16 @@ packages/cli         the lc command                      → @lightcode-ai/cli
 adapters/pi          pi extension                        → @lightcode-ai/pi
 adapters/dsh         DeepSeek Harness plugin             → @lightcode-ai/dsh
 adapters/codex       Codex plugin (hooks)
+adapters/claude-code Claude Code plugin (hooks)
+adapters/codebuddy   CodeBuddy Code plugin (hooks)
+adapters/grok        Grok Build plugin (hooks)
+adapters/opencode    OpenCode plugin                     → @lightcode-ai/opencode
+adapters/hermes      Hermes Agent plugin (Python, calls lc)
 conformance/         corpus every implementation must reproduce byte-for-byte
 e2e/                 installs the packages into published hosts and runs real sessions
 ```
 
-The three published packages are single-file bundles (`scripts/bundle.mjs`)
+The four published packages are single-file bundles (`scripts/bundle.mjs`)
 with no runtime dependencies; the host's own modules stay external.
 
 Design: [docs/architecture.md](docs/architecture.md) · Releasing:

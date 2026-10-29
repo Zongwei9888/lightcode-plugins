@@ -1,11 +1,11 @@
-import { literalCommand } from '../command.ts'
+import { toolArgv } from '../command.ts'
 import { compactJsonLayout } from '../json-layout.ts'
 import type { EconomyFilter, FilterInput } from '../types.ts'
 
 const ACTIONS = new Set(['start', 'run', 'pause', 'cont', 'pass', 'bench', 'fail', 'output', 'skip'])
 
 function projectMapped(input: FilterInput) {
-  const argv = literalCommand(input.command)
+  const argv = toolArgv(input.command)
   if (argv?.[0] !== 'go' || argv[1] !== 'test' || !argv.includes('-json') || ![0, 1].includes(input.exitCode)) return undefined
   const lines = input.stdout.split(/\r?\n/).filter(line => line.trim() !== '')
   if (lines.length === 0) return undefined

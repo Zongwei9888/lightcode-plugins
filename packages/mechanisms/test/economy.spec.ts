@@ -154,3 +154,60 @@ describe('prepare and commit', () => {
     expect(records[0]).toMatchObject({ outcome: 'projected', callId: 'c' })
   })
 })
+
+describe('Economy recall hint', () => {
+  // pytest -v with 300 passing tests and one failure: a lossy projection (noise removal).
+  const pytest = [
+    '============================= test session starts ==============================',
+    'platform darwin -- Python 3.12.4, pytest-8.3.2, pluggy-1.5.0 -- /usr/bin/python3', 'cachedir: .pytest_cache', 'rootdir: /w',
+    'collecting ... collected 301 items', '',
+    ...Array.from({ length: 300 }, (_, i) => `tests/test_a.py::test_${i} PASSED${' '.repeat(30)}[${String(Math.floor(i * 100 / 301)).padStart(3)}%]`),
+    `tests/test_a.py::test_bad FAILED${' '.repeat(22)}[100%]`, '',
+    '=================================== FAILURES ===================================',
+    '__________________________________ test_bad ___________________________________', '',
+    '    def test_bad():', '>       assert 1 == 2', 'E       assert 1 == 2', '',
+    'tests/test_a.py:3: AssertionError',
+    '=========================== short test summary info ============================',
+    'FAILED tests/test_a.py::test_bad - assert 1 == 2',
+    '========================= 1 failed, 300 passed in 0.12s =========================', '',
+  ].join('\n')
+
+  it('ends a shortened output with the ID of its original, which the recall index reaches, and accounts for it', async () => {
+    const { recallFromJournal } = await import('../src/index.ts')
+    const { engine, records, artifacts } = setup({ recallHint: true })
+    const out = engine.process({ sessionId: 's', callId: 'c1', tool: 'bash', result: { ...shell('python3 -m pytest -v', pytest), exitCode: 1 } })
+    const id = /observation (o-[a-f0-9]{12}): read it with lightcode_recall/u.exec(out.text!)?.[1]
+    expect(id).toBe(`o-${sha256(pytest).slice(0, 12)}`)
+    expect(out.text!.endsWith('`lc recall ' + id + '`.]\n')).toBe(true)
+    const record = records.at(-1) as EconomyRecord
+    expect(record.projected).toMatchObject({ bytes: Buffer.byteLength(out.text!) })
+    // Before any compaction the recall tool reads the complete original by that ID (with or without `original`).
+    const recalled = recallFromJournal({ observation_id: id, query: 'test_250 PASSED' }, { host: 'test', sessionId: 's', artifacts, read: () => records })
+    expect(recalled).toMatchObject({ ok: true })
+    expect(recalled.text).toContain('tests/test_a.py::test_250 PASSED')
+    expect(recallFromJournal({ observation_id: id, original: true, line: 1 }, { host: 'test', sessionId: 's', artifacts, read: () => records }).ok).toBe(true)
+  })
+
+  it('goes before what the host appends after the stream, and never after a lossless layout or a host tool\'s own result', () => {
+    const { engine } = setup({ recallHint: true, streams: 'separate' })
+    const footer = '\n[stderr]\nDeprecationWarning: x\n[exit 1]'
+    const rendered = pytest + footer
+    const out = engine.process({ sessionId: 's', callId: 'c2', tool: 'bash',
+      result: { command: 'python3 -m pytest -v', exitCode: 1, rendered, stdout: { start: 0, text: pytest }, stderr: { start: pytest.length + 10, text: 'DeprecationWarning: x\n' } } })
+    expect(out.text!.endsWith(footer.slice(1))).toBe(true)
+    expect(out.text).toMatch(/`lc recall o-[a-f0-9]{12}`\.\]\n\[stderr\]/u)
+    const records = Array.from({ length: 30 }, (_, i) => ({ path: `src/f${i % 3}.ts`, line: i + 1, text: `const v${i} = ${i}` }))
+    const native = nativeGrepRecords(records.map(r => `${r.path}:${r.line}:${r.text}`).join('\n'))
+    if (native) {
+      const layout = engine.process({ sessionId: 's', callId: 'c3', tool: 'grep', command: 'grep v', native: { rendered: records.map(r => `${r.path}:${r.line}:${r.text}`).join('\n'), projection: native } })
+      if (layout.text) expect(layout.text).not.toContain('LightCode shortened')
+    }
+  })
+
+  it('is left out when the projection would no longer save enough with it', () => {
+    const { engine } = setup({ recallHint: true })
+    const small = grep(6)
+    const out = engine.process({ sessionId: 's', callId: 'c4', tool: 'bash', result: shell('grep -rn value src', small) })
+    if (out.text !== undefined) expect(Buffer.byteLength(out.text)).toBeLessThan(Buffer.byteLength(small))
+  })
+})

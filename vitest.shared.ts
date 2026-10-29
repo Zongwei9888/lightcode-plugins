@@ -8,5 +8,5 @@ const alias = Object.fromEntries(readdirSync(packages).map(name => [`@lightcode-
 
 export default defineConfig({
   resolve: { alias },
-  test: { include: ['test/**/*.spec.ts'] },
+  test: { include: ['test/**/*.spec.ts'], globalSetup: [fileURLToPath(new URL('./vitest.tmpdir.ts', import.meta.url))] },
 })

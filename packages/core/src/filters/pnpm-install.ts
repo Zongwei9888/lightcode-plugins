@@ -1,4 +1,4 @@
-import { literalCommand } from '../command.ts'
+import { toolArgv } from '../command.ts'
 import { ProjectionBuilder, sourceLines } from '../projection-map.ts'
 import type { MappedProjection } from '../projection-map.ts'
 import type { EconomyFilter, FilterInput } from '../types.ts'
@@ -7,7 +7,7 @@ const PROGRESS = /^Progress: resolved (\d+), reused (\d+), downloaded (\d+), add
 
 /** Keep the last snapshot of each monotone progress run; keep everything else. */
 function projectMapped(input: FilterInput): MappedProjection | undefined {
-  const argv = literalCommand(input.command)
+  const argv = toolArgv(input.command)
   if (argv?.[0] !== 'pnpm' || !['install', 'i', 'add', 'update', 'remove'].includes(argv[1] ?? '')
     || input.exitCode !== 0 || /[\u001b\0]|\r(?!\n)/.test(input.stdout)) return undefined
   const lines = sourceLines(input.stdout)

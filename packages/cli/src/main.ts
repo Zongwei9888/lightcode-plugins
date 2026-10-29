@@ -6,15 +6,18 @@ import { cliContext } from './context.ts'
 import { doctor, VERSION } from './doctor.ts'
 import { evolve, evolveCheck, evolveTry, rules } from './evolve.ts'
 import { hook } from './hook.ts'
+import { mcp } from './mcp.ts'
 import { report } from './report.ts'
 import { run } from './run.ts'
+import { recall, shadow } from './shadow.ts'
 
 const HELP = `lc — LightCode ${VERSION}
 
 Usage:
   lc run [--host H] [--session S] [--call C] -c <script>   run a shell script, print filtered output
   lc run [--host H] [--session S] [--call C] -- <program> [args...]
-  lc hook codex                    Codex hook handler (reads hook JSON on stdin)
+  lc hook codex|claude|codebuddy|grok|hermes
+                                   hook handler for that host (reads hook JSON on stdin)
   lc report [--host H] [--session S] [--json]
   lc filters [--json]              list output filters and what each preserves
   lc show <sha256>                 print a saved original output
@@ -24,6 +27,11 @@ Usage:
                                    learn output rules from recorded evidence; adopt them only if verified
   lc rules [list|show|path|off|on|rollback] [--json]
                                    learned rules: what is adopted, switch off, go back
+  lc recall <observation_id> [--query Q | --line N] [--original] [--session S]
+                                   read again a tool result LightShadow kept
+  lc mcp [--host H] [--session S]  MCP server (stdio) offering the lightcode_recall tool
+  lc shadow instruction|tool|checkpoint|catalog
+                                   LightShadow for host adapters (JSON on stdin and stdout)
   lc --version
 
 Data: $LIGHTCODE_HOME or ~/.lightcode.  Disable: LIGHTCODE_DISABLE=1 or LIGHTCODE_ECONOMY=off.
@@ -50,6 +58,19 @@ function runArgs(argv: string[]) {
 
 export async function main(argv: string[]): Promise<number> {
   const [command, ...rest] = argv
+  // `lc <command> --help` prints the usage. `lc run` and `lc hook` pass their arguments on, so theirs are never read as a request for help.
+  if (command !== 'run' && command !== 'hook' && (rest.includes('--help') || rest.includes('-h'))) { process.stdout.write(HELP); return 0 }
+  try {
+    return await dispatch(command, rest)
+  } catch (error) {
+    // An unknown or malformed option: one line, not a stack trace.
+    if (!String((error as NodeJS.ErrnoException).code ?? '').startsWith('ERR_PARSE_ARGS_')) throw error
+    process.stderr.write(`lc ${command}: ${(error as Error).message}\nRun \`lc --help\` for usage.\n`)
+    return 2
+  }
+}
+
+async function dispatch(command: string | undefined, rest: string[]): Promise<number> {
   switch (command) {
     case 'run': {
       let options
@@ -108,6 +129,19 @@ export async function main(argv: string[]): Promise<number> {
         ...values.timeout === undefined ? {} : { timeout: values.timeout }, dryRun: values['dry-run'] === true, json: values.json === true })
     }
     case 'rules': return rules(rest.find(arg => !arg.startsWith('-')), rest.includes('--json'))
+    case 'recall': {
+      const { values, positionals } = parseArgs({ args: rest, allowPositionals: true, options: {
+        query: { type: 'string' }, line: { type: 'string' }, original: { type: 'boolean' }, host: { type: 'string' }, session: { type: 'string' }, call: { type: 'string' },
+      } })
+      return recall({ id: positionals[0], ...values.query === undefined ? {} : { query: values.query }, ...values.line === undefined ? {} : { line: values.line },
+        original: values.original === true, ...values.host === undefined ? {} : { host: values.host },
+        ...values.session === undefined ? {} : { session: values.session }, ...values.call === undefined ? {} : { call: values.call } })
+    }
+    case 'mcp': {
+      const { values } = parseArgs({ args: rest, options: { host: { type: 'string' }, session: { type: 'string' } } })
+      return mcp({ ...values.host === undefined ? {} : { host: values.host }, ...values.session === undefined ? {} : { session: values.session } })
+    }
+    case 'shadow': return shadow(rest[0])
     case '--version': case '-v': case 'version': process.stdout.write(`${VERSION}\n`); return 0
     case undefined: case '--help': case '-h': case 'help': process.stdout.write(HELP); return 0
     default:

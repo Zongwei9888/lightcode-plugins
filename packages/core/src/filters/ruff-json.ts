@@ -1,9 +1,9 @@
-import { literalCommand } from '../command.ts'
+import { toolArgv } from '../command.ts'
 import { compactJsonLayout } from '../json-layout.ts'
 import type { EconomyFilter, FilterInput } from '../types.ts'
 
 function projectMapped(input: FilterInput) {
-  let argv = literalCommand(input.command)
+  let argv = toolArgv(input.command)
   if (argv?.[0] === 'uv' && argv[1] === 'run') argv = argv.slice(2)
   if (argv?.[0] !== 'ruff' || argv[1] !== 'check' || ![0, 1].includes(input.exitCode)) return undefined
   const formats = argv.flatMap((arg, i) => arg === '--output-format' ? [argv[i + 1]]

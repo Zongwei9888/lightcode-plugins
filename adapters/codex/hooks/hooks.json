@@ -1,5 +1,5 @@
 {
-  "description": "LightCode Economy: wrap recognizable shell commands in `lc run` so their output is filtered before the model sees it.",
+  "description": "LightCode: wrap recognizable shell commands in `lc run` so their output is filtered before the model sees it; after a compaction, add the catalog of tool results LightCode kept recallable.",
   "hooks": {
     "PreToolUse": [
       {
@@ -9,6 +9,19 @@
             "type": "command",
             "command": "lc hook codex",
             "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "lc hook codex",
+            "timeout": 60,
+            "additionalContextLimit": 6000
           }
         ]
       }

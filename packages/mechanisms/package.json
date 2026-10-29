@@ -1,6 +1,6 @@
 {
   "name": "@lightcode-ai/mechanisms",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "LightCode mechanisms over host capability ports: Token Economy, LightShadow, self-evolution and receipts.",
   "license": "MIT",
   "type": "module",

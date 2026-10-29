@@ -19,7 +19,7 @@
  */
 import {
   RECALL_TOOL_DESCRIPTION, RECALL_TOOL_NAME, SHADOW_SUMMARY_INSTRUCTION, callLabel, checkpointRecord, cutNote, externalizeCut,
-  planShadow, recallObservation, referenceIndex, renderCheckpoint, renderRecall,
+  fitCheckpoint, planShadow, recallIndex, recallObservation, referenceIndex, renderCheckpoint, renderRecall,
 } from '@lightcode-ai/mechanisms'
 import type { RecallResult, ShadowMessage, ShadowPlan } from '@lightcode-ai/mechanisms'
 import type { ArtifactPort, EconomyRecord, JournalPort, JournalRecord, MechanismMode, ShadowReference } from '@lightcode-ai/protocol'
@@ -178,9 +178,11 @@ export function createDshShadow(options: DshShadowOptions): DshShadow {
         const meter = meterOf(agent)
         const measure = (text: string) => meter ? meter({ role: 'user', content: [{ type: 'text', text }], source: { kind: 'user' } }) : Math.ceil(text.length / 4) + FRAMING_TOKENS
         const spanTokens = meter ? input.messages.filter(message => message.role !== 'system').reduce((sum, message) => sum + meter(message), 0) : plan.segmentTokens
-        // What the checkpoint adds besides the summary must leave room for one.
-        if (measure(renderCheckpoint('', plan)) >= spanTokens * 0.6) {
-          append(checkpointRecord(base(), { kind: 'standard', plan, checkpointTokens: measure(renderCheckpoint('', plan)), reason: 'checkpoint-not-smaller' }))
+        // What the checkpoint adds besides the summary must leave room for one. Right after another compaction,
+        // the span is mostly the earlier checkpoint: its catalog, listed by call alone, still leaves room, and
+        // DSH's own summary of that span would drop every observation_id.
+        if (fitCheckpoint('', plan, text => measure(text) < spanTokens * 0.6) === undefined) {
+          append(checkpointRecord(base(), { kind: 'standard', plan, checkpointTokens: measure(renderCheckpoint('', plan, { excerpts: 0 })), reason: 'checkpoint-not-smaller' }))
           return original(input, agent, signal)
         }
         const messages = [...input.messages]
@@ -206,12 +208,12 @@ export function createDshShadow(options: DshShadowOptions): DshShadow {
       const result = await original({ ...input, messages: prepared.messages }, agent, signal)
       const { plan, spanTokens, measure } = prepared
       const summary = result.summary.filter(block => block.type === 'text').map(block => String(block.text)).join('\n')
-      const text = renderCheckpoint(summary, plan)
-      const tokens = measure(text)
-      if (tokens >= spanTokens * 0.9) {
-        append(checkpointRecord(base(), { kind: 'standard', plan, checkpointTokens: tokens, reason: 'checkpoint-not-smaller' }))
+      const text = fitCheckpoint(summary, plan, candidate => measure(candidate) < spanTokens * 0.9)
+      if (text === undefined) {
+        append(checkpointRecord(base(), { kind: 'standard', plan, checkpointTokens: measure(renderCheckpoint(summary, plan, { excerpts: 0 })), reason: 'checkpoint-not-smaller' }))
         return original(input, agent, signal)
       }
+      const tokens = measure(text)
       append(checkpointRecord(base(), { kind: 'lightshadow', plan, checkpointTokens: tokens }))
       return { ...result, summary: [{ type: 'text', text }] }
     }
@@ -273,7 +275,7 @@ export function createDshShadow(options: DshShadowOptions): DshShadow {
       }
     },
     recall(session, args, callId) {
-      const index = referenceIndex(options.read(session.id))
+      const index = recallIndex(options.read(session.id))
       const input = (args ?? {}) as { observation_id?: unknown; query?: unknown; line?: unknown; original?: unknown }
       const result = recallObservation(input, { lookup: id => index.get(id), artifacts: options.artifacts() })
       const id = typeof input.observation_id === 'string' ? input.observation_id.trim() : ''

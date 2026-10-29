@@ -1,0 +1,44 @@
+{
+  "name": "@lightcode-ai/opencode",
+  "version": "0.3.0",
+  "description": "LightCode for OpenCode: shrinks recognized bash output (tests, builds, diffs, searches) before the model reads it, keeping the original privately.",
+  "license": "MIT",
+  "type": "module",
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "lightcode",
+    "context",
+    "tokens"
+  ],
+  "homepage": "https://github.com/Zongwei9888/lightcode-plugins/tree/main/adapters/opencode#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Zongwei9888/lightcode-plugins.git",
+    "directory": "adapters/opencode"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "main": "./dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist/index.js",
+    "README.md",
+    "NOTICE.md",
+    "LICENSE",
+    "LICENSE.rtk"
+  ],
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@lightcode-ai/core": "workspace:*",
+    "@lightcode-ai/mechanisms": "workspace:*",
+    "@lightcode-ai/protocol": "workspace:*",
+    "@lightcode-ai/store": "workspace:*"
+  }
+}

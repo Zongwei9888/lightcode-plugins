@@ -16,7 +16,7 @@ import type { ExtensionAPI, ExtensionContext, ToolResultEvent, TurnEndEvent } fr
 import { sha256 } from '@lightcode-ai/core'
 import {
   cancelEvolution, collectSubagents, describeToolCall, formatTokens, isPrepared, EconomyEngine, LEARNER_INSTRUCTION, nodeBinary, normalizeShellCommand, onPath,
-  outcomeSentence, readEvolveStatus, recordSubagent, refreshScan, startEvolution, summarizeEconomy, summarizeShadow, takeAnnouncement,
+  outcomeSentence, readEvolveStatus, recordSubagent, RECALL_TOOL_NAME, refreshScan, startEvolution, summarizeEconomy, summarizeShadow, takeAnnouncement,
 } from '@lightcode-ai/mechanisms'
 import type { BackgroundOptions, EvolveStatus, Prepared } from '@lightcode-ai/mechanisms'
 import { HOST_PROFILES, V0_2_SPECS, negotiate } from '@lightcode-ai/protocol'
@@ -195,8 +195,9 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
       })
       const mode = negotiated.find(item => item.mechanism === 'economy')!.mode
       const sessionId = ctx.sessionManager.getSessionId() || null
+      const shadowMode = negotiated.find(item => item.mechanism === 'lightshadow')!.mode
       const engine = mode === 'off' ? undefined : new EconomyEngine({ host: HOST, journal, artifacts, config: loaded.config.economy,
-        mode, delivery: 'in-process', streams: 'merged', learned: () => ruleStore.load() })
+        mode, delivery: 'in-process', streams: 'merged', learned: () => ruleStore.load(), recallHint: shadowMode === 'apply' })
       const previous = sessionId ? summarizeEconomy(read(sessionId)) : undefined
       try { collectDaily(dataDir, days => artifacts.prune(days), loaded.config.artifacts.retentionDays) } catch { /* Housekeeping only. */ }
       if (engine && sessionId) {
@@ -312,6 +313,10 @@ export function createLightCodeExtension(options: LightCodePiOptions = {}) {
         session.savedTokens += prepared.record.raw!.tokens - prepared.record.projected!.tokens
       }
       if (drafts.length === 0) return
+      // A shortened output names its original for lightcode_recall: make sure the model can call it.
+      if (drafts.some(draft => draft.replacement.content[0]!.text.includes(RECALL_TOOL_NAME))) {
+        try { const active = pi.getActiveTools(); if (!active.includes(RECALL_TOOL_NAME)) pi.setActiveTools([...active, RECALL_TOOL_NAME]) } catch { /* Status only. */ }
+      }
       showStatus(ctx, session)
       // Keep entries other extensions added at this boundary.
       return { entries: [...event.entries, ...drafts] }

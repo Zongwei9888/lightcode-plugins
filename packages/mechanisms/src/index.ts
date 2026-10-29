@@ -5,11 +5,13 @@ export type { EconomySummary, ShadowSummary } from './receipts.ts'
 export { collectSubagents, recordSubagent } from './subagents.ts'
 export type { Subagents } from './subagents.ts'
 export {
-  boundedExcerpt, callLabel, catalogIds, checkpointAdmitted, checkpointRecord, cutNote, externalizeCut, parseCheckpoint, planShadow, recallObservation,
-  referenceId, referenceIndex, renderCheckpoint, renderRecall, serializeResidual,
-  CATALOG_EXCERPTS, RECALL_TOOL_DESCRIPTION, RECALL_TOOL_NAME, SHADOW_EXCERPT_BYTES, SHADOW_RECALL_WINDOW_BYTES, SHADOW_SUMMARY_INSTRUCTION,
+  boundedExcerpt, callLabel, catalogIds, checkpointAdmitted, checkpointRecord, cutNote, externalizeCut, fitCheckpoint, parseCheckpoint, planShadow, recallObservation,
+  economyReference, recallHint, recallIndex, referenceId, referenceIndex, renderCatalog, renderCheckpoint, renderRecall, serializeResidual,
+  CATALOG_EXCERPTS, RECALL_TOOL_DESCRIPTION, RECALL_TOOL_NAME, SHADOW_ASSISTED_INSTRUCTION, SHADOW_EXCERPT_BYTES, SHADOW_RECALL_WINDOW_BYTES, SHADOW_SUMMARY_INSTRUCTION,
 } from './shadow.ts'
 export type { RecallArguments, RecallResult, ShadowMessage, ShadowOptions, ShadowPlan } from './shadow.ts'
+export { catalogLead, recallFromJournal, shadowCatalog, shadowCheckpoint, shadowMessagesFrom, RECALL_INPUT_SCHEMA } from './shadow-service.ts'
+export type { CatalogResult, CheckpointResult, ShadowSpan, ShadowStore } from './shadow-service.ts'
 export { checkRequirements, collectEvidence, commandHead, defaultRequirements, replayCase, verifyRules } from './evolution.ts'
 export type { EvidenceCase, PreservationRequirement, ReplayRow, RequirementResult, VerificationReport } from './evolution.ts'
 export {

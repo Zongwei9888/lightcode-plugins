@@ -44,6 +44,24 @@ sessions:
   `sandbox_workspace_write.writable_roots`. In `read-only` mode nothing can be
   saved, so nothing is filtered.
 
+## LightShadow (assisted)
+
+Codex writes the summary itself (for OpenAI models an opaque compaction
+item), but after every compaction it runs SessionStart hooks with source
+`compact` and adds their context before the next request (verified on
+0.165.0):
+
+- the hook reads the rollout, saves the tool outputs between the last two
+  compactions (labelled by the shell commands each `exec` ran), and adds the
+  catalog of every reference the session has; `additionalContextLimit` is
+  raised to 6,000 tokens so Codex does not spill it to a file;
+- the plugin's MCP server (`.mcp.json`) offers `mcp__lightcode__lightcode_recall`,
+  annotated read-only, so `codex exec` runs it without asking; the catalog
+  shows the code-mode call (`await tools.mcp__lightcode__lightcode_recall({…})`).
+
+Subagent threads get no SessionStart(compact), so no catalog. After you
+install or update the plugin, trust its hooks again in `/hooks`.
+
 ## Install
 
 From a checkout of this repository (it doubles as a Codex marketplace):

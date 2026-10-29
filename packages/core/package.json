@@ -1,6 +1,6 @@
 {
   "name": "@lightcode-ai/core",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Host-independent LightCode logic: deterministic tool-output filters, source maps, admission rules and the learned-rule sandbox.",
   "license": "MIT",
   "type": "module",

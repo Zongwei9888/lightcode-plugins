@@ -1,6 +1,6 @@
 {
   "name": "@lightcode-ai/store",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Local LightCode data: private journal, original-output store, adopted rules and configuration.",
   "license": "MIT",
   "type": "module",

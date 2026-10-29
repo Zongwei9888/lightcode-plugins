@@ -145,6 +145,21 @@ describe('Codex PreToolUse hook', () => {
   })
 })
 
+describe('lc usage errors', () => {
+  it('prints the usage for `lc <command> --help`, and one line for an unknown option', () => {
+    for (const command of ['evolve', 'report', 'doctor', 'rules']) {
+      const help = lc([command, '--help'])
+      expect(help.status).toBe(0)
+      expect(help.out).toContain('Usage:')
+    }
+    const bad = lc(['report', '--bogus'])
+    expect(bad.status).toBe(2)
+    expect(bad.err).toBe("lc report: Unknown option '--bogus'\nRun `lc --help` for usage.\n")
+    // `lc run` hands its arguments to the command.
+    expect(lc(['run', '--', 'echo', '--help']).out).toBe('--help\n')
+  })
+})
+
 describe('lc --version', () => {
   it('matches the published package version', () => {
     const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }

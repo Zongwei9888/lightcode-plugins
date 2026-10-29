@@ -1,6 +1,6 @@
 import { estimateTokens as defaultEstimate } from '@lightcode-ai/core'
 import type { TokenEstimator } from '@lightcode-ai/core'
-import type { ArtifactPort, ShadowCheckpointRecord, ShadowReference } from '@lightcode-ai/protocol'
+import type { ArtifactPort, EconomyRecord, ShadowCheckpointRecord, ShadowReference } from '@lightcode-ai/protocol'
 
 /**
  * LightShadow: recoverable history compaction. When the host compacts an
@@ -73,9 +73,22 @@ export const SHADOW_SUMMARY_INSTRUCTION = [
   'Keep it concise: a short line per finding, so the summary fits well within your output limit.',
 ].join(' ')
 
+/**
+ * Added to the host's own summary instruction when the host writes the
+ * summary itself (the assisted tier): the catalog follows the summary, but the
+ * user's messages are kept however the host keeps them.
+ */
+export const SHADOW_ASSISTED_INSTRUCTION = [
+  'After this compaction every tool result in this span stays recoverable: LightCode adds a catalog of them after your summary,',
+  'and the agent can read any of them again with its recall tool. So write the summary the agent needs to carry on',
+  'without re-running anything: the findings from the tool results (facts, file paths with line numbers, values,',
+  'errors, what passed and what failed) and the decisions made. Do not paste whole files, logs or test output;',
+  'say what they showed. Do not list observation IDs.',
+].join(' ')
+
 export const RECALL_TOOL_DESCRIPTION = 'Read again a tool result that context compaction removed, exactly as you first saw it. '
-  + 'Its observation_id is listed in the observation catalog of the compacted summary, next to the call (command or path) that produced it. Results larger than 8 KB need a line number (you get the lines around it) or a query: '
-  + 'an exact string they contain (a symbol, path or error message); you get the lines around its first match. '
+  + 'Its observation_id is listed in the observation catalog of the compacted summary, next to the call (command or path) that produced it. Results larger than 8 KB come back a window at a time: pass a line number (you get the lines around it) or a query: '
+  + 'an exact string they contain (a symbol, path or error message); you get the lines around its first match. With neither, you get the first lines. '
   + 'Set original to true for the complete output LightCode shortened before you first read it, when the catalog marks one.'
 
 const CATALOG_OPEN = '<lightcode-observation-catalog>'
@@ -118,7 +131,7 @@ export function callLabel(args: unknown): string | undefined {
   let label: string | undefined
   if (value && typeof value === 'object' && !Array.isArray(value)) {
     const fields = value as Record<string, unknown>
-    const named = ['command', 'cmd', 'path', 'file_path', 'filePath', 'file', 'pattern', 'query', 'url']
+    const named = ['command', 'cmd', 'path', 'file_path', 'filePath', 'target_file', 'file', 'pattern', 'query', 'url']
       .map(key => fields[key]).find((item): item is string => typeof item === 'string' && item.trim() !== '')
     label = named ?? JSON.stringify(value)
   } else if (typeof value === 'string') label = value
@@ -297,17 +310,48 @@ export function parseCheckpoint(text: string): { summary: string; contract: stri
   return { summary: rest.replace(/\n{3,}/gu, '\n\n').trim(), contract, ids }
 }
 
-/** The checkpoint text: the summary, the user's exact messages, and the catalog of references. */
-export function renderCheckpoint(summary: string, plan: Pick<ShadowPlan, 'contract' | 'contractOmitted' | 'references'>): string {
+/**
+ * The checkpoint text: the summary, the user's exact messages, and the catalog of references.
+ * `excerpts` is how many of the newest references are listed in full (`CATALOG_EXCERPTS` by default);
+ * the others are listed by their call alone.
+ */
+export function renderCheckpoint(summary: string, plan: Pick<ShadowPlan, 'contract' | 'contractOmitted' | 'references'>,
+  options: { readonly excerpts?: number } = {}): string {
+  const excerpts = options.excerpts ?? CATALOG_EXCERPTS
   const catalog = plan.references.length ? [
     CATALOG_OPEN,
     'Tool results removed from this conversation, oldest first, each with the call that produced it. Read one again with the recall tool and its observation_id.',
-    ...plan.references.map((ref, i) => catalogLine(ref, plan.references.length - i <= CATALOG_EXCERPTS)),
+    ...plan.references.map((ref, i) => catalogLine(ref, plan.references.length - i <= excerpts)),
     CATALOG_CLOSE,
   ].join('\n') : ''
   const contract = plan.contract.length ? [CONTRACT_HEADING, ...plan.contract.map(text => `- ${quote(text)}`),
     plan.contractOmitted ? `(${plan.contractOmitted} earlier user message${plan.contractOmitted === 1 ? '' : 's'} summarized above)` : ''].filter(Boolean).join('\n') : ''
   return [summary.trim(), contract, catalog].filter(Boolean).join('\n\n')
+}
+
+/**
+ * The checkpoint text with the most catalog detail that `fits`: the newest
+ * references with their excerpts, else every reference by its call alone.
+ * The second form keeps every observation_id when an earlier checkpoint's
+ * catalog makes up most of a small span (a compaction right after another),
+ * where a full catalog leaves no room for a summary. Undefined when neither fits.
+ */
+export function fitCheckpoint(summary: string, plan: Pick<ShadowPlan, 'contract' | 'contractOmitted' | 'references'>,
+  fits: (text: string) => boolean): string | undefined {
+  const full = renderCheckpoint(summary, plan)
+  if (fits(full)) return full
+  const compact = renderCheckpoint(summary, plan, { excerpts: 0 })
+  return compact !== full && fits(compact) ? compact : undefined
+}
+
+/**
+ * The catalog alone, for hosts that write their own summary (the assisted
+ * tier): the newest references whose lines fit `budgetTokens`, the newest
+ * `CATALOG_EXCERPTS` with their excerpts. Empty text when there are none.
+ */
+export function renderCatalog(references: readonly ShadowReference[], options: { budgetTokens?: number; estimateTokens?: TokenEstimator } = {}): { text: string; references: ShadowReference[] } {
+  const kept = withinCatalogBudget(references, options.budgetTokens ?? 8_000, options.estimateTokens ?? defaultEstimate)
+  return { text: renderCheckpoint('', { contract: [], contractOmitted: 0, references: kept }), references: kept }
 }
 
 /** Whether a checkpoint is used: it must be smaller than the segment it replaces. */
@@ -377,7 +421,9 @@ export interface RecallArguments {
 export type RecallResult =
   | { readonly ok: true; readonly text: string; readonly complete: boolean; readonly lines?: readonly [number, number]; readonly totalLines?: number
       /** Asked by line: each line of `text` starts with its number and a tab, the asked one marked with `>`. */
-      readonly numbered?: number }
+      readonly numbered?: number
+      /** A line longer than the window: the characters returned, around the query's match (1-based, inclusive). */
+      readonly columns?: readonly [number, number]; readonly lineLength?: number }
   | { readonly ok: false; readonly error: string }
 
 /**
@@ -402,13 +448,16 @@ export function recallObservation(args: RecallArguments, options: {
   if (text === undefined) return { ok: false, error: `${id} is no longer stored (LightCode keeps originals for a limited number of days)` }
   const windowBytes = options.windowBytes ?? SHADOW_RECALL_WINDOW_BYTES
   const query = typeof args.query === 'string' ? args.query : ''
-  const line = typeof args.line === 'number' ? args.line : typeof args.line === 'string' && /^\s*\d+\s*$/u.test(args.line) ? Number(args.line) : undefined
+  let line = typeof args.line === 'number' ? args.line : typeof args.line === 'string' && /^\s*\d+\s*$/u.test(args.line) ? Number(args.line) : undefined
   // A small result comes back whole, unless a line is asked for: then numbered, so it need not be counted out.
   if (bytes(text) <= windowBytes && line === undefined) return { ok: true, text, complete: true }
   const lines = text.split('\n')
-  if (line === undefined && !query) {
-    return { ok: false, error: `${id} has ${bytes(text)} bytes and ${lines.length} lines; pass a line number, or a query: an exact string it contains (a symbol, path or error message)` }
+  // A line that is no number is a mistake to report, not a request for the start.
+  if (line === undefined && args.line !== undefined && args.line !== null && args.line !== '') {
+    return { ok: false, error: `${id} has ${lines.length} lines; pass a line from 1 to ${lines.length}` }
   }
+  // A large one asked for with neither: its first window, numbered, so the next call can go on by line (agents always asked again).
+  if (line === undefined && !query) line = 1
   if (line !== undefined && !(Number.isInteger(line) && line >= 1 && line <= lines.length)) {
     return { ok: false, error: `${id} has ${lines.length} lines; pass a line from 1 to ${lines.length}` }
   }
@@ -419,8 +468,15 @@ export function recallObservation(args: RecallArguments, options: {
   const extra = line === undefined ? 0 : 8
   let start = hit, end = hit + 1, size = bytes(lines[hit]!) + extra
   if (size > windowBytes) {
-    const clipped = Buffer.from(lines[hit]!, 'utf8').subarray(0, windowBytes).toString('utf8').replace(/�$/u, '')
-    return { ok: true, text: clipped, complete: false, lines: [hit + 1, hit + 1], totalLines: lines.length }
+    // One line longer than the window (minified JSON, a JSON-escaped log): the part around the match, not its start.
+    const whole = lines[hit]!
+    const at = line === undefined ? Math.max(0, whole.indexOf(query)) : 0
+    let from = Math.max(0, at - Math.floor(windowBytes / 2))
+    let piece = whole.slice(from, from + windowBytes)
+    while (bytes(piece) > windowBytes) piece = piece.slice(0, Math.max(1, Math.floor(piece.length * 0.9)))
+    // Keep the match inside what was cut to fit.
+    if (at + query.length > from + piece.length) { from = Math.max(0, at + query.length - piece.length); piece = whole.slice(from, from + piece.length) }
+    return { ok: true, text: piece, complete: false, lines: [hit + 1, hit + 1], totalLines: lines.length, columns: [from + 1, from + piece.length], lineLength: whole.length }
   }
   for (let grew = true; grew;) {
     grew = false
@@ -437,6 +493,9 @@ export function recallObservation(args: RecallArguments, options: {
 export function renderRecall(id: string, result: RecallResult): string {
   if (!result.ok) return `recall failed: ${result.error}`
   if (result.complete) return result.text
+  if (result.columns) {
+    return `[${id}: line ${result.lines![0]} of ${result.totalLines}, characters ${result.columns[0]}-${result.columns[1]} of ${result.lineLength}]\n${result.text}`
+  }
   const numbered = result.numbered === undefined ? '' : `, numbered; line ${result.numbered} is marked >`
   return `[${id}: lines ${result.lines![0]}-${result.lines![1]} of ${result.totalLines}${numbered}]\n${result.text}`
 }
@@ -451,3 +510,30 @@ export function referenceIndex(records: Iterable<{ type: string }>): Map<string,
   return index
 }
 
+/**
+ * A shortened output's original as a reference under its own ID, so the recall
+ * tool can read it before any compaction (Economy's hint names this ID). It is
+ * its own original: recall returns it with or without `original`.
+ */
+export function economyReference(record: EconomyRecord): ShadowReference | undefined {
+  if (record.type !== 'economy/decision' || record.outcome !== 'projected' || !record.raw?.stored) return undefined
+  const call = callLabel(record.command)
+  const original = { sha256: record.raw.sha256, bytes: record.raw.bytes }
+  return { id: referenceId(record.raw.sha256), ...original, tool: record.tool, callId: record.callId, excerpt: '', ...call ? { call } : {}, original }
+}
+
+/** What the recall tool can reach: every checkpoint's references (they win), then the originals Economy shortened. */
+export function recallIndex(records: Iterable<{ type: string }>): Map<string, ShadowReference> {
+  const list = [...records]
+  const index = referenceIndex(list)
+  for (const record of list) {
+    const reference = record.type === 'economy/decision' ? economyReference(record as EconomyRecord) : undefined
+    if (reference && !index.has(reference.id)) index.set(reference.id, reference)
+  }
+  return index
+}
+
+/** The line Economy adds after an output it shortened: where the complete output is. */
+export function recallHint(id: string): string {
+  return `[LightCode shortened this output. The complete output is observation ${id}: read it with ${RECALL_TOOL_NAME} (observation_id ${id}), or run \`lc recall ${id}\`.]`
+}

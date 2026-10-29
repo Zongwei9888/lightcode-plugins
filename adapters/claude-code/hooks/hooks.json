@@ -1,0 +1,62 @@
+{
+  "description": "LightCode: replace the output of recognized Bash commands with a smaller projection (in bypassPermissions mode, run them through `lc run`); after a compaction, add the catalog of tool results LightCode kept recallable.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "lc hook claude",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__plugin_lightcode_lightcode__lightcode_recall",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "lc hook claude",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "lc hook claude",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "lc hook claude",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "lc hook claude",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}

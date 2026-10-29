@@ -14,6 +14,7 @@ export const CAPABILITIES = {
   commandWrapper: 'run shell commands through `lc run`, which filters at the process boundary',
   compaction: 'supply the compaction summary and kept boundary',
   compactionShaping: 'influence, but not supply, the host compaction summary',
+  compactionContext: 'add text to the conversation right after the host compacts it (the host writes the summary)',
   context: 'rewrite the message list for each request without persisting it',
   tools: 'register model-callable tools',
   toolVisibility: 'show or hide registered tools per turn',
@@ -109,7 +110,8 @@ export const LIGHTSHADOW_SPEC: MechanismSpec = {
   summary: 'replace tool results in compacted history with recallable references',
   requires: ['journal', 'artifacts', 'tokens'],
   modes: [
-    { mode: 'apply', anyOf: [['compaction', 'tools']] },
+    // The strongest first: LightShadow writes the checkpoint; else the host's summary stays and the catalog follows it.
+    { mode: 'apply', anyOf: [['compaction', 'tools'], ['compactionContext', 'tools']] },
     { mode: 'observe', anyOf: [['compaction'], ['sessions']] },
   ],
 }

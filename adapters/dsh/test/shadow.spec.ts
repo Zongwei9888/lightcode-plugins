@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { FileArtifactStore, FileJournal } from '@lightcode-ai/store'
 import type { JournalRecord, MechanismMode, ShadowCheckpointRecord } from '@lightcode-ai/protocol'
+import { catalogIds } from '@lightcode-ai/mechanisms'
 import { DSH_PRUNE_MARKER, createDshShadow, shadowMessages } from '../src/shadow.ts'
 import type { SummarizationInput, SummaryResult } from '../src/shadow.ts'
 
@@ -117,6 +118,37 @@ describe('LightShadow on DSH', () => {
     expect(checkpoint.match(/^observation_id: /gm)).toHaveLength(2)
     // The summarizer saw the earlier summary without its catalog or user-message list.
     expect(String(host.calls[1]!.messages[0]!.content[0]!.text)).not.toContain('observation_id')
+  })
+
+  it('keeps every observation_id when a compaction follows right after another', async () => {
+    // A real DSH run: eight files read, compacted, then compacted again at once (still above threshold), so the
+    // second span is the first checkpoint and one short message. A full catalog left no room for a summary there,
+    // DSH summarized the span itself, and the model lost every observation_id.
+    const host = fakeHost(), { shadow, read } = setup()
+    shadow.discover(host.events)
+    const file = (n: number) => Array.from({ length: 200 }, (_, i) => `data_0${n} record ${String(i).padStart(3, '0')}: ${'abcdefghij'.repeat(6)} value-${n}-${i}`).join('\n')
+    const reads: SummarizationInput['messages'][number][] = [{ role: 'user', content: text('Read every data file.'), source: { kind: 'user' } }]
+    for (let n = 1; n <= 8; n++) {
+      reads.push({ role: 'assistant', content: [{ type: 'tool-call', id: `call-${n}`, name: 'bash', arguments: `{"command":"cat data_0${n}.txt"}` }], source: { kind: 'model' } })
+      reads.push({ role: 'tool', content: text(file(n)), source: { kind: 'tool' }, toolCallId: `call-${n}` })
+    }
+    const first = String((await host.engine.summarize({ messages: reads }, agent as never)).summary[0]!.text)
+    const ids = catalogIds(first)
+    expect(ids).toHaveLength(8)
+    expect(first).toContain('| excerpt: ')
+    const framed = `This is an automatically generated checkpoint...\n\n<compacted-summary>${first}</compacted-summary>`
+    const second = String((await host.engine.summarize({ messages: [
+      { role: 'user', content: text(framed), source: { kind: 'compact-checkpoint' } },
+      { role: 'assistant', content: text('done: 8 files read'), source: { kind: 'model' } },
+    ] }, agent as never)).summary[0]!.text)
+    // LightShadow wrote both checkpoints; DSH's summarizer ran once for each, never on the raw span.
+    expect(host.calls).toHaveLength(2)
+    expect(catalogIds(second)).toEqual(ids)
+    expect(second).toContain(`observation_id: ${ids[0]} | call: "cat data_01.txt"\n`)
+    expect(second).not.toContain('| excerpt: ')
+    expect(second).toContain('"Read every data file."')
+    expect((read('s1') as ShadowCheckpointRecord[]).filter(record => record.type === 'shadow/checkpoint').map(record => record.kind)).toEqual(['lightshadow', 'lightshadow'])
+    expect(shadow.recall({ id: 's1' }, { observation_id: ids[0], query: 'record 137' }, null).text).toContain('value-1-137')
   })
 
   it('falls back to DSH\'s own summary of the original span when the checkpoint is not smaller', async () => {

@@ -1,6 +1,6 @@
 {
   "name": "@lightcode-ai/cli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "The lc command: run any command with LightCode filtering, the Codex hook, savings reports and diagnostics.",
   "license": "MIT",
   "type": "module",

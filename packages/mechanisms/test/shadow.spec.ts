@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { sha256 } from '@lightcode-ai/core'
 import type { ArtifactPort, ArtifactRef, ShadowReference } from '@lightcode-ai/protocol'
 import {
-  boundedExcerpt, callLabel, CATALOG_EXCERPTS, catalogIds, checkpointAdmitted, checkpointRecord, cutNote, externalizeCut, parseCheckpoint, planShadow, recallObservation,
+  boundedExcerpt, callLabel, CATALOG_EXCERPTS, catalogIds, checkpointAdmitted, checkpointRecord, cutNote, externalizeCut, fitCheckpoint, parseCheckpoint, planShadow, recallObservation,
   referenceIndex, renderCheckpoint, renderRecall,
 } from '../src/index.ts'
 import type { ShadowMessage } from '../src/index.ts'
@@ -151,6 +151,25 @@ describe('LightShadow plan', () => {
     expect(tight.references.at(-1)).toMatchObject({ call: 'cat src/file599.ts' })
   })
 
+  it('lists the catalog by call alone when the full catalog does not fit, and keeps every observation_id', () => {
+    const artifacts = new MemoryArtifacts()
+    const reads: ShadowMessage[] = [{ role: 'user', text: 'Read the sources.' }]
+    for (let i = 0; i < 8; i++) reads.push({ role: 'tool', text: log(120, `file${i}`), toolName: 'bash', callId: `c${i}`, call: `cat src/file${i}.ts` })
+    const plan = planShadow(reads, { artifacts })
+    const full = renderCheckpoint('summary', plan)
+    expect(fitCheckpoint('summary', plan, () => true)).toBe(full)
+    const compact = fitCheckpoint('summary', plan, text => text.length < full.length)!
+    expect(compact).toBe(renderCheckpoint('summary', plan, { excerpts: 0 }))
+    expect(catalogIds(compact)).toEqual(plan.references.map(ref => ref.id))
+    expect(compact).not.toContain('| excerpt: ')
+    expect(compact).toContain(`observation_id: ${plan.references[0]!.id} | call: "cat src/file0.ts"\n`)
+    expect(parseCheckpoint(compact)).toMatchObject({ summary: 'summary', contract: ['Read the sources.'] })
+    expect(fitCheckpoint('summary', plan, () => false)).toBeUndefined()
+    // Without references there is nothing to shorten.
+    const bare = planShadow([{ role: 'user', text: 'hi' }], { artifacts })
+    expect(fitCheckpoint('summary', bare, text => text.length < renderCheckpoint('summary', bare).length)).toBeUndefined()
+  })
+
   it('bounds excerpts in bytes without splitting characters', () => {
     const text = `${'中'.repeat(400)}\nmiddle\n${'文'.repeat(400)}`
     const excerpt = boundedExcerpt(text, 100)
@@ -170,7 +189,8 @@ describe('recall', () => {
 
   it('returns small results whole and a bounded window of a large one around the query', () => {
     const { artifacts, big, reference, lookup } = setup()
-    expect(recallObservation({ observation_id: reference.id }, { lookup, artifacts })).toMatchObject({ ok: false, error: expect.stringMatching(/pass a line number, or a query/) })
+    // Neither a line nor a query: the first window, numbered from line 1.
+    expect(recallObservation({ observation_id: reference.id }, { lookup, artifacts })).toMatchObject({ ok: true, complete: false, lines: [1, expect.any(Number)], numbered: 1 })
     const window = recallObservation({ observation_id: reference.id, query: 'line 1000:' }, { lookup, artifacts })
     expect(window.ok).toBe(true)
     if (!window.ok) return
@@ -226,6 +246,23 @@ describe('recall', () => {
     const result = recallObservation({ observation_id: reference.id, query: 'needle' }, { lookup: () => reference, artifacts })
     expect(result).toMatchObject({ ok: true, complete: false, lines: [1, 1] })
     if (result.ok) expect(Buffer.byteLength(result.text)).toBeLessThanOrEqual(8192)
+  })
+
+  it('returns the part of an over-long line around the match, not its start (a JSON-escaped log)', () => {
+    const artifacts = new MemoryArtifacts()
+    const log = JSON.stringify({ output: Array.from({ length: 900 }, (_, i) => `build line ${i}: ok${i === 427 ? ' MARKER-42: tangerine-falcon-0731' : ''}`).join('\n') })
+    const reference = externalizeCut(log, { artifacts, tool: 'terminal' })!
+    const result = recallObservation({ observation_id: reference.id, query: 'MARKER-42:' }, { lookup: () => reference, artifacts })
+    expect(result).toMatchObject({ ok: true, complete: false, lines: [1, 1], lineLength: log.length })
+    if (!result.ok) return
+    expect(result.text).toContain('MARKER-42: tangerine-falcon-0731')
+    expect(Buffer.byteLength(result.text)).toBeLessThanOrEqual(8192)
+    expect(renderRecall(reference.id, result)).toMatch(new RegExp(`^\\[${reference.id}: line 1 of 1, characters \\d+-\\d+ of ${log.length}\\]`, 'u'))
+    // Multi-byte text stays within the window too.
+    const wide = `${'界'.repeat(6000)}needle${'界'.repeat(6000)}`
+    const other = externalizeCut(wide, { artifacts, tool: 'bash' })!
+    const narrow = recallObservation({ observation_id: other.id, query: 'needle' }, { lookup: () => other, artifacts })
+    if (narrow.ok) { expect(narrow.text).toContain('needle'); expect(Buffer.byteLength(narrow.text)).toBeLessThanOrEqual(8192) }
   })
 })
 

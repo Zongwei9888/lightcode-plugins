@@ -1,0 +1,72 @@
+# LightCode for CodeBuddy Code
+
+A CodeBuddy plugin with one `PreToolUse` hook on the `Bash` tool. For a
+command that a LightCode filter may recognize (test runners, compilers,
+`git status/diff`, `grep`/`rg`, `find`, `ls`, build tools, …) the hook
+rewrites
+
+```
+python3 -m pytest -v
+```
+
+to
+
+```
+lc run --host codebuddy --session <id> --call <id> -c 'python3 -m pytest --color=no -v'
+```
+
+`lc run` executes the script with your shell, keeps the exit code and
+signals, saves the original output under `~/.lightcode`, and prints a
+smaller projection when one is admitted. Every other command is left alone.
+
+Verified against CodeBuddy Code 2.175.0 in real `codebuddy -p` sessions:
+
+- A failing `pytest -v` run (150 passed, 1 failed): the model read 1,245
+  bytes instead of 13,328, and still named the failing test and its
+  assertion. Its history keeps the original command.
+- The hook returns no permission decision: an `allow` would skip
+  CodeBuddy's permission check entirely, deny rules included. CodeBuddy
+  checks the command as the model wrote it, so your rules keep working: with
+  `--allowedTools "Bash(python3 -m pytest:*)"` the wrapped run went ahead,
+  and with `--disallowedTools "Bash(python3 -m pytest:*)"` it was blocked.
+- CodeBuddy's `PostToolUse` event carries the exit code but not the
+  command's output, so results cannot be replaced after the fact; wrapping
+  is the only route.
+- Background commands (`run_in_background`) are not wrapped: `lc run`
+  would hold their output back until they end.
+- `lc` must be on the `PATH` CodeBuddy runs hooks with
+  (`npm install -g @lightcode-ai/cli`, then `lc doctor`).
+
+## LightShadow (full, through a mod)
+
+`hooks/lightshadow.js` is a CodeBuddy mod (an in-process module the plugin's
+`hooks.json` lists under `modules`). Verified on 2.175.0:
+
+- `session.compact` sees the span CodeBuddy is about to summarize and adds
+  one paragraph to the summarizer's instructions;
+- `session.append` sees the summary row as it is stored and rewrites its
+  summary into the checkpoint: CodeBuddy's summary, your messages word for
+  word, and the catalog of the tool results LightCode kept (`lc shadow
+  checkpoint`);
+- `lightcode_recall`, registered as a mod tool, reads any of them again
+  (`lc recall`); `tool.check` lets it run without a prompt.
+
+A mod cannot import anything, so the work is done by `lc`; on any failure
+CodeBuddy's own summary stays. (CodeBuddy 2.175 ignores messages a
+`session.compact` hook hands back, which is why the stored row is rewritten.)
+
+## Install
+
+From a checkout of this repository (it doubles as a CodeBuddy marketplace;
+CodeBuddy reads `.codebuddy-plugin/` before `.claude-plugin/`):
+
+```sh
+codebuddy plugin marketplace add /path/to/lightcode-plugins
+codebuddy plugin install lightcode@lightcode
+```
+
+To try it in one session only:
+`codebuddy --plugin-dir /path/to/lightcode-plugins/adapters/codebuddy`.
+Check savings with `lc report --host codebuddy`. Turn it off with
+`codebuddy plugin disable lightcode@lightcode`, or for one run with
+`LIGHTCODE_DISABLE=1`.

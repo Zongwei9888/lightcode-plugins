@@ -1,0 +1,17 @@
+{
+  "name": "lightcode",
+  "owner": {
+    "name": "Zongwei9888"
+  },
+  "plugins": [
+    {
+      "name": "lightcode",
+      "source": {
+        "type": "local",
+        "path": "./adapters/grok"
+      },
+      "description": "LightCode Economy for Grok Build",
+      "version": "0.3.0"
+    }
+  ]
+}

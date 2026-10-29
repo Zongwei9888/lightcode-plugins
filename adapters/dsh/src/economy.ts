@@ -139,6 +139,8 @@ export function createDshEconomy(options: DshEconomyOptions): DshEconomy {
       engine = new EconomyEngine({ host: HOST, journal, artifacts, config: state.loaded.config.economy, mode,
         maxProjectedChars: options.inlineLimitChars ?? INLINE_LIMIT_CHARS,
         delivery: 'in-process', streams: 'separate', onError: error => warn(`LightCode: ${String(error)}; delivering the original output`),
+        // The recall tool is registered unless LightShadow is off (index.ts).
+        recallHint: state.loaded.config.lightshadow.mode !== 'off',
         learned: () => ruleStore.load(error => warn(`LightCode: learned rules not loaded: ${String(error)}`)) })
       state.engines.set(mode, engine)
     }

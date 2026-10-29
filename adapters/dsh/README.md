@@ -46,7 +46,7 @@ Use the profile you run (`web` for `dsh web`, `headless` for
 `dsh headless`, …). The Desktop app manages its own profile: install from its
 **Plugins** page (it brings its own pnpm), or quit it and run its bundled
 `dsh plugin --profile desktop add @lightcode-ai/dsh`. A downloaded tarball or a checkout works the same way:
-`dsh plugin --profile web add ./lightcode-dsh-0.2.0.tgz` or
+`dsh plugin --profile web add ./lightcode-dsh-0.3.0.tgz` or
 `dsh plugin --profile web add /absolute/path/to/lightcode/adapters/dsh`
 (after `pnpm install && pnpm build` in the checkout).
 

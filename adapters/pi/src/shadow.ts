@@ -11,7 +11,7 @@ import { compact } from '@earendil-works/pi-coding-agent'
 import type { ExtensionAPI, ExtensionContext, SessionBeforeCompactEvent, SessionEntry } from '@earendil-works/pi-coding-agent'
 import type { TSchema } from '@earendil-works/pi-ai'
 import {
-  RECALL_TOOL_DESCRIPTION, RECALL_TOOL_NAME, SHADOW_SUMMARY_INSTRUCTION, callLabel, checkpointAdmitted, checkpointRecord, planShadow, recallObservation,
+  RECALL_TOOL_DESCRIPTION, RECALL_TOOL_NAME, SHADOW_SUMMARY_INSTRUCTION, callLabel, checkpointAdmitted, checkpointRecord, fitCheckpoint, planShadow, recallIndex, recallObservation,
   renderCheckpoint, renderRecall,
 } from '@lightcode-ai/mechanisms'
 import type { ShadowMessage } from '@lightcode-ai/mechanisms'
@@ -133,7 +133,11 @@ export function registerLightShadow(pi: ExtensionAPI, options: PiShadowOptions):
     async execute(toolCallId, params, _signal, _onUpdate, ctx) {
       const args = params as { observation_id?: unknown; query?: unknown; line?: unknown; original?: unknown }
       const references = branchReferences(ctx.sessionManager.getBranch())
-      const result = recallObservation(args, { lookup: id => references.get(id), artifacts: options.artifacts })
+      const sessionId = options.sessionId(ctx)
+      let journal: Map<string, ShadowReference> | undefined
+      // Outputs Economy shortened are reachable by the ID its hint names, before any compaction.
+      const lookup = (id: string) => references.get(id) ?? (sessionId ? (journal ??= recallIndex(options.read(sessionId))).get(id) : undefined)
+      const result = recallObservation(args, { lookup, artifacts: options.artifacts })
       const id = typeof args.observation_id === 'string' ? args.observation_id.trim() : ''
       const text = renderRecall(id, result)
       append({ schemaVersion: 1, type: 'shadow/recall', time: time(), host: options.host, sessionId: options.sessionId(ctx), callId: toolCallId,
@@ -203,9 +207,11 @@ export function registerLightShadow(pi: ExtensionAPI, options: PiShadowOptions):
         result = await run(event.customInstructions)
       }
       if (event.signal.aborted) return undefined
-      const text = renderCheckpoint(result.summary, plan)
-      if (!checkpointAdmitted(text, plan)) {
-        append(checkpointRecord(base, { kind: 'standard', plan, checkpointTokens: Math.ceil(text.length / 4), reason: 'checkpoint-not-smaller' }))
+      // Right after another compaction the earlier catalog can fill most of the segment: list it by call alone then.
+      const text = fitCheckpoint(result.summary, plan, candidate => checkpointAdmitted(candidate, plan))
+      if (text === undefined) {
+        const compact = renderCheckpoint(result.summary, plan, { excerpts: 0 })
+        append(checkpointRecord(base, { kind: 'standard', plan, checkpointTokens: Math.ceil(compact.length / 4), reason: 'checkpoint-not-smaller' }))
         return undefined
       }
       append(checkpointRecord(base, { kind: 'lightshadow', plan, checkpointTokens: Math.ceil(text.length / 4) }))

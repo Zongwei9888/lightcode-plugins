@@ -1,7 +1,7 @@
 # Releasing
 
-The packages users install are `@lightcode-ai/pi`, `@lightcode-ai/dsh` and
-`@lightcode-ai/cli`. Each is one self-contained bundle (`scripts/bundle.mjs`) with
+The packages users install are `@lightcode-ai/pi`, `@lightcode-ai/dsh`,
+`@lightcode-ai/opencode` and `@lightcode-ai/cli`. Each is one self-contained bundle (`scripts/bundle.mjs`) with
 no runtime dependencies, plus `LICENSE`, `LICENSE.rtk` (the bundled RTK filter
 data is Apache-2.0) and `NOTICE.md`, all generated at build time. The library
 packages (`@lightcode-ai/core`, `protocol`, `store`, `mechanisms`) are published
@@ -36,7 +36,7 @@ for people who build their own adapters; the plugins do not depend on them.
 3. Inspect what will be published:
 
    ```sh
-   for dir in adapters/pi adapters/dsh packages/cli; do (cd $dir && npm pack --dry-run); done
+   for dir in adapters/pi adapters/dsh adapters/opencode packages/cli; do (cd $dir && npm pack --dry-run); done
    ```
 
 4. Publish (pnpm rewrites `workspace:` ranges):
@@ -54,6 +54,11 @@ for people who build their own adapters; the plugins do not depend on them.
    dsh plugin --profile web add @lightcode-ai/dsh       # or Plugins → Add plugin
    npm install -g @lightcode-ai/cli && lc doctor
    ```
+
+   The Codex, Claude Code, CodeBuddy and Grok plugins are installed from the
+   repository as a marketplace (they run `lc hook <host>`); check each with its
+   `plugin validate` command (`claude plugin validate .`, `codebuddy plugin
+   validate .`, `grok plugin validate adapters/grok`).
 
 The `pi-package` keyword lists `@lightcode-ai/pi` in the pi package gallery; the
 `dsh-plugin` keyword marks `@lightcode-ai/dsh` for DeepSeek Harness users.

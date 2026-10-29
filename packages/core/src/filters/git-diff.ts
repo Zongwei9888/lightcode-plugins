@@ -1,4 +1,4 @@
-import { literalCommand } from '../command.ts'
+import { toolArgv } from '../command.ts'
 import { resolveFilterOptions } from '../filter-options.ts'
 import { ProjectionBuilder, sourceLines } from '../projection-map.ts'
 import type { MappedProjection, SourceLine } from '../projection-map.ts'
@@ -12,7 +12,7 @@ function projectMapped(input: FilterInput): MappedProjection | undefined {
   const options = resolveFilterOptions(input.options)
   if (options === undefined) return undefined
   const maxHunkLines = options['git-diff'].maxHunkLines
-  const argv = literalCommand(input.command)
+  const argv = toolArgv(input.command)
   if (argv === undefined || argv[0] !== 'git' || argv[1] !== 'diff'
     || argv.some(arg => NON_PATCH.test(arg)) || ![0, 1].includes(input.exitCode)
     || /[\u001b\0]/.test(input.stdout)) return undefined

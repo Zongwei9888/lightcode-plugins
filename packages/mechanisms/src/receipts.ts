@@ -75,6 +75,8 @@ export function formatTokens(value: number): string {
 export interface ShadowSummary {
   /** Compactions LightShadow wrote. */
   readonly checkpoints: number
+  /** Compactions the host summarized, after which LightShadow added the catalog of what it kept recallable. */
+  readonly assisted: number
   /** Compactions left to the host (observe mode, a checkpoint that was not smaller, or an error). */
   readonly standard: number
   /** Long results the host cut to a head and tail whose complete text LightShadow kept. */
@@ -88,7 +90,7 @@ export interface ShadowSummary {
 }
 
 export function summarizeShadow(records: Iterable<JournalRecord>): ShadowSummary {
-  let checkpoints = 0, standard = 0, cuts = 0, recalls = 0, failedRecalls = 0
+  let checkpoints = 0, assisted = 0, standard = 0, cuts = 0, recalls = 0, failedRecalls = 0
   const references = new Map<string, number>()
   for (const record of records) {
     if (record.type === 'shadow/recall') {
@@ -98,10 +100,11 @@ export function summarizeShadow(records: Iterable<JournalRecord>): ShadowSummary
     }
     if (record.type !== 'shadow/checkpoint') continue
     if (record.kind === 'lightshadow') checkpoints++
+    else if (record.kind === 'assisted') assisted++
     else if (record.kind === 'cut') cuts++
     else standard++
     for (const reference of record.references) references.set(reference.id, Math.ceil(reference.bytes / 4))
   }
-  return { checkpoints, standard, cuts, references: references.size,
+  return { checkpoints, assisted, standard, cuts, references: references.size,
     referencedTokens: [...references.values()].reduce((sum, value) => sum + value, 0), recalls, failedRecalls }
 }

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "lightcode": {
+      "command": "lc",
+      "args": ["mcp", "--host", "claude"],
+      "alwaysLoad": true
+    }
+  }
+}

@@ -1,4 +1,4 @@
-import { literalCommand } from '../command.ts'
+import { toolArgv } from '../command.ts'
 import { ProjectionBuilder, sourceLines } from '../projection-map.ts'
 import type { MappedProjection } from '../projection-map.ts'
 import type { EconomyFilter, FilterInput } from '../types.ts'
@@ -7,7 +7,7 @@ const COUNTS = /^(?:\d+ (?:passed|failed|errors?|skipped|deselected|xfailed|xpas
 
 /** Remove only recognized progress; diagnostics and failure bodies remain verbatim. */
 function projectMapped(input: FilterInput): MappedProjection | undefined {
-  const argv = literalCommand(input.command)
+  const argv = toolArgv(input.command)
   if (argv === undefined) return undefined
   const pytest = argv[0] === 'pytest'
     || (/^python\d*(?:\.\d+)*$/.test(argv[0] ?? '') && argv[1] === '-m' && argv[2] === 'pytest')

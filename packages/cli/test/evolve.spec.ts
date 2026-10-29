@@ -79,7 +79,8 @@ describe('lc evolve', () => {
     expect(lc(['rules'], { home }).out).toContain(`active: ${report.adopted.slice(0, 12)}`)
     expect(lc(['rules', 'show'], { home }).out).toContain('--- rules/build-progress.js')
     const filtered = lc(['run', '-c', './build.sh'], { cwd, home })
-    expect(filtered.out).toBe('Finished release in 4.2s\n[80 compile progress lines omitted]\n')
+    // The shortened output ends with where its original is (Economy's recall hint).
+    expect(filtered.out).toMatch(/^Finished release in 4\.2s\n\[80 compile progress lines omitted\]\n\[LightCode shortened this output\. The complete output is observation (o-[a-f0-9]{12}): .*`lc recall \1`\.\]\n$/u)
     const last = (new FileJournal(home).read({ host: 'shell' }) as EconomyRecord[]).at(-1)!
     expect(last).toMatchObject({ outcome: 'projected', filter: 'learned-rule', rule: 'build-progress', learnedRulesHash: report.adopted })
 

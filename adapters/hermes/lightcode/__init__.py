@@ -1,0 +1,115 @@
+"""LightCode for Hermes Agent: Token Economy on the terminal tool, and
+LightShadow as a context engine.
+
+Hermes hands ``transform_terminal_output`` the merged output of a finished
+foreground command, after its capture window and before its output limit,
+ANSI stripping and secret redaction. This plugin passes the command, output
+and exit code to ``lc hook hermes`` (the LightCode CLI), which saves the
+original under ``~/.lightcode``, journals the decision, and answers with a
+smaller, deterministic projection when a filter recognizes the output.
+
+Fail-open: no ``lc``, a timeout, an error or an unrecognized output leaves
+the output exactly as Hermes captured it. ``LIGHTCODE_DISABLE=1`` turns it
+off. Background-process output (no exit code yet) is left alone.
+
+LightShadow (``shadow.py``): with ``context.engine: lightcode`` in Hermes's
+config, ``register`` also calls ``ctx.register_context_engine`` with Hermes's
+own compressor plus recoverable tool results and a ``lightcode_recall`` tool.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import os
+import shutil
+import subprocess
+import threading
+from collections import OrderedDict
+from typing import Any, Optional
+
+logger = logging.getLogger(__name__)
+
+# Shorter output cannot save enough to be worth starting `lc` (Economy admits a projection only when it saves 16+ tokens).
+_MIN_CHARS = 256
+# Output larger than this is past anything Hermes captures in the foreground; it is left alone.
+_MAX_CHARS = 32 * 1024 * 1024
+_TIMEOUT_S = 10
+_FALLBACKS = ("~/.local/bin/lc", "/opt/homebrew/bin/lc", "/usr/local/bin/lc")
+# transform_terminal_output carries no session ID; pre_tool_call does, under the same tool_call_id.
+_SESSIONS: "OrderedDict[str, str]" = OrderedDict()
+_SESSIONS_LOCK = threading.Lock()
+_MAX_SESSIONS = 512
+
+
+def _lc() -> Optional[str]:
+    """The `lc` command: $LIGHTCODE_LC, else PATH, else where npm puts global binaries (a gateway started at login may lack them on PATH)."""
+    explicit = os.environ.get("LIGHTCODE_LC", "").strip()
+    if explicit:
+        return explicit if os.access(explicit, os.X_OK) else None
+    found = shutil.which("lc")
+    if found:
+        return found
+    for candidate in _FALLBACKS:
+        path = os.path.expanduser(candidate)
+        if os.access(path, os.X_OK):
+            return path
+    return None
+
+
+def _remember_session(tool_name: str = "", session_id: str = "", tool_call_id: str = "", **_: Any) -> None:
+    """Observe pre_tool_call (no directive): which session a terminal call belongs to."""
+    if tool_name != "terminal" or not tool_call_id or not session_id:
+        return None
+    with _SESSIONS_LOCK:
+        _SESSIONS[str(tool_call_id)] = str(session_id)
+        while len(_SESSIONS) > _MAX_SESSIONS:
+            _SESSIONS.popitem(last=False)
+    return None
+
+
+def _transform(command: str = "", output: str = "", returncode: Any = None, task_id: str = "", env_type: str = "",
+               tool_call_id: str = "", **_: Any) -> Optional[str]:
+    if not isinstance(command, str) or not isinstance(output, str) or not isinstance(returncode, int) or isinstance(returncode, bool):
+        return None
+    if not (_MIN_CHARS <= len(output) <= _MAX_CHARS) or os.environ.get("LIGHTCODE_DISABLE", "").strip() in ("1", "true", "yes"):
+        return None
+    lc = _lc()
+    if not lc:
+        return None
+    with _SESSIONS_LOCK:
+        session_id = _SESSIONS.pop(str(tool_call_id), "") if tool_call_id else ""
+    payload = {"hook_event_name": "transform_terminal_output", "command": command, "output": output, "returncode": returncode,
+               "session_id": session_id, "task_id": task_id or "", "tool_call_id": tool_call_id or "", "env_type": env_type or "",
+               "cwd": os.getcwd()}
+    try:
+        done = subprocess.run([lc, "hook", "hermes"], input=json.dumps(payload), capture_output=True, text=True,
+                              encoding="utf-8", timeout=_TIMEOUT_S)
+        if done.returncode != 0 or not done.stdout.strip():
+            return None
+        projected = json.loads(done.stdout).get("output")
+    except Exception:  # Fail-open: Hermes keeps its own output.
+        logger.debug("lightcode: lc hook hermes failed", exc_info=True)
+        return None
+    return projected if isinstance(projected, str) and projected != output else None
+
+
+def _engine_selected() -> bool:
+    try:
+        from hermes_cli.config import load_config_readonly
+        context = (load_config_readonly() or {}).get("context") or {}
+        return isinstance(context, dict) and context.get("engine") == "lightcode"
+    except Exception:
+        return False
+
+
+def register(ctx) -> None:
+    ctx.register_hook("pre_tool_call", _remember_session)
+    ctx.register_hook("transform_terminal_output", _transform)
+    # Only when chosen: Hermes holds one plugin context engine, and another plugin's must keep its slot.
+    if hasattr(ctx, "register_context_engine") and _engine_selected():
+        try:
+            from .shadow import engine_class
+            ctx.register_context_engine(engine_class(_lc)())
+        except Exception:  # Hermes falls back to its built-in compressor.
+            logger.warning("lightcode: LightShadow context engine unavailable", exc_info=True)

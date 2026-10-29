@@ -1,10 +1,18 @@
 /** Drive a real pi 1.1 session with the faux model provider, recording what the model receives. */
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { onTestFinished } from 'vitest'
 import { createAgentSession, DefaultResourceLoader, ModelRuntime, SessionManager, SettingsManager } from '@earendil-works/pi-coding-agent'
 import type { ExtensionFactory } from '@earendil-works/pi-coding-agent'
 import { fauxAssistantMessage, fauxToolCall, registerFauxProvider } from '@earendil-works/pi-ai/compat'
+
+/** pi's agent directory for one run, removed when the test ends (tests read the session file after the run). */
+function agentDir(): string {
+  const dir = mkdtempSync(join(tmpdir(), 'lightcode-pi-'))
+  onTestFinished(() => rmSync(dir, { recursive: true, force: true }))
+  return dir
+}
 
 export interface PiRun {
   /** Tool-result contents of every request after the first, as the provider received them. */
@@ -17,7 +25,7 @@ export interface PiRun {
 export type PiCall = string | { readonly tool: string; readonly args: Parameters<typeof fauxToolCall>[1] }
 
 export async function runPi(options: { cwd: string; extension: ExtensionFactory; commands: PiCall[] }): Promise<PiRun> {
-  const dir = mkdtempSync(join(tmpdir(), 'lightcode-pi-'))
+  const dir = agentDir()
   const faux = registerFauxProvider()
   const model = faux.getModel()
   try {
@@ -66,7 +74,7 @@ export type FauxStep = (context: FauxContext) => ReturnType<typeof fauxAssistant
 export async function runPiWithCompaction(options: {
   cwd: string; extension: ExtensionFactory; before: PiCall[]; after: FauxStep[]; tools?: string[]
 }): Promise<PiRun & { requests: FauxContext['messages'][]; compaction: unknown; activeTools: string[] }> {
-  const dir = mkdtempSync(join(tmpdir(), 'lightcode-pi-'))
+  const dir = agentDir()
   const faux = registerFauxProvider()
   const model = faux.getModel()
   try {

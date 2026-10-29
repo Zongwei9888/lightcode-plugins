@@ -1,0 +1,18 @@
+{
+  "description": "LightCode: run recognized Bash commands through `lc run`, which filters their output (CodeBuddy's permission check still runs on the command as written); LightShadow, a mod, keeps compacted tool results recallable.",
+  "modules": ["./lightshadow.js"],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "lc hook codebuddy",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,21 +1,83 @@
 import { mayProject } from '@lightcode-ai/core'
 import { normalizeShellCommand } from '@lightcode-ai/mechanisms'
+import { claudeAfterCompact, claudeAllowRecall, claudePreCompact } from './claude-shadow.ts'
+import { codexAfterCompact } from './codex-shadow.ts'
+import { grokAfterCompact, grokPendingCatalog } from './grok-shadow.ts'
 import { cliContext, onPath, shellQuote } from './context.ts'
+import { projectOutput } from './project.ts'
 
-/** Codex hook input fields LightCode reads (see the Codex hooks schema). */
-interface CodexHookInput {
+/**
+ * Hook input fields LightCode reads. Codex, Claude Code and CodeBuddy send
+ * these names; Grok sends them too (for Claude Code compatibility) beside its
+ * own camelCase ones.
+ */
+interface HookInput {
   readonly hook_event_name?: unknown
   readonly session_id?: unknown
   readonly tool_use_id?: unknown
   readonly tool_name?: unknown
-  readonly tool_input?: { readonly command?: unknown } | null
+  readonly tool_input?: { readonly command?: unknown; readonly run_in_background?: unknown; readonly [key: string]: unknown } | null
+  readonly tool_response?: unknown
+  readonly permission_mode?: unknown
   readonly cwd?: unknown
+  readonly [key: string]: unknown
 }
+
+/** Back-compat name for the Codex hook's input. */
+type CodexHookInput = HookInput
 
 const MAX_INPUT = 4 * 1024 * 1024
 
 /** The wrapper prefix; a command that already starts with it is never wrapped twice. */
 export const WRAPPER = 'lc run'
+
+/** Hosts `lc hook` serves. */
+export const HOOK_HOSTS = ['codex', 'claude', 'codebuddy', 'grok', 'hermes'] as const
+export type HookHost = typeof HOOK_HOSTS[number]
+
+const text = (value: unknown) => typeof value === 'string' && value !== '' ? value : null
+
+/**
+ * Which Claude-Code-compatible host sent this event, when it is not Claude
+ * Code itself. Grok and CodeBuddy both run hooks written for Claude Code
+ * (Grok imports `~/.claude` settings and plugins), so a Claude Code hook
+ * must recognize their events and leave them to their own LightCode hook.
+ */
+export function eventHost(input: HookInput, env: NodeJS.ProcessEnv = process.env): 'grok' | 'codebuddy' | undefined {
+  if (typeof input.hookEventName === 'string' || typeof env.GROK_HOOK_EVENT === 'string') return 'grok'
+  if (typeof input.generation_id === 'string' || (env.CODEBUDDY_SESSION_ID !== undefined && env.CODEBUDDY_SESSION_ID === input.session_id)) return 'codebuddy'
+  return undefined
+}
+
+/**
+ * The `lc run` command a recognizable shell script becomes, or undefined to
+ * leave it alone: empty or huge scripts, scripts already wrapped, patches, a
+ * script no filter could shorten, no `lc` on PATH, or Economy off.
+ */
+function wrapScript(host: HookHost, input: HookInput, env: NodeJS.ProcessEnv, options: { normalize: boolean; tool: string }): string | undefined {
+  const script = input.tool_input?.command
+  if (typeof script !== 'string' || script.trim() === '' || script.length > 65_536) return undefined
+  // A background command is read while it runs; `lc run` would hold its output back until it ends.
+  if (input.tool_input?.run_in_background === true) return undefined
+  const trimmed = script.trimStart()
+  if (trimmed.startsWith(`${WRAPPER} `) || /\bapply_?patch\b/.test(script)) return undefined
+  if (!mayProject(script)) return undefined
+  // A rewrite to an unresolvable `lc` would turn every wrapped command into "command not found".
+  if (!onPath('lc', env)) return undefined
+  const cwd = typeof input.cwd === 'string' ? input.cwd : undefined
+  const context = cliContext({ ...cwd === undefined ? {} : { cwd }, env })
+  const { economy } = context.loaded.config
+  if (economy.mode === 'off') return undefined
+  const sessionId = text(input.session_id)
+  const callId = text(input.tool_use_id)
+  // Normalization changes what runs, so it is an `apply` action; observe mode only wraps to record.
+  const store = options.normalize && economy.commandNormalization && economy.mode === 'apply' ? context.writable() : undefined
+  const normalized = store
+    ? normalizeShellCommand({ host, journal: store.journal }, { sessionId, callId, tool: options.tool, command: script })
+    : undefined
+  const flags = ['--host', host, ...sessionId ? ['--session', sessionId] : [], ...callId ? ['--call', callId] : []]
+  return `${WRAPPER} ${flags.map(shellQuote).join(' ')} -c ${shellQuote(normalized ?? script)}`
+}
 
 /**
  * Codex PreToolUse: wrap a recognizable shell script as
@@ -26,27 +88,147 @@ export const WRAPPER = 'lc run'
  */
 export function codexPreToolUse(input: CodexHookInput, env: NodeJS.ProcessEnv = process.env): string | undefined {
   if (input.hook_event_name !== 'PreToolUse' || input.tool_name !== 'Bash') return undefined
-  const script = input.tool_input?.command
-  if (typeof script !== 'string' || script.trim() === '' || script.length > 65_536) return undefined
-  const trimmed = script.trimStart()
-  if (trimmed.startsWith(`${WRAPPER} `) || /\bapply_?patch\b/.test(script)) return undefined
-  if (!mayProject(script)) return undefined
-  // A rewrite to an unresolvable `lc` would turn every wrapped command into "command not found".
-  if (!onPath('lc', env)) return undefined
-  const cwd = typeof input.cwd === 'string' ? input.cwd : undefined
-  const context = cliContext({ ...cwd === undefined ? {} : { cwd }, env })
-  const { economy } = context.loaded.config
-  if (economy.mode === 'off') return undefined
-  const sessionId = typeof input.session_id === 'string' && input.session_id ? input.session_id : null
-  const callId = typeof input.tool_use_id === 'string' && input.tool_use_id ? input.tool_use_id : null
-  // Normalization changes what runs, so it is an `apply` action; observe mode only wraps to record.
-  const store = economy.commandNormalization && economy.mode === 'apply' ? context.writable() : undefined
-  const normalized = store
-    ? normalizeShellCommand({ host: 'codex', journal: store.journal }, { sessionId, callId, tool: 'exec_command', command: script })
-    : undefined
-  const flags = ['--host', 'codex', ...sessionId ? ['--session', sessionId] : [], ...callId ? ['--call', callId] : []]
-  const command = `${WRAPPER} ${flags.map(shellQuote).join(' ')} -c ${shellQuote(normalized ?? script)}`
+  const command = wrapScript('codex', input, env, { normalize: true, tool: 'exec_command' })
+  if (command === undefined) return undefined
+  // Codex applies `updatedInput` only next to `permissionDecision: "allow"`, and that is all `allow` does: a hook's
+  // result is either "continue (with this input)" or "block"; the rewritten command still goes through Codex's
+  // exec policy, approval and sandbox (codex-rs 0.165 core/src/hook_runtime.rs, PreToolUseHookResult).
   return JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'allow', updatedInput: { command } } })
+}
+
+/**
+ * CodeBuddy PreToolUse: wrap like Codex, without a permission decision.
+ * CodeBuddy's permission check runs on the command as the model wrote it and
+ * an `allow` would skip it, deny rules included. Its PostToolUse event carries
+ * no command output, so the wrapper is the only way to filter.
+ */
+export function codebuddyHook(input: HookInput, env: NodeJS.ProcessEnv = process.env): string | undefined {
+  if (input.hook_event_name !== 'PreToolUse' || input.tool_name !== 'Bash') return undefined
+  const command = wrapScript('codebuddy', input, env, { normalize: true, tool: 'Bash' })
+  if (command === undefined) return undefined
+  return JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', updatedInput: { ...input.tool_input, command } } })
+}
+
+/**
+ * Claude Code. PostToolUse replaces a successful Bash call's output with its
+ * projection; Claude Code sends failed calls to PostToolUseFailure, which
+ * cannot replace output. In `bypassPermissions` mode, where no permission rule
+ * is consulted, PreToolUse wraps the command in `lc run` instead, which also
+ * filters failed calls. Elsewhere a wrapped command would no longer match the
+ * user's permission rules, so commands are never rewritten there.
+ */
+export function claudeHook(input: HookInput, env: NodeJS.ProcessEnv = process.env): string | undefined {
+  if (eventHost(input, env) !== undefined) return undefined
+  // LightShadow (see claude-shadow.ts): shape the summary, add the catalog after it, let the recall tool run.
+  if (input.hook_event_name === 'PreCompact') return claudePreCompact(input)
+  if (input.hook_event_name === 'SessionStart') return claudeAfterCompact(input)
+  if (input.hook_event_name === 'PreToolUse' && input.tool_name !== 'Bash') return claudeAllowRecall(input.tool_name)
+  if (input.tool_name !== 'Bash') return undefined
+  if (input.hook_event_name === 'PreToolUse') {
+    if (input.permission_mode !== 'bypassPermissions') return undefined
+    const command = wrapScript('claude', input, env, { normalize: false, tool: 'Bash' })
+    if (command === undefined) return undefined
+    return JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', updatedInput: { ...input.tool_input, command } } })
+  }
+  if (input.hook_event_name !== 'PostToolUse') return undefined
+  const command = input.tool_input?.command
+  if (typeof command !== 'string' || command.trimStart().startsWith(`${WRAPPER} `) || input.tool_input?.run_in_background === true) return undefined
+  const response = input.tool_response as { stdout?: unknown; stderr?: unknown; interrupted?: unknown; isImage?: unknown } | null | undefined
+  if (!response || typeof response.stdout !== 'string' || typeof response.stderr !== 'string' || response.isImage === true) return undefined
+  if (!mayProject(command)) return undefined
+  const projected = projectOutput({ host: 'claude', delivery: 'result-hook', tool: 'Bash', sessionId: text(input.session_id), callId: text(input.tool_use_id),
+    command, exitCode: 0, interrupted: response.interrupted === true, stdout: response.stdout, stderr: response.stderr,
+    ...typeof input.cwd === 'string' ? { cwd: input.cwd } : {}, env })
+  if (!projected) return undefined
+  return JSON.stringify({ hookSpecificOutput: { hookEventName: 'PostToolUse', updatedToolOutput: { ...response, ...projected } } })
+}
+
+/** Grok's shell result (`toolResult` of a `run_terminal_command` PostToolUse event). */
+interface GrokShellResult {
+  readonly type?: unknown
+  readonly command?: unknown
+  readonly output?: unknown
+  readonly output_for_prompt?: unknown
+  readonly exit_code?: unknown
+  readonly truncated?: unknown
+  readonly signal?: unknown
+  readonly timed_out?: unknown
+  readonly pre_formatted?: unknown
+}
+
+const utf8 = new TextDecoder('utf-8', { fatal: true })
+
+/**
+ * Grok PostToolUse: replace the model's copy of a shell result with its
+ * projection. Grok fires PostToolUse for failed commands too, and keeps the
+ * original in its scrollback and transcript. The model reads
+ * `exit: N\n<output>`; any other layout is left alone.
+ */
+export function grokHook(input: HookInput, env: NodeJS.ProcessEnv = process.env): string | undefined {
+  if (input.hook_event_name !== 'PostToolUse' || input.tool_name !== 'run_terminal_command' || input.isBackgrounded === true) return undefined
+  const result = (input.toolResult ?? input.tool_response) as GrokShellResult | string | null | undefined
+  // Results over 128 KiB arrive as their model-facing text, already cut to Grok's limits: left alone.
+  if (!result || typeof result !== 'object' || result.type !== 'Bash' || result.pre_formatted) return undefined
+  const command = typeof result.command === 'string' ? result.command : input.tool_input?.command
+  const exitCode = result.exit_code
+  if (typeof command !== 'string' || typeof exitCode !== 'number' || !Number.isSafeInteger(exitCode) || !Array.isArray(result.output)) return undefined
+  let output: string
+  try { output = utf8.decode(Uint8Array.from(result.output as number[])) } catch { return undefined }
+  const status = `exit: ${exitCode}\n`
+  if (result.output_for_prompt !== status + output) return undefined
+  if (!mayProject(command)) return undefined
+  const projected = projectOutput({ host: 'grok', delivery: 'result-hook', tool: 'run_terminal_command', sessionId: text(input.session_id),
+    callId: text(input.tool_use_id), command, exitCode, interrupted: result.timed_out === true || (result.signal !== null && result.signal !== undefined),
+    truncated: result.truncated === true, stdout: output, ...typeof input.cwd === 'string' ? { cwd: input.cwd } : {}, env })
+  if (!projected) return undefined
+  return JSON.stringify({ hookSpecificOutput: { hookEventName: 'PostToolUse', updatedToolOutput: status + projected.stdout } })
+}
+
+/** Hermes's notes for a command it stopped (`tools/environments/base.py`). */
+const HERMES_STOPPED = /\[Command (?:interrupted|timed out after [^\]\n]*)\]\s*$/u
+/** Hermes's head-and-tail cut of a capture over its window (`tools/tool_output_truncate.py`). */
+const HERMES_CUT = '... [OUTPUT TRUNCATED - '
+
+/**
+ * Hermes: its LightCode plugin hands `transform_terminal_output` here (the
+ * terminal tool's merged output after Hermes bounded the capture, before its
+ * output limit, ANSI stripping and secret redaction). The reply is
+ * `{"output": "<projection>"}`, which the plugin returns to Hermes. Output
+ * Hermes cut, and commands it stopped, pass through; background-process
+ * output (no exit code yet) is left alone.
+ */
+export function hermesHook(input: HookInput, env: NodeJS.ProcessEnv = process.env): string | undefined {
+  if (input.hook_event_name !== 'transform_terminal_output') return undefined
+  const { command, output, returncode } = input as { command?: unknown; output?: unknown; returncode?: unknown }
+  if (typeof command !== 'string' || typeof output !== 'string' || output === '') return undefined
+  if (typeof returncode !== 'number' || !Number.isSafeInteger(returncode)) return undefined
+  if (!mayProject(command)) return undefined
+  const projected = projectOutput({ host: 'hermes', delivery: 'result-hook', tool: 'terminal', sessionId: text(input.session_id) ?? text(input.task_id),
+    callId: text(input.tool_call_id), command, exitCode: returncode, interrupted: returncode < 0 || HERMES_STOPPED.test(output),
+    truncated: output.includes(HERMES_CUT), stdout: output, ...typeof input.cwd === 'string' ? { cwd: input.cwd } : {}, env })
+  return projected ? JSON.stringify({ output: projected.stdout }) : undefined
+}
+
+/**
+ * Grok: Economy on shell results, and LightShadow's assisted tier (see
+ * grok-shadow.ts): PostCompact saves the span, the next PostToolUse of any
+ * tool (or Stop, when the turn used none) adds the catalog.
+ */
+export function grokEntry(input: HookInput, env: NodeJS.ProcessEnv = process.env): string | undefined {
+  const event = input.hook_event_name
+  if (event === 'PostCompact') { grokAfterCompact(input); return undefined }
+  if (event === 'Stop') {
+    if (input.reason !== undefined && input.reason !== 'end_turn') return undefined
+    const catalog = grokPendingCatalog(input)
+    return catalog ? JSON.stringify({ hookSpecificOutput: { hookEventName: 'Stop', additionalContext: catalog } }) : undefined
+  }
+  const economy = grokHook(input, env)
+  if (event !== 'PostToolUse') return economy
+  const catalog = grokPendingCatalog(input)
+  if (!catalog) return economy
+  const reply = (economy ? JSON.parse(economy) : { hookSpecificOutput: { hookEventName: 'PostToolUse' } }) as { hookSpecificOutput: Record<string, unknown> }
+  reply.hookSpecificOutput.additionalContext = catalog
+  return JSON.stringify(reply)
 }
 
 export async function readStdin(limit = MAX_INPUT): Promise<string> {
@@ -60,12 +242,15 @@ export async function readStdin(limit = MAX_INPUT): Promise<string> {
   return Buffer.concat(chunks).toString('utf8')
 }
 
-/** `lc hook codex`: never blocks a tool call, never exits non-zero. */
+const HANDLERS: Record<HookHost, (input: HookInput) => string | undefined> = {
+  codex: input => codexAfterCompact(input) ?? codexPreToolUse(input), claude: claudeHook, codebuddy: codebuddyHook, grok: grokEntry, hermes: hermesHook,
+}
+
+/** `lc hook <host>`: never blocks a tool call, never exits non-zero. */
 export async function hook(host: string | undefined): Promise<number> {
   try {
-    if (host !== 'codex') return 0
-    const text = await readStdin()
-    const output = codexPreToolUse(JSON.parse(text) as CodexHookInput)
+    if (host === undefined || !Object.hasOwn(HANDLERS, host)) return 0
+    const output = HANDLERS[host as HookHost](JSON.parse(await readStdin()) as HookInput)
     if (output) process.stdout.write(output + '\n')
   } catch { /* Passthrough. */ }
   return 0

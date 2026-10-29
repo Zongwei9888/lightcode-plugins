@@ -1,9 +1,14 @@
 {
   "name": "lightcode",
-  "version": "0.2.0",
-  "description": "Deterministic shell-output filtering: recognized commands run through `lc run`, which prints a smaller projection and keeps the original privately.",
-  "keywords": ["context", "tokens", "output-filtering"],
+  "version": "0.3.0",
+  "description": "Deterministic shell-output filtering: recognized commands run through `lc run`, which prints a smaller projection and keeps the original privately. After a compaction, LightShadow adds the catalog of tool results it kept, and the lightcode_recall tool reads any of them again.",
+  "keywords": [
+    "context",
+    "tokens",
+    "output-filtering"
+  ],
   "hooks": "./hooks/hooks.json",
+  "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "LightCode"
   }

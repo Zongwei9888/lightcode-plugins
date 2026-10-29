@@ -26,9 +26,10 @@ export function formatSummary(summary: EconomySummary, scope: string): string {
 }
 
 export function formatShadow(summary: ShadowSummary): string {
-  if (summary.checkpoints + summary.standard + summary.cuts === 0) return ''
+  if (summary.checkpoints + summary.assisted + summary.standard + summary.cuts === 0) return ''
   const lines = ['', 'LightShadow']
   lines.push(`  compactions           ${summary.checkpoints}${summary.standard ? ` (${summary.standard} left to the host)` : ''}`)
+  if (summary.assisted) lines.push(`  host-summarized       ${summary.assisted} (catalog added after the host's summary)`)
   if (summary.cuts) lines.push(`  long results cut      ${summary.cuts} (complete text kept)`)
   lines.push(`  results recallable    ${summary.references} (~${formatTokens(summary.referencedTokens)} tokens)`)
   lines.push(`  recalls               ${summary.recalls}${summary.failedRecalls ? ` (${summary.failedRecalls} failed)` : ''}`)

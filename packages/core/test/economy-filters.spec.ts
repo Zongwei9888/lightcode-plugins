@@ -18,6 +18,11 @@ FAILED tests/test_foo.py::test_bad - assert 1 == 2
 ========================= 1 failed, 2 passed in 0.05s ==========================
 `
     const projected = pytestFilter.project({ command: 'cd /repo && python -m pytest -q', stdout, exitCode: 1 })
+    expect(pytestFilter.project({ command: 'cd /repo && python -m pytest -q 2>&1', stdout, exitCode: 1 })).toBe(projected)
+    // A program named by its path reads as the tool it runs (a virtualenv, Homebrew).
+    for (const command of ['.venv/bin/python -m pytest -q', '/opt/homebrew/bin/python3 -m pytest -q', 'cd /repo && .venv/bin/pytest -q 2>&1']) {
+      expect(pytestFilter.project({ command, stdout, exitCode: 1 })).toBe(projected)
+    }
     expect(projected).toContain('test_bad')
     expect(projected).toContain('assert 1 == 2')
     expect(projected?.length).toBeLessThan(stdout.length)

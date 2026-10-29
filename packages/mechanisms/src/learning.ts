@@ -19,7 +19,7 @@ import { FileArtifactStore, RuleStore, dataDirs, ensurePrivateDir, loadConfig, r
 import { collectEvidence, commandHead, replayCase, verifyRules } from './evolution.ts'
 import type { EvidenceCase, VerificationReport } from './evolution.ts'
 import { formatTokens } from './receipts.ts'
-import { referenceIndex } from './shadow.ts'
+import { recallIndex } from './shadow.ts'
 
 /** What a learning run reads: the journal, the stored originals and the Economy settings the policy runs with. */
 export interface EvolveContext {
@@ -912,17 +912,20 @@ export function ruleUse(records: Iterable<JournalRecord>, options: { since?: str
     if (record.raw && record.projected) use.savedTokens += Math.max(0, record.raw.tokens - record.projected.tokens)
     if (record.callId) byCall.set(`${record.sessionId ?? ''}\u0000${record.callId}`, record.rule)
   }
-  const references = referenceIndex(all)
+  const references = recallIndex(all)
   // An original counts once per session, however many calls it took to page through it.
   const counted = new Set<string>()
   for (const item of all) {
     if (item.type !== 'shadow/recall') continue
     const recall = item as ShadowRecallRecord
-    if (!recall.original || recall.outcome === 'failed') continue
+    // An Economy original (read by the ID its hint names) is the original whether or not `original` was set.
+    const reference = references.get(recall.id)
+    const ofOriginal = recall.original || (reference !== undefined && reference.original?.sha256 === reference.sha256)
+    if (!ofOriginal || recall.outcome === 'failed') continue
     if (options.since && recall.time < options.since) continue
     const key = `${recall.sessionId ?? ''}\u0000${recall.id}`
     if (counted.has(key)) continue
-    const callId = references.get(recall.id)?.callId
+    const callId = reference?.callId
     const rule = callId ? byCall.get(`${recall.sessionId ?? ''}\u0000${callId}`) : undefined
     if (rule) { counted.add(key); entry(rule).originalRecalls++ }
   }

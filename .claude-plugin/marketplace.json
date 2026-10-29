@@ -1,0 +1,14 @@
+{
+  "name": "lightcode",
+  "owner": {
+    "name": "Zongwei9888"
+  },
+  "plugins": [
+    {
+      "name": "lightcode",
+      "source": "./adapters/claude-code",
+      "description": "LightCode Economy for Claude Code",
+      "version": "0.3.0"
+    }
+  ]
+}

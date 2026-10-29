@@ -1,0 +1,14 @@
+{
+  "name": "lightcode",
+  "owner": {
+    "name": "Zongwei9888"
+  },
+  "plugins": [
+    {
+      "name": "lightcode",
+      "source": "./adapters/codebuddy",
+      "description": "LightCode Economy for CodeBuddy Code",
+      "version": "0.3.0"
+    }
+  ]
+}

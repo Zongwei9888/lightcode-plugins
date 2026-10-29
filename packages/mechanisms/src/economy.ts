@@ -2,6 +2,7 @@ import { createPolicy, decideNativeProjection, decideShellProjection, ECONOMY_RU
 import type { EconomyPolicy, LearnedRuleSet, NativeResult, ShellResult, TokenEstimator } from '@lightcode-ai/core'
 import type { ArtifactPort, EconomyFailure, EconomyRecord, JournalPort, TextMeasure } from '@lightcode-ai/protocol'
 import type { EconomyConfig } from '@lightcode-ai/store'
+import { recallHint, referenceId } from './shadow.ts'
 
 export interface EconomyEngineOptions {
   readonly host: string
@@ -24,6 +25,12 @@ export interface EconomyEngineOptions {
   readonly onError?: (error: unknown) => void
   /** The adopted learned rules; read at every decision, so it should be cheap (RuleStore.load caches by active.json). */
   readonly learned?: () => LearnedRuleSet | undefined
+  /**
+   * End a shortened output with a line naming its complete original, which the
+   * recall tool (or `lc recall`) reads. Only where the host has a way to read
+   * it; added only when the projection still saves enough with it.
+   */
+  readonly recallHint?: boolean
 }
 
 /** Originals larger than this are not kept as evidence (projections always keep theirs). */
@@ -170,11 +177,25 @@ export class EconomyEngine {
         raw = options.artifacts.save(rendered)
         map = options.artifacts.save(JSON.stringify(decision.sourceMap))
       } catch (error) { return this.failOpen(base(), 'artifact-save-failed', error) }
+      let text = decision.text, projectedBytes = decision.projectedBytes, projectedTokens = decision.projectedTokens
+      // Not after a lossless layout (nothing was left out), nor a host tool's own result (it has no shell layout).
+      if (options.recallHint && shell && decision.transformation !== 'lossless-formatting') {
+        // Right after the shortened stream, before what the host appends to it (an exit-code footer, a stderr block).
+        const span = decision.stream === 'stderr' ? shell.stderr : shell.stdout
+        const tail = span ? rendered.slice(span.start + span.text.length) : ''
+        const head = tail !== '' && text.endsWith(tail) ? text.slice(0, text.length - tail.length) : text
+        const rest = head === text ? '' : tail
+        const hinted = `${head}${head.endsWith('\n') || head === '' ? '' : '\n'}${recallHint(referenceId(raw.sha256))}\n${rest.startsWith('\n') ? rest.slice(1) : rest}`
+        const hintedTokens = estimate(hinted), hintedBytes = Buffer.byteLength(hinted, 'utf8')
+        if (hintedBytes < decision.rawBytes && decision.rawTokens - hintedTokens >= Math.max(1, options.config.minimumSavedTokens)) {
+          text = hinted; projectedBytes = hintedBytes; projectedTokens = hintedTokens
+        }
+      }
       const record: EconomyRecord = { ...base(), outcome: 'projected', ...identity,
         raw: { sha256: raw.sha256, bytes: raw.bytes, tokens: decision.rawTokens, stored: true },
-        projected: { sha256: sha256(decision.text), bytes: decision.projectedBytes, tokens: decision.projectedTokens },
+        projected: { sha256: sha256(text), bytes: projectedBytes, tokens: projectedTokens },
         sourceMap: map }
-      return { kind: 'prepared', text: decision.text, record }
+      return { kind: 'prepared', text, record }
     } catch (error) {
       return this.failOpen(base(), 'engine-error', error)
     }
