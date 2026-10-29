@@ -3,9 +3,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
-import { sha256 } from '@lightcode-ai/core'
-import type { EconomyRecord, JournalRecord, ShadowRecallRecord } from '@lightcode-ai/protocol'
-import { FileArtifactStore, FileJournal, RuleStore, removeTree } from '@lightcode-ai/store'
+import { sha256 } from '@tokenwise/core'
+import type { EconomyRecord, JournalRecord, ShadowRecallRecord } from '@tokenwise/protocol'
+import { FileArtifactStore, FileJournal, RuleStore, removeTree } from '@tokenwise/store'
 import {
   acquireRunLock, cancelEvolution, checkpointRecord, disabledRules, evolveContext, outcomeSentence, readEvolveStatus, readRunStatus, releaseRunLock, reviewActiveRules,
   pruneRuns, refreshScan, ruleChanges, ruleUse, runEvolution, scanEvidence, startEvolution, takeAnnouncement, takeReadyNotice, writeRunStatus,
@@ -13,12 +13,12 @@ import {
 
 const runner = fileURLToPath(new URL('./fixtures/runner.ts', import.meta.url))
 const dirs: string[] = []
-const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'lightcode-learning-')); dirs.push(dir); return dir }
+const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'tokenwise-learning-')); dirs.push(dir); return dir }
 afterEach(() => { for (const dir of dirs.splice(0)) removeTree(dir) })
 
 const ruleFiles = (ids: string[]) => [
   { path: 'index.json', text: JSON.stringify({ schemaVersion: 1, rules: ids.map(id => ({ id, file: `rules/${id}.js` })) }) },
-  ...ids.map(id => ({ path: `rules/${id}.js`, text: `defineRule({ project(input, lc) { return null } })` })),
+  ...ids.map(id => ({ path: `rules/${id}.js`, text: `defineRule({ project(input, tw) { return null } })` })),
 ]
 
 const decision = (fields: Partial<EconomyRecord>): EconomyRecord => ({
@@ -48,9 +48,9 @@ cat > rules-work/index.json <<'JSON'
 { "schemaVersion": 1, "rules": [{ "id": "compile-progress", "file": "rules/compile-progress.js", "transformation": "noise-removal" }] }
 JSON
 cat > rules-work/rules/compile-progress.js <<'JS'
-defineRule({ project(input, lc) {
+defineRule({ project(input, tw) {
   if (!input.argv || input.argv[0] !== './build.sh') return null
-  return lc.keepLines(input.raw, line => !/^\\[\\s*\\d+\\/\\d+\\] Compiling /.test(line.text), n => '[' + n + ' compile progress lines omitted]\\n')
+  return tw.keepLines(input.raw, line => !/^\\[\\s*\\d+\\/\\d+\\] Compiling /.test(line.text), n => '[' + n + ' compile progress lines omitted]\\n')
 } })
 JS
 ./check > check.txt || true
@@ -86,6 +86,14 @@ describe('learned rules in use', () => {
     const uses = ruleUse(records, { since: '2026-10-10T00:00:00.000Z' })
     expect(uses.get('noisy')).toEqual({ id: 'noisy', projections: 5, savedTokens: 450, originalRecalls: 3 })
     expect(uses.get('quiet')).toEqual({ id: 'quiet', projections: 1, savedTokens: 90, originalRecalls: 0 })
+  })
+
+  it('counts an original read by the ID Economy\'s hint named, without original: true, as a recall of the original', () => {
+    const records: JournalRecord[] = [
+      decision({ callId: 'h1', rule: 'hinted', raw: { sha256: 'c'.repeat(64), bytes: 400, tokens: 100, stored: true } }),
+      { schemaVersion: 1, type: 'shadow/recall', time: '2026-10-14T12:00:00.000Z', host: 'pi', sessionId: 's', callId: 'r1', id: `o-${'c'.repeat(12)}`, original: false, outcome: 'window', bytes: 1 },
+    ]
+    expect(ruleUse(records).get('hinted')).toMatchObject({ projections: 1, originalRecalls: 1 })
   })
 
   it('switches off a rule the agent keeps needing the original for, as an adoption that can be rolled back', () => {
@@ -171,12 +179,12 @@ describe('run status', () => {
 })
 
 describe('background learning', () => {
-  const background = (home: string) => ({ runner, node: process.execPath, nodeArgs: ['--conditions=source'], env: { ...process.env, LIGHTCODE_HOME: home } })
+  const background = (home: string) => ({ runner, node: process.execPath, nodeArgs: ['--conditions=source'], env: { ...process.env, TOKENWISE_HOME: home } })
 
   it('suggests a run once a command has enough output left to learn from', () => {
     const home = temp()
     observe(home, './build.sh', progress(1))
-    const env = { ...process.env, LIGHTCODE_HOME: home }
+    const env = { ...process.env, TOKENWISE_HOME: home }
     expect(scanEvidence(evolveContext(env))).toMatchObject({ evidence: 1, ready: false })
     observe(home, './build.sh', progress(2))
     observe(home, './build.sh', progress(3))
@@ -189,7 +197,7 @@ describe('background learning', () => {
   it('runs the learner in its own process, verifies with held-out observations, adopts, and announces', async () => {
     const home = temp(), work = temp()
     for (const seed of [1, 2, 3]) observe(home, './build.sh', progress(seed))
-    // A file the run must delete when it ends (as DSH's overlay), and one outside LightCode's directory it must leave alone.
+    // A file the run must delete when it ends (as DSH's overlay), and one outside TokenWise's directory it must leave alone.
     mkdirSync(join(home, 'evolve'), { recursive: true })
     const overlay = join(home, 'evolve', 'overlay.yml'), outside = join(work, 'outside.yml')
     writeFileSync(overlay, 'x'); writeFileSync(outside, 'x')
@@ -237,7 +245,7 @@ describe('review fixes', () => {
     journal.append(checkpointRecord({ host: 'pi', sessionId: 's', time: stamp(-29_000) }, { kind: 'lightshadow', checkpointTokens: 1,
       plan: { contract: [], segmentTokens: 1, references: [1, 2, 3].map(i => ({ id: `o-00000000000${i}`, sha256: 'a'.repeat(64), bytes: 1, tokens: 1, tool: 'bash', callId: `c${i}`, excerpt: '' })) } }))
     for (const i of [1, 2, 3]) journal.append({ schemaVersion: 1, type: 'shadow/recall', time: stamp(-28_000), host: 'pi', sessionId: 's', callId: `r${i}`, id: `o-00000000000${i}`, original: true, outcome: 'returned', bytes: 1 })
-    const env = { ...process.env, LIGHTCODE_HOME: home }
+    const env = { ...process.env, TOKENWISE_HOME: home }
     expect(scanEvidence(evolveContext(env)).disabled.map(item => item.id)).toEqual(['noisy'])
     expect(store.rollback()).toBe(first)
     expect(scanEvidence(evolveContext(env)).disabled).toEqual([])
@@ -272,19 +280,19 @@ describe('review fixes', () => {
     const home = temp(), work = temp()
     observe(home, './build.sh', progress(1))
     for (const n of [1, 2, 3]) observe(home, './build.sh', `Finished run ${n}\n`)
-    const result = await runEvolution(evolveContext({ ...process.env, LIGHTCODE_HOME: home }), {
-      learner: { argv: [learnerScript(work)], shell: true, label: 't' }, checker: [process.execPath, '--conditions=source', runner], host: 'cli', env: { ...process.env, LIGHTCODE_HOME: home } })
+    const result = await runEvolution(evolveContext({ ...process.env, TOKENWISE_HOME: home }), {
+      learner: { argv: [learnerScript(work)], shell: true, label: 't' }, checker: [process.execPath, '--conditions=source', runner], host: 'cli', env: { ...process.env, TOKENWISE_HOME: home } })
     expect(result?.outcome).toMatchObject({ result: 'adopted', generalization: { status: 'untested' } })
   }, 60_000)
 
   it('reports a learner that crashed as failed, not as having found nothing to change', async () => {
     const home = temp()
     for (const seed of [1, 2, 3]) observe(home, './build.sh', progress(seed))
-    const result = await runEvolution(evolveContext({ ...process.env, LIGHTCODE_HOME: home }), {
-      learner: { argv: ['exit 3'], shell: true, label: 't' }, checker: [process.execPath, runner], host: 'cli', env: { ...process.env, LIGHTCODE_HOME: home } })
+    const result = await runEvolution(evolveContext({ ...process.env, TOKENWISE_HOME: home }), {
+      learner: { argv: ['exit 3'], shell: true, label: 't' }, checker: [process.execPath, runner], host: 'cli', env: { ...process.env, TOKENWISE_HOME: home } })
     expect(result?.outcome).toMatchObject({ result: 'failed', error: expect.stringMatching(/^the learner exited with 3; see .*learner\.log$/) })
-    const missing = await runEvolution(evolveContext({ ...process.env, LIGHTCODE_HOME: home }), {
-      learner: { argv: ['/nonexistent/learner'], label: 't' }, checker: [process.execPath, runner], host: 'cli', env: { ...process.env, LIGHTCODE_HOME: home } })
+    const missing = await runEvolution(evolveContext({ ...process.env, TOKENWISE_HOME: home }), {
+      learner: { argv: ['/nonexistent/learner'], label: 't' }, checker: [process.execPath, runner], host: 'cli', env: { ...process.env, TOKENWISE_HOME: home } })
     expect(missing?.outcome).toMatchObject({ result: 'failed', error: expect.stringMatching(/^the learner did not run/) })
   }, 60_000)
 
@@ -296,16 +304,16 @@ describe('review fixes', () => {
     writeFileSync(script, `${readFileSync(learnerScript(work).slice(3), 'utf8')}
 node -e "require('fs').writeFileSync(process.argv[1], JSON.stringify({ schemaVersion: 1, active: '${other}', history: [] }))" ${JSON.stringify(join(home, 'rules', 'active.json'))}
 `)
-    const result = await runEvolution(evolveContext({ ...process.env, LIGHTCODE_HOME: home }), {
-      learner: { argv: [`sh ${script}`], shell: true, label: 't' }, checker: [process.execPath, '--conditions=source', runner], host: 'cli', env: { ...process.env, LIGHTCODE_HOME: home } })
+    const result = await runEvolution(evolveContext({ ...process.env, TOKENWISE_HOME: home }), {
+      learner: { argv: [`sh ${script}`], shell: true, label: 't' }, checker: [process.execPath, '--conditions=source', runner], host: 'cli', env: { ...process.env, TOKENWISE_HOME: home } })
     expect(result?.outcome).toMatchObject({ result: 'failed', error: 'the active learned rules changed while the learner ran; nothing adopted' })
   }, 60_000)
 
   it('keeps the held-out figures out of what the learner reads from ./check', async () => {
     const home = temp(), work = temp()
     for (const seed of [1, 2, 3]) observe(home, './build.sh', progress(seed))
-    const result = await runEvolution(evolveContext({ ...process.env, LIGHTCODE_HOME: home }), {
-      learner: { argv: [learnerScript(work)], shell: true, label: 't' }, checker: [process.execPath, '--conditions=source', runner], host: 'cli', env: { ...process.env, LIGHTCODE_HOME: home } })
+    const result = await runEvolution(evolveContext({ ...process.env, TOKENWISE_HOME: home }), {
+      learner: { argv: [learnerScript(work)], shell: true, label: 't' }, checker: [process.execPath, '--conditions=source', runner], host: 'cli', env: { ...process.env, TOKENWISE_HOME: home } })
     const seen = readFileSync(join(result!.workspace, 'check.txt'), 'utf8')
     expect(seen).toMatch(/^ACCEPTED/)
     expect(seen).not.toMatch(/held-out|unseen/)
@@ -323,7 +331,7 @@ node -e "require('fs').writeFileSync(process.argv[1], JSON.stringify({ schemaVer
 
   it('refreshes the scan whenever asked after a good one, but backs off after one that failed', () => {
     const home = temp()
-    const options = { runner: '/nonexistent/runner.js', node: process.execPath, env: { ...process.env, LIGHTCODE_HOME: home } }
+    const options = { runner: '/nonexistent/runner.js', node: process.execPath, env: { ...process.env, TOKENWISE_HOME: home } }
     expect(refreshScan(home, { ...options, maxAgeMs: 0 })).toBe(true)
     // That attempt produced no scan (the runner does not exist): no new attempt for a minute.
     expect(refreshScan(home, { ...options, maxAgeMs: 0 })).toBe(false)

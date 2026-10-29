@@ -10,13 +10,13 @@ import { shellQuote } from '../src/context.ts'
 
 const main = fileURLToPath(new URL('../src/main.ts', import.meta.url))
 const dirs: string[] = []
-const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'lightcode-cli-')); dirs.push(dir); return dir }
+const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'tokenwise-cli-')); dirs.push(dir); return dir }
 afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }) })
 
-function lc(args: string[], options: { cwd?: string; home?: string; input?: string; env?: NodeJS.ProcessEnv } = {}) {
+function tokenwise(args: string[], options: { cwd?: string; home?: string; input?: string; env?: NodeJS.ProcessEnv } = {}) {
   const result = spawnSync(process.execPath, ['--conditions=source', main, ...args], {
     cwd: options.cwd, input: options.input === undefined ? undefined : Buffer.from(options.input), encoding: 'buffer',
-    env: { ...process.env, SHELL: '/bin/sh', LIGHTCODE_HOME: options.home ?? temp(), ...options.env },
+    env: { ...process.env, SHELL: '/bin/sh', TOKENWISE_HOME: options.home ?? temp(), ...options.env },
   })
   return { ...result, out: result.stdout.toString('utf8'), err: result.stderr.toString('utf8') }
 }
@@ -30,38 +30,38 @@ function project() {
   return dir
 }
 
-describe('lc run', () => {
+describe('tokenwise run', () => {
   it('passes exit codes and unfiltered output through unchanged', () => {
-    const result = lc(['run', '-c', 'printf "a\\nb\\n"; exit 3'])
+    const result = tokenwise(['run', '-c', 'printf "a\\nb\\n"; exit 3'])
     expect(result.status).toBe(3)
     expect(result.out).toBe('a\nb\n')
-    expect(lc(['run', '--', 'definitely-not-a-command-xyz']).status).toBe(127)
+    expect(tokenwise(['run', '--', 'definitely-not-a-command-xyz']).status).toBe(127)
   })
   it('keeps binary output byte-for-byte', () => {
-    const result = lc(['run', '-c', "printf '\\377\\376\\000x'"])
+    const result = tokenwise(['run', '-c', "printf '\\377\\376\\000x'"])
     expect([...result.stdout]).toEqual([0xff, 0xfe, 0x00, 0x78])
   })
   it('re-raises the signal that killed the command', () => {
-    const result = lc(['run', '-c', 'kill -TERM $$'])
+    const result = tokenwise(['run', '-c', 'kill -TERM $$'])
     expect(result.signal).toBe('SIGTERM')
   })
   it('filters recognized output, saves the original and reports it', () => {
     const cwd = project(), home = temp()
     const raw = spawnSync('/bin/sh', ['-c', 'grep -rn value src'], { cwd, encoding: 'utf8' }).stdout
-    const result = lc(['run', '--host', 'test', '--session', 's1', '-c', 'grep -rn value src'], { cwd, home })
+    const result = tokenwise(['run', '--host', 'test', '--session', 's1', '-c', 'grep -rn value src'], { cwd, home })
     expect(result.status).toBe(0)
     expect(result.out.length).toBeLessThan(raw.length)
     expect(result.out).toContain('omitted')
-    const report = JSON.parse(lc(['report', '--host', 'test', '--json'], { home }).out)
+    const report = JSON.parse(tokenwise(['report', '--host', 'test', '--json'], { home }).out)
     expect(report).toMatchObject({ projected: 1, byFilter: [{ filter: 'grep', count: 1 }] })
     const journal = spawnSync('/bin/sh', ['-c', 'cat journal/test/s1.jsonl'], { cwd: home, encoding: 'utf8' }).stdout
     const record = JSON.parse(journal.trim())
-    expect(lc(['show', record.raw.sha256], { home }).out).toBe(raw)
+    expect(tokenwise(['show', record.raw.sha256], { home }).out).toBe(raw)
     expect(record.tool).toBe('bash')
   })
   it("records Codex's shell tool name, matching the hook's rewrite records", () => {
     const cwd = project(), home = temp()
-    lc(['run', '--host', 'codex', '--session', 's1', '--call', 'c1', '-c', 'grep -rn value src'], { cwd, home })
+    tokenwise(['run', '--host', 'codex', '--session', 's1', '--call', 'c1', '-c', 'grep -rn value src'], { cwd, home })
     const journal = spawnSync('/bin/sh', ['-c', 'cat journal/codex/s1.jsonl'], { cwd: home, encoding: 'utf8' }).stdout
     expect(JSON.parse(journal.trim())).toMatchObject({ host: 'codex', callId: 'c1', tool: 'exec_command' })
   })
@@ -70,31 +70,31 @@ describe('lc run', () => {
     writeFileSync(blocked, '')
     const env = { TMPDIR: tmp }
     const home = join(blocked, 'home')
-    expect(lc(['run', '--host', 'test', '-c', 'grep -rn value src'], { cwd, home, env }).out).toContain('omitted')
-    expect(JSON.parse(lc(['report', '--json'], { home, env }).out)).toMatchObject({ projected: 1 })
+    expect(tokenwise(['run', '--host', 'test', '-c', 'grep -rn value src'], { cwd, home, env }).out).toContain('omitted')
+    expect(JSON.parse(tokenwise(['report', '--json'], { home, env }).out)).toMatchObject({ projected: 1 })
   })
   it('passes everything through when disabled', () => {
     const cwd = project()
     const raw = spawnSync('/bin/sh', ['-c', 'grep -rn value src'], { cwd, encoding: 'utf8' }).stdout
-    expect(lc(['run', '-c', 'grep -rn value src'], { cwd, env: { LIGHTCODE_DISABLE: '1' } }).out).toBe(raw)
+    expect(tokenwise(['run', '-c', 'grep -rn value src'], { cwd, env: { TOKENWISE_DISABLE: '1' } }).out).toBe(raw)
   })
   it('rejects ambiguous invocations', () => {
-    expect(lc(['run']).status).toBe(2)
-    expect(lc(['run', '-c', 'true', '--', 'true']).status).toBe(2)
+    expect(tokenwise(['run']).status).toBe(2)
+    expect(tokenwise(['run', '-c', 'true', '--', 'true']).status).toBe(2)
   })
   it('counts a session\'s subagent sessions in its report', () => {
     const cwd = project(), home = temp()
-    lc(['run', '--host', 'test', '--session', 'child', '-c', 'grep -rn value src'], { cwd, home })
-    lc(['run', '--host', 'test', '--session', 'parent', '-c', 'printf x'], { cwd, home })
-    expect(JSON.parse(lc(['report', '--host', 'test', '--session', 'parent', '--json'], { home }).out)).toMatchObject({ decisions: 1, projected: 0 })
+    tokenwise(['run', '--host', 'test', '--session', 'child', '-c', 'grep -rn value src'], { cwd, home })
+    tokenwise(['run', '--host', 'test', '--session', 'parent', '-c', 'printf x'], { cwd, home })
+    expect(JSON.parse(tokenwise(['report', '--host', 'test', '--session', 'parent', '--json'], { home }).out)).toMatchObject({ decisions: 1, projected: 0 })
     writeFileSync(join(home, 'journal', 'test', 'parent.jsonl'), JSON.stringify({ schemaVersion: 1, type: 'session/subagent',
       time: '2026-10-13T00:00:00.000Z', host: 'test', sessionId: 'parent', childSessionId: 'child' }) + '\n', { flag: 'a' })
-    expect(JSON.parse(lc(['report', '--host', 'test', '--session', 'parent', '--json'], { home }).out)).toMatchObject({ decisions: 2, projected: 1 })
-    expect(lc(['report', '--host', 'test', '--session', 'parent'], { home }).out).toContain('session parent and its 1 subagent session')
-    expect(JSON.parse(lc(['report', '--host', 'test', '--json'], { home }).out)).toMatchObject({ decisions: 2, projected: 1 })
+    expect(JSON.parse(tokenwise(['report', '--host', 'test', '--session', 'parent', '--json'], { home }).out)).toMatchObject({ decisions: 2, projected: 1 })
+    expect(tokenwise(['report', '--host', 'test', '--session', 'parent'], { home }).out).toContain('session parent and its 1 subagent session')
+    expect(JSON.parse(tokenwise(['report', '--host', 'test', '--json'], { home }).out)).toMatchObject({ decisions: 2, projected: 1 })
     // Without a host, every host's records of those sessions count.
-    expect(JSON.parse(lc(['report', '--session', 'parent', '--json'], { home }).out)).toMatchObject({ decisions: 2, projected: 1 })
-    expect(lc(['report', '--session', 'parent'], { home }).out).toContain('all hosts, session parent and its 1 subagent session')
+    expect(JSON.parse(tokenwise(['report', '--session', 'parent', '--json'], { home }).out)).toMatchObject({ decisions: 2, projected: 1 })
+    expect(tokenwise(['report', '--session', 'parent'], { home }).out).toContain('all hosts, session parent and its 1 subagent session')
   })
 })
 
@@ -115,46 +115,62 @@ describe('Codex PreToolUse hook', () => {
   const input = (command: string) => ({ hook_event_name: 'PreToolUse', tool_name: 'Bash', session_id: 'thread-1', tool_use_id: 'call_1', tool_input: { command } })
   const withLc = () => {
     const bin = temp()
-    writeFileSync(join(bin, 'lc'), '#!/bin/sh\n')
-    chmodSync(join(bin, 'lc'), 0o755)
-    return { LIGHTCODE_HOME: temp(), PATH: bin }
+    writeFileSync(join(bin, 'tokenwise'), '#!/bin/sh\n')
+    chmodSync(join(bin, 'tokenwise'), 0o755)
+    return { TOKENWISE_HOME: temp(), PATH: bin }
   }
   it('wraps recognizable commands and normalizes them', () => {
     const output = JSON.parse(codexPreToolUse(input('rg value src'), withLc())!)
     expect(output).toEqual({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'allow',
-      updatedInput: { command: "lc run --host codex --session thread-1 --call call_1 -c 'rg -n -H value src'" } } })
+      updatedInput: { command: "tokenwise run --host codex --session thread-1 --call call_1 -c 'rg -n -H value src'" } } })
   })
-  it('wraps without normalizing in observe mode, and not at all when lc is not on PATH', () => {
-    const observed = JSON.parse(codexPreToolUse(input('rg value src'), { ...withLc(), LIGHTCODE_ECONOMY: 'observe' })!)
-    expect(observed.hookSpecificOutput.updatedInput.command).toBe("lc run --host codex --session thread-1 --call call_1 -c 'rg value src'")
-    expect(codexPreToolUse(input('rg value src'), { LIGHTCODE_HOME: temp(), PATH: temp() })).toBeUndefined()
+  it('wraps without normalizing in observe mode, and not at all when tokenwise is not on PATH', () => {
+    const observed = JSON.parse(codexPreToolUse(input('rg value src'), { ...withLc(), TOKENWISE_OUTPUT: 'observe' })!)
+    expect(observed.hookSpecificOutput.updatedInput.command).toBe("tokenwise run --host codex --session thread-1 --call call_1 -c 'rg value src'")
+    expect(codexPreToolUse(input('rg value src'), { TOKENWISE_HOME: temp(), PATH: temp() })).toBeUndefined()
   })
   it('leaves other commands, patches, wrapped commands and other events alone', () => {
     const env = withLc()
     expect(codexPreToolUse(input('echo hello'), env)).toBeUndefined()
     expect(codexPreToolUse(input("apply_patch <<'EOF'\n*** Begin Patch\nEOF"), env)).toBeUndefined()
-    expect(codexPreToolUse(input("lc run -c 'pytest'"), env)).toBeUndefined()
+    expect(codexPreToolUse(input("tokenwise run -c 'pytest'"), env)).toBeUndefined()
     expect(codexPreToolUse({ ...input('pytest'), hook_event_name: 'PostToolUse' }, env)).toBeUndefined()
     expect(codexPreToolUse({ ...input('pytest'), tool_name: 'apply_patch' }, env)).toBeUndefined()
-    expect(codexPreToolUse(input('pytest'), { ...env, LIGHTCODE_DISABLE: '1' })).toBeUndefined()
+    expect(codexPreToolUse(input('pytest'), { ...env, TOKENWISE_DISABLE: '1' })).toBeUndefined()
   })
   it('never fails a tool call through the CLI', () => {
-    const result = lc(['hook', 'codex'], { input: 'not json' })
+    const result = tokenwise(['hook', 'codex'], { input: 'not json' })
     expect(result.status).toBe(0)
     expect(result.out).toBe('')
   })
 })
 
-describe('lc --version', () => {
-  it('matches the published package version', () => {
-    const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
-    expect(lc(['--version']).out.trim()).toBe(manifest.version)
+describe('tokenwise usage errors', () => {
+  it('prints the usage for `tokenwise <command> --help`, and one line for an unknown option', () => {
+    for (const command of ['evolve', 'report', 'doctor', 'rules']) {
+      const help = tokenwise([command, '--help'])
+      expect(help.status).toBe(0)
+      expect(help.out).toContain('Usage:')
+    }
+    const bad = tokenwise(['report', '--bogus'])
+    expect(bad.status).toBe(2)
+    expect(bad.err).toBe("tokenwise report: Unknown option '--bogus'\nRun `tokenwise --help` for usage.\n")
+    // `tokenwise run` hands its arguments to the command.
+    // `tokenwise run` hands --help to the program (printf: GNU echo would answer --help itself).
+    expect(tokenwise(['run', '--', 'printf', '%s\\n', '--help']).out).toBe('--help\n')
   })
 })
 
-describe('lc doctor', () => {
+describe('tokenwise --version', () => {
+  it('matches the published package version', () => {
+    const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
+    expect(tokenwise(['--version']).out.trim()).toBe(manifest.version)
+  })
+})
+
+describe('tokenwise doctor', () => {
   it('reports per-host negotiation', () => {
-    const result = lc(['doctor', '--json'])
+    const result = tokenwise(['doctor', '--json'])
     const doctor = JSON.parse(result.out)
     expect(doctor.hosts.find((host: { host: string }) => host.host === 'codex').mechanisms[0]).toMatchObject({ mechanism: 'economy', mode: 'apply' })
     expect(doctor.config.problems).toEqual([])

@@ -1,32 +1,40 @@
 import { parseArgs } from 'node:util'
-import { economyCoverage, economyRuleDisplayName } from '@lightcode-ai/core'
-import type { EconomyFilterName } from '@lightcode-ai/core'
-import { FileArtifactStore } from '@lightcode-ai/store'
+import { economyCoverage, economyRuleDisplayName } from '@tokenwise/core'
+import type { EconomyFilterName } from '@tokenwise/core'
+import { FileArtifactStore } from '@tokenwise/store'
 import { cliContext } from './context.ts'
 import { doctor, VERSION } from './doctor.ts'
 import { evolve, evolveCheck, evolveTry, rules } from './evolve.ts'
 import { hook } from './hook.ts'
+import { mcp } from './mcp.ts'
 import { report } from './report.ts'
 import { run } from './run.ts'
+import { recall, shadow } from './shadow.ts'
 
-const HELP = `lc — LightCode ${VERSION}
+const HELP = `tokenwise — TokenWise ${VERSION}
 
 Usage:
-  lc run [--host H] [--session S] [--call C] -c <script>   run a shell script, print filtered output
-  lc run [--host H] [--session S] [--call C] -- <program> [args...]
-  lc hook codex                    Codex hook handler (reads hook JSON on stdin)
-  lc report [--host H] [--session S] [--json]
-  lc filters [--json]              list output filters and what each preserves
-  lc show <sha256>                 print a saved original output
-  lc gc [--days N]                 delete saved originals older than N days
-  lc doctor [--json]               configuration and per-host capability negotiation
-  lc evolve --learner pi|dsh|claude|codex|"<command>" [--since 7d] [--max-cases N] [--timeout 30m] [--dry-run] [--json]
+  tokenwise run [--host H] [--session S] [--call C] -c <script>   run a shell script, print filtered output
+  tokenwise run [--host H] [--session S] [--call C] -- <program> [args...]
+  tokenwise hook codex|claude|codebuddy|grok|hermes
+                                   hook handler for that host (reads hook JSON on stdin)
+  tokenwise report [--host H] [--session S] [--json]
+  tokenwise filters [--json]              list output filters and what each preserves
+  tokenwise show <sha256>                 print a saved original output
+  tokenwise gc [--days N]                 delete saved originals older than N days
+  tokenwise doctor [--json]               configuration and per-host capability negotiation
+  tokenwise evolve --learner pi|dsh|claude|codex|"<command>" [--since 7d] [--max-cases N] [--timeout 30m] [--dry-run] [--json]
                                    learn output rules from recorded evidence; adopt them only if verified
-  lc rules [list|show|path|off|on|rollback] [--json]
+  tokenwise rules [list|show|path|off|on|rollback] [--json]
                                    learned rules: what is adopted, switch off, go back
-  lc --version
+  tokenwise recall <observation_id> [--query Q | --line N] [--original] [--session S]
+                                   read again a tool result LightShadow kept
+  tokenwise mcp [--host H] [--session S]  MCP server (stdio) offering the tokenwise_recall tool
+  tokenwise shadow instruction|tool|checkpoint|catalog
+                                   LightShadow for host adapters (JSON on stdin and stdout)
+  tokenwise --version
 
-Data: $LIGHTCODE_HOME or ~/.lightcode.  Disable: LIGHTCODE_DISABLE=1 or LIGHTCODE_ECONOMY=off.
+Data: $TOKENWISE_HOME or ~/.tokenwise.  Disable: TOKENWISE_DISABLE=1 or TOKENWISE_OUTPUT=off.
 `
 
 function runArgs(argv: string[]) {
@@ -36,10 +44,10 @@ function runArgs(argv: string[]) {
     host: { type: 'string' }, session: { type: 'string' }, call: { type: 'string' }, tool: { type: 'string' }, c: { type: 'string', short: 'c' },
   } })
   const env = process.env
-  const host = values.host ?? env.LIGHTCODE_HOST ?? 'shell'
+  const host = values.host ?? env.TOKENWISE_HOST ?? 'shell'
   return {
     host,
-    sessionId: values.session ?? env.LIGHTCODE_SESSION ?? null,
+    sessionId: values.session ?? env.TOKENWISE_SESSION ?? null,
     callId: values.call ?? null,
     // Name the host's own shell tool so decisions line up with the hook's rewrite records.
     tool: values.tool ?? (host === 'codex' ? 'exec_command' : 'bash'),
@@ -50,15 +58,28 @@ function runArgs(argv: string[]) {
 
 export async function main(argv: string[]): Promise<number> {
   const [command, ...rest] = argv
+  // `tokenwise <command> --help` prints the usage. `tokenwise run` and `tokenwise hook` pass their arguments on, so theirs are never read as a request for help.
+  if (command !== 'run' && command !== 'hook' && (rest.includes('--help') || rest.includes('-h'))) { process.stdout.write(HELP); return 0 }
+  try {
+    return await dispatch(command, rest)
+  } catch (error) {
+    // An unknown or malformed option: one line, not a stack trace.
+    if (!String((error as NodeJS.ErrnoException).code ?? '').startsWith('ERR_PARSE_ARGS_')) throw error
+    process.stderr.write(`tokenwise ${command}: ${(error as Error).message}\nRun \`tokenwise --help\` for usage.\n`)
+    return 2
+  }
+}
+
+async function dispatch(command: string | undefined, rest: string[]): Promise<number> {
   switch (command) {
     case 'run': {
       let options
       try { options = runArgs(rest) } catch (error) {
-        process.stderr.write(`lc run: ${(error as Error).message}\n`)
+        process.stderr.write(`tokenwise run: ${(error as Error).message}\n`)
         return 2
       }
       if ((options.script === undefined) === (options.argv === undefined)) {
-        process.stderr.write('lc run: give exactly one of -c <script> or -- <program> [args...]\n')
+        process.stderr.write('tokenwise run: give exactly one of -c <script> or -- <program> [args...]\n')
         return 2
       }
       return run(options)
@@ -78,7 +99,7 @@ export async function main(argv: string[]): Promise<number> {
     }
     case 'show': {
       const text = rest[0] ? cliContext().readArtifact(rest[0]) : undefined
-      if (text === undefined) { process.stderr.write('lc show: no saved original with that sha256 (expired or never stored)\n'); return 1 }
+      if (text === undefined) { process.stderr.write('tokenwise show: no saved original with that sha256 (expired or never stored)\n'); return 1 }
       process.stdout.write(text)
       return 0
     }
@@ -86,7 +107,7 @@ export async function main(argv: string[]): Promise<number> {
       const { values } = parseArgs({ args: rest, options: { days: { type: 'string' } } })
       const context = cliContext()
       const days = values.days === undefined ? context.loaded.config.artifacts.retentionDays : Number(values.days)
-      if (!Number.isFinite(days) || days < 0) { process.stderr.write('lc gc: --days must be a non-negative number\n'); return 2 }
+      if (!Number.isFinite(days) || days < 0) { process.stderr.write('tokenwise gc: --days must be a non-negative number\n'); return 2 }
       const removed = context.dataDirs.reduce((sum, dir) => sum + new FileArtifactStore(dir).prune(days), 0)
       process.stdout.write(`removed ${removed} saved originals older than ${days} days\n`)
       return 0
@@ -102,16 +123,29 @@ export async function main(argv: string[]): Promise<number> {
         timeout: { type: 'string' }, 'dry-run': { type: 'boolean' }, json: { type: 'boolean' },
       } })
       const maxCases = values['max-cases'] === undefined ? undefined : Number(values['max-cases'])
-      if (maxCases !== undefined && (!Number.isSafeInteger(maxCases) || maxCases < 1)) { process.stderr.write('lc evolve: --max-cases must be a positive integer\n'); return 2 }
+      if (maxCases !== undefined && (!Number.isSafeInteger(maxCases) || maxCases < 1)) { process.stderr.write('tokenwise evolve: --max-cases must be a positive integer\n'); return 2 }
       return evolve({ ...values.learner === undefined ? {} : { learner: values.learner }, ...values.profile === undefined ? {} : { profile: values.profile },
         ...values.since === undefined ? {} : { since: values.since }, ...maxCases === undefined ? {} : { maxCases },
         ...values.timeout === undefined ? {} : { timeout: values.timeout }, dryRun: values['dry-run'] === true, json: values.json === true })
     }
     case 'rules': return rules(rest.find(arg => !arg.startsWith('-')), rest.includes('--json'))
+    case 'recall': {
+      const { values, positionals } = parseArgs({ args: rest, allowPositionals: true, options: {
+        query: { type: 'string' }, line: { type: 'string' }, original: { type: 'boolean' }, host: { type: 'string' }, session: { type: 'string' }, call: { type: 'string' },
+      } })
+      return recall({ id: positionals[0], ...values.query === undefined ? {} : { query: values.query }, ...values.line === undefined ? {} : { line: values.line },
+        original: values.original === true, ...values.host === undefined ? {} : { host: values.host },
+        ...values.session === undefined ? {} : { session: values.session }, ...values.call === undefined ? {} : { call: values.call } })
+    }
+    case 'mcp': {
+      const { values } = parseArgs({ args: rest, options: { host: { type: 'string' }, session: { type: 'string' } } })
+      return mcp({ ...values.host === undefined ? {} : { host: values.host }, ...values.session === undefined ? {} : { session: values.session } })
+    }
+    case 'shadow': return shadow(rest[0])
     case '--version': case '-v': case 'version': process.stdout.write(`${VERSION}\n`); return 0
     case undefined: case '--help': case '-h': case 'help': process.stdout.write(HELP); return 0
     default:
-      process.stderr.write(`lc: unknown command ${command}\n${HELP}`)
+      process.stderr.write(`tokenwise: unknown command ${command}\n${HELP}`)
       return 2
   }
 }

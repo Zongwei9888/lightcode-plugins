@@ -13,7 +13,7 @@ export const SHADOW_PROMPT = 'Run the fixture commands, then recall one of them.
  * and one of 21 KB (over it).
  */
 export const seqCommands = (count = 12) => [...Array.from({ length: count }, (_, i) => `seq ${10_000 * (i + 1)} ${10_000 * (i + 1) + 1299}`), 'seq 900000 902999']
-const CATALOG = /<lightcode-observation-catalog>[\s\S]*?<\/lightcode-observation-catalog>/
+const CATALOG = /<tokenwise-observation-catalog>[\s\S]*?<\/tokenwise-observation-catalog>/
 const SUMMARY = '## Primary Request and Intent\n- Run the fixture commands.\n\n## Current Work\n- Ran seq commands.'
 
 const textOf = content => typeof content === 'string' ? content : Array.isArray(content) ? content.map(part => part.text ?? '').join('') : ''
@@ -42,9 +42,9 @@ export function shadowScript(commands = seqCommands()) {
       const catalog = request.messages.map(message => textOf(message.content)).join('\n').match(CATALOG)?.[0]
       const id = catalog?.match(/observation_id: (o-[a-f0-9]{12}) \| tool: bash/)?.[1]
       if (!id) return { content: 'no catalog' }
-      if (!request.tools.some(tool => tool.function?.name === 'lightcode_recall')) return { content: 'no recall tool' }
+      if (!request.tools.some(tool => tool.function?.name === 'tokenwise_recall')) return { content: 'no recall tool' }
       state.recalledId = id
-      return { content: null, tool_calls: [{ id: `call_recall`, type: 'function', function: { name: 'lightcode_recall', arguments: JSON.stringify({ observation_id: id }) } }] }
+      return { content: null, tool_calls: [{ id: `call_recall`, type: 'function', function: { name: 'tokenwise_recall', arguments: JSON.stringify({ observation_id: id }) } }] }
     }
     return { content: 'done' }
   }
@@ -52,13 +52,13 @@ export function shadowScript(commands = seqCommands()) {
 }
 
 /** What the model read for each command before compaction, and what it got back from recall. */
-export function readBack(requests, recalledId, lightcodeHome, host) {
+export function readBack(requests, recalledId, tokenwiseHome, host) {
   // Every version of every tool result the model was sent (a later request may carry a cut one).
   const seen = []
   for (const request of requests) {
     for (const message of request.messages) if (message.role === 'tool') seen.push({ id: message.tool_call_id, text: textOf(message.content) })
   }
-  const records = journal(lightcodeHome, host)
+  const records = journal(tokenwiseHome, host)
   const checkpoints = records.filter(record => record.type === 'shadow/checkpoint')
   const reference = checkpoints.flatMap(record => record.references).find(item => item.id === recalledId)
   assert.ok(reference, `journal has no reference ${recalledId}`)

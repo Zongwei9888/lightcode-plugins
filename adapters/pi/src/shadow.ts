@@ -2,8 +2,8 @@
  * LightShadow for pi: recoverable compaction through `session_before_compact`.
  * Tool results in the segment pi is about to summarize are saved and replaced
  * by references; pi's own summarizer (`compact`, the same call and model pi
- * uses) condenses what is left; LightCode appends the user's messages word for
- * word and the catalog of references; `lightcode_recall` reads any of them
+ * uses) condenses what is left; TokenWise appends the user's messages word for
+ * word and the catalog of references; `tokenwise_recall` reads any of them
  * again. A checkpoint that is not smaller, or any failure, leaves the
  * compaction to pi.
  */
@@ -11,11 +11,11 @@ import { compact } from '@earendil-works/pi-coding-agent'
 import type { ExtensionAPI, ExtensionContext, SessionBeforeCompactEvent, SessionEntry } from '@earendil-works/pi-coding-agent'
 import type { TSchema } from '@earendil-works/pi-ai'
 import {
-  RECALL_TOOL_DESCRIPTION, RECALL_TOOL_NAME, SHADOW_SUMMARY_INSTRUCTION, callLabel, checkpointAdmitted, checkpointRecord, planShadow, recallObservation,
+  RECALL_TOOL_DESCRIPTION, RECALL_TOOL_NAME, SHADOW_SUMMARY_INSTRUCTION, callLabel, checkpointAdmitted, checkpointRecord, fitCheckpoint, planShadow, recallIndex, recallObservation,
   renderCheckpoint, renderRecall,
-} from '@lightcode-ai/mechanisms'
-import type { ShadowMessage } from '@lightcode-ai/mechanisms'
-import type { ArtifactPort, EconomyRecord, JournalPort, JournalRecord, ShadowReference } from '@lightcode-ai/protocol'
+} from '@tokenwise/mechanisms'
+import type { ShadowMessage } from '@tokenwise/mechanisms'
+import type { ArtifactPort, EconomyRecord, JournalPort, JournalRecord, ShadowReference } from '@tokenwise/protocol'
 
 type AgentMessage = SessionBeforeCompactEvent['preparation']['messagesToSummarize'][number]
 
@@ -44,7 +44,7 @@ const RECALL_PARAMETERS = {
     observation_id: { type: 'string', description: 'An observation_id from the observation catalog, such as o-1a2b3c4d5e6f.' },
     query: { type: 'string', description: 'An exact string the result contains; for results over 8 KB, this or line.' },
     line: { type: 'integer', minimum: 1, description: 'A 1-based line number to read around; for results over 8 KB, this or query.' },
-    original: { type: 'boolean', description: 'Read the complete output LightCode shortened before you first read it.' },
+    original: { type: 'boolean', description: 'Read the complete output TokenWise shortened before you first read it.' },
   },
   required: ['observation_id'],
   additionalProperties: false,
@@ -133,7 +133,11 @@ export function registerLightShadow(pi: ExtensionAPI, options: PiShadowOptions):
     async execute(toolCallId, params, _signal, _onUpdate, ctx) {
       const args = params as { observation_id?: unknown; query?: unknown; line?: unknown; original?: unknown }
       const references = branchReferences(ctx.sessionManager.getBranch())
-      const result = recallObservation(args, { lookup: id => references.get(id), artifacts: options.artifacts })
+      const sessionId = options.sessionId(ctx)
+      let journal: Map<string, ShadowReference> | undefined
+      // Outputs Economy shortened are reachable by the ID its hint names, before any compaction.
+      const lookup = (id: string) => references.get(id) ?? (sessionId ? (journal ??= recallIndex(options.read(sessionId))).get(id) : undefined)
+      const result = recallObservation(args, { lookup, artifacts: options.artifacts })
       const id = typeof args.observation_id === 'string' ? args.observation_id.trim() : ''
       const text = renderRecall(id, result)
       append({ schemaVersion: 1, type: 'shadow/recall', time: time(), host: options.host, sessionId: options.sessionId(ctx), callId: toolCallId,
@@ -203,9 +207,11 @@ export function registerLightShadow(pi: ExtensionAPI, options: PiShadowOptions):
         result = await run(event.customInstructions)
       }
       if (event.signal.aborted) return undefined
-      const text = renderCheckpoint(result.summary, plan)
-      if (!checkpointAdmitted(text, plan)) {
-        append(checkpointRecord(base, { kind: 'standard', plan, checkpointTokens: Math.ceil(text.length / 4), reason: 'checkpoint-not-smaller' }))
+      // Right after another compaction the earlier catalog can fill most of the segment: list it by call alone then.
+      const text = fitCheckpoint(result.summary, plan, candidate => checkpointAdmitted(candidate, plan))
+      if (text === undefined) {
+        const compact = renderCheckpoint(result.summary, plan, { excerpts: 0 })
+        append(checkpointRecord(base, { kind: 'standard', plan, checkpointTokens: Math.ceil(compact.length / 4), reason: 'checkpoint-not-smaller' }))
         return undefined
       }
       append(checkpointRecord(base, { kind: 'lightshadow', plan, checkpointTokens: Math.ceil(text.length / 4) }))

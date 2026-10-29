@@ -1,13 +1,13 @@
 {
-  "name": "@lightcode-ai/mechanisms",
-  "version": "0.2.0",
-  "description": "LightCode mechanisms over host capability ports: Token Economy, LightShadow, self-evolution and receipts.",
+  "name": "@tokenwise/mechanisms",
+  "version": "0.3.0",
+  "description": "TokenWise mechanisms over host capability ports: compact output, compaction that keeps what it drops, learned filters and receipts.",
   "license": "MIT",
   "type": "module",
-  "homepage": "https://github.com/Zongwei9888/lightcode-plugins#readme",
+  "homepage": "https://github.com/Zongwei9888/tokenwise#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Zongwei9888/lightcode-plugins.git",
+    "url": "git+https://github.com/Zongwei9888/tokenwise.git",
     "directory": "packages/mechanisms"
   },
   "engines": {
@@ -29,9 +29,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@lightcode-ai/core": "workspace:*",
-    "@lightcode-ai/protocol": "workspace:*",
-    "@lightcode-ai/store": "workspace:*"
+    "@tokenwise/core": "workspace:*",
+    "@tokenwise/protocol": "workspace:*",
+    "@tokenwise/store": "workspace:*"
   },
   "sideEffects": false
 }

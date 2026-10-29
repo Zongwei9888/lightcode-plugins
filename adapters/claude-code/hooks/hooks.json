@@ -1,0 +1,62 @@
+{
+  "description": "TokenWise: replace the output of recognized Bash commands with a smaller projection (in bypassPermissions mode, run them through `tokenwise run`); after a compaction, add the catalog of tool results TokenWise kept recallable.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tokenwise hook claude",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__plugin_tokenwise_tokenwise__tokenwise_recall",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tokenwise hook claude",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tokenwise hook claude",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tokenwise hook claude",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tokenwise hook claude",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}

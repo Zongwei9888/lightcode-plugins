@@ -1,10 +1,10 @@
-import { collectSubagents, formatTokens, summarizeEconomy, summarizeShadow } from '@lightcode-ai/mechanisms'
-import type { EconomySummary, ShadowSummary } from '@lightcode-ai/mechanisms'
-import type { JournalRecord } from '@lightcode-ai/protocol'
+import { collectSubagents, formatTokens, summarizeEconomy, summarizeShadow } from '@tokenwise/mechanisms'
+import type { EconomySummary, ShadowSummary } from '@tokenwise/mechanisms'
+import type { JournalRecord } from '@tokenwise/protocol'
 import { cliContext } from './context.ts'
 
 export function formatSummary(summary: EconomySummary, scope: string): string {
-  const lines = [`LightCode Economy — ${scope}`]
+  const lines = [`TokenWise — ${scope}`]
   if (summary.decisions === 0 && summary.rewrites === 0) return `${lines[0]}\nNo recorded decisions yet.\n`
   const percent = summary.rawTokens ? ` (${Math.round(100 * summary.savedTokens / summary.rawTokens)}% of filtered outputs)` : ''
   lines.push(`  tool outputs seen     ${summary.decisions}`)
@@ -26,9 +26,10 @@ export function formatSummary(summary: EconomySummary, scope: string): string {
 }
 
 export function formatShadow(summary: ShadowSummary): string {
-  if (summary.checkpoints + summary.standard + summary.cuts === 0) return ''
-  const lines = ['', 'LightShadow']
+  if (summary.checkpoints + summary.assisted + summary.standard + summary.cuts === 0) return ''
+  const lines = ['', 'Compaction']
   lines.push(`  compactions           ${summary.checkpoints}${summary.standard ? ` (${summary.standard} left to the host)` : ''}`)
+  if (summary.assisted) lines.push(`  host-summarized       ${summary.assisted} (catalog added after the host's summary)`)
   if (summary.cuts) lines.push(`  long results cut      ${summary.cuts} (complete text kept)`)
   lines.push(`  results recallable    ${summary.references} (~${formatTokens(summary.referencedTokens)} tokens)`)
   lines.push(`  recalls               ${summary.recalls}${summary.failedRecalls ? ` (${summary.failedRecalls} failed)` : ''}`)

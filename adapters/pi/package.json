@@ -1,20 +1,20 @@
 {
-  "name": "@lightcode-ai/pi",
-  "version": "0.2.0",
-  "description": "LightCode for the pi coding agent: shrinks recognized bash output (tests, builds, diffs, searches) and its own grep/find results before the model reads them, keeping the original in the session.",
+  "name": "@tokenwise/pi",
+  "version": "0.3.0",
+  "description": "TokenWise for the pi coding agent: shrinks recognized bash output (tests, builds, diffs, searches) and its own grep/find results before the model reads them, keeping the original in the session.",
   "license": "MIT",
   "type": "module",
   "keywords": [
     "pi-package",
     "pi-extension",
-    "lightcode",
+    "tokenwise",
     "context",
     "tokens"
   ],
-  "homepage": "https://github.com/Zongwei9888/lightcode-plugins/tree/main/adapters/pi#readme",
+  "homepage": "https://github.com/Zongwei9888/tokenwise/tree/main/adapters/pi#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Zongwei9888/lightcode-plugins.git",
+    "url": "git+https://github.com/Zongwei9888/tokenwise.git",
     "directory": "adapters/pi"
   },
   "engines": {
@@ -47,9 +47,9 @@
     "@earendil-works/pi-ai": "^1.1.0",
     "@earendil-works/pi-coding-agent": "1.1.0",
     "@earendil-works/pi-tui": "1.1.0",
-    "@lightcode-ai/core": "workspace:*",
-    "@lightcode-ai/mechanisms": "workspace:*",
-    "@lightcode-ai/protocol": "workspace:*",
-    "@lightcode-ai/store": "workspace:*"
+    "@tokenwise/core": "workspace:*",
+    "@tokenwise/mechanisms": "workspace:*",
+    "@tokenwise/protocol": "workspace:*",
+    "@tokenwise/store": "workspace:*"
   }
 }

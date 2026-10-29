@@ -1,5 +1,5 @@
 /**
- * pi's interactive side, driven through tmux: the status bar and `/lightcode`
+ * pi's interactive side, driven through tmux: the status bar and `/tokenwise`
  * in a TUI session, and switching the extension off and on in `pi config`
  * (the screen pi offers for enabling installed resources). Skipped without
  * tmux.
@@ -29,13 +29,13 @@ function terminal(name, { cwd, env, command }) {
   return {
     screen,
     visible,
-    /** Close the /lightcode panel and wait until it is gone: tmux may join a lone Escape with the next key. */
+    /** Close the /tokenwise panel and wait until it is gone: tmux may join a lone Escape with the next key. */
     closePanel: async () => {
       for (let attempt = 0; attempt < 5; attempt++) {
         tmux('send-keys', '-t', name, 'Escape')
         const deadline = Date.now() + 2000
         while (Date.now() < deadline) {
-          if (!visible().includes('◆ LightCode')) return
+          if (!visible().includes('◆ TokenWise')) return
           await new Promise(resolve => setTimeout(resolve, 100))
         }
       }
@@ -58,7 +58,7 @@ export async function runPiTui({ cache, root, registry, log }) {
   const version = VERSIONS.pi.at(-1)
   const pi = join(ensureTool(cache, 'pi', version), 'pi')
   const base = join(root, `pi-tui-${version}`)
-  const agentDir = join(base, 'agent'), work = join(base, 'work'), lightcodeHome = join(base, 'lightcode')
+  const agentDir = join(base, 'agent'), work = join(base, 'work'), tokenwiseHome = join(base, 'tokenwise')
   mkdirSync(agentDir, { recursive: true })
   mkdirSync(work, { recursive: true })
   createFixture(work)
@@ -66,21 +66,21 @@ export async function runPiTui({ cache, root, registry, log }) {
   const mock = await startMockLlm({ commands })
   writeFileSync(join(agentDir, 'models.json'), JSON.stringify({ providers: { mock: { baseUrl: mock.url, api: 'openai-completions', apiKey: 'e2e',
     models: [{ id: 'mock-model', contextWindow: 128000, maxTokens: 4096 }] } } }))
-  const env = childEnv({ ...registry.env, PI_CODING_AGENT_DIR: agentDir, LIGHTCODE_HOME: lightcodeHome, PI_SKIP_VERSION_CHECK: '1',
+  const env = childEnv({ ...registry.env, PI_CODING_AGENT_DIR: agentDir, TOKENWISE_HOME: tokenwiseHome, PI_SKIP_VERSION_CHECK: '1',
     PI_TELEMETRY: '0', PI_OFFLINE: '1', npm_config_cache: join(cache, 'npm-cache') })
   // tmux sessions inherit the tmux server's environment: pass everything the TUI needs (local addresses bypass any proxy).
-  const vars = Object.fromEntries(['PI_CODING_AGENT_DIR', 'LIGHTCODE_HOME', 'PI_SKIP_VERSION_CHECK', 'PI_TELEMETRY', 'PI_OFFLINE', 'NO_PROXY', 'no_proxy']
+  const vars = Object.fromEntries(['PI_CODING_AGENT_DIR', 'TOKENWISE_HOME', 'PI_SKIP_VERSION_CHECK', 'PI_TELEMETRY', 'PI_OFFLINE', 'NO_PROXY', 'no_proxy']
     .map(key => [key, env[key]]))
   const settings = () => JSON.parse(readFileSync(join(agentDir, 'settings.json'), 'utf8'))
-  const decisions = () => journal(lightcodeHome, 'pi').filter(record => record.type === 'economy/decision').length
+  const decisions = () => journal(tokenwiseHome, 'pi').filter(record => record.type === 'economy/decision').length
   const printRun = async () => {
     const result = await runAsync(pi, ['-p', '--provider', 'mock', '--model', 'mock-model', 'Run the fixture commands.'], { cwd: work, env })
     assert.equal(result.status, 0, result.stderr)
   }
   const toggleInConfig = async (expected) => {
-    const config = terminal('lightcode-pi-config', { cwd: work, env: vars, command: [pi, 'config'] })
+    const config = terminal('tokenwise-pi-config', { cwd: work, env: vars, command: [pi, 'config'] })
     try {
-      await config.waitFor(/\[[x ]\] dist\/extension\.js/, 'the LightCode extension in pi config')
+      await config.waitFor(/\[[x ]\] dist\/extension\.js/, 'the TokenWise extension in pi config')
       config.keys('Space')
       await config.waitFor(new RegExp(`\\[${expected ? 'x' : ' '}\\] dist/extension\\.js`), `the extension ${expected ? 'on' : 'off'}`)
       config.keys('Escape')
@@ -92,10 +92,10 @@ export async function runPiTui({ cache, root, registry, log }) {
     } finally { config.close() }
   }
   try {
-    run(pi, ['install', 'npm:@lightcode-ai/pi'], { cwd: base, env })
+    run(pi, ['install', 'npm:@tokenwise/pi'], { cwd: base, env })
 
-    // 1. A TUI session: the status bar shows the savings, the /lightcode panel and report explain them.
-    const session = terminal('lightcode-pi-tui', { cwd: work, env: vars, command: [pi, '--provider', 'mock', '--model', 'mock-model'] })
+    // 1. A TUI session: the status bar shows the savings, the /tokenwise panel and report explain them.
+    const session = terminal('tokenwise-pi-tui', { cwd: work, env: vars, command: [pi, '--provider', 'mock', '--model', 'mock-model'] })
     const shots = join(base, 'screens')
     mkdirSync(shots, { recursive: true })
     const keep = name => writeFileSync(join(shots, `${name}.txt`), session.screen())
@@ -103,16 +103,16 @@ export async function runPiTui({ cache, root, registry, log }) {
       await session.waitFor(/mock-model/, 'pi to start')
       session.keys('Run the fixture commands.', 'Enter')
       await session.waitFor(/^ ?done\s*$/m, 'the scripted turn to finish', 120_000)
-      await session.waitFor(/LightCode −\d/, 'the LightCode status')
-      session.keys('/lightcode')
-      await session.waitFor(/lightcode .*LightCode: savings, learned rules and learning/, '/lightcode in the command list')
+      await session.waitFor(/TokenWise −\d/, 'the TokenWise status')
+      session.keys('/tokenwise')
+      await session.waitFor(/tokenwise .*TokenWise: savings, learned rules and learning/, '/tokenwise in the command list')
       session.keys('Enter')
-      await session.waitFor(/◆ LightCode[\s\S]*THIS SESSION[\s\S]*Economy +3 of 4 outputs filtered[\s\S]*SELF-EVOLUTION[\s\S]*l learn now/, 'the /lightcode panel')
+      await session.waitFor(/◆ TokenWise[\s\S]*THIS SESSION[\s\S]*Output +3 of 4 outputs filtered[\s\S]*SELF-EVOLUTION[\s\S]*l learn now/, 'the /tokenwise panel')
       keep('01-panel')
       await session.closePanel()
-      session.keys('/lightcode status', 'Enter')
-      await session.waitFor(/LightCode Economy: 3 outputs filtered, ~\S+ tokens saved, 1 passed unchanged/, 'the /lightcode status report')
-      log(`pi ${version} TUI: status bar ✓ /lightcode panel ✓ /lightcode status ✓`)
+      session.keys('/tokenwise status', 'Enter')
+      await session.waitFor(/TokenWise output: 3 outputs filtered, ~\S+ tokens saved, 1 passed unchanged/, 'the /tokenwise status report')
+      log(`pi ${version} TUI: status bar ✓ /tokenwise panel ✓ /tokenwise status ✓`)
 
       // 1b. Learning from the panel: evidence from this session, "l" and "y", a learner (pi itself, on the
       // session's model) writes a rule in the background, the panel and footer follow it, and pi announces the
@@ -128,8 +128,8 @@ export async function runPiTui({ cache, root, registry, log }) {
         if (Date.now() > deadline) throw new Error(`pi TUI: the link runs were not recorded\n${session.screen()}`)
         await new Promise(resolve => setTimeout(resolve, 250))
       }
-      await session.waitFor(/LightCode −\d/, 'the status after the link runs')
-      session.keys('/lightcode', 'Enter')
+      await session.waitFor(/TokenWise −\d/, 'the status after the link runs')
+      session.keys('/tokenwise', 'Enter')
       await session.waitFor(/✦ Ready to learn[\s\S]*Worth learning +\.\/link\.sh +3 outputs/, 'the panel to suggest learning', 60_000)
       keep('02-panel-ready')
       session.keys('l')
@@ -143,9 +143,9 @@ export async function runPiTui({ cache, root, registry, log }) {
       await session.waitFor(/• link-progress/, 'the learned rule in the panel')
       keep('05-panel-adopted')
       await session.closePanel()
-      await session.waitFor(/LightCode learning adopted rule link-progress/, 'the adoption notice')
+      await session.waitFor(/TokenWise learning adopted rule link-progress/, 'the adoption notice')
       keep('06-notice')
-      const status = JSON.parse(readFileSync(join(lightcodeHome, 'evolve', 'status.json'), 'utf8'))
+      const status = JSON.parse(readFileSync(join(tokenwiseHome, 'evolve', 'status.json'), 'utf8'))
       assert.equal(status.host, 'pi')
       assert.equal(status.learner, 'pi · mock-model')
       // The same session, next output: the learned rule applies.

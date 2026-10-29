@@ -1,13 +1,13 @@
 /**
- * The `/lightcode` panel in pi's terminal UI: this session's savings,
+ * The `/tokenwise` panel in pi's terminal UI: this session's savings,
  * LightShadow, and self-evolution (learned rules, what is worth learning next,
  * a run in progress and the last result), with keys to start, cancel or roll
  * back learning. Rendering is a pure function of the data and the panel's
  * state, so tests can check it without a terminal.
  */
 import { matchesKey, truncateToWidth, visibleWidth } from '@earendil-works/pi-tui'
-import { formatTokens, outcomeSentence } from '@lightcode-ai/mechanisms'
-import type { EconomySummary, EvolveStatus, ShadowSummary } from '@lightcode-ai/mechanisms'
+import { formatTokens, outcomeSentence } from '@tokenwise/mechanisms'
+import type { EconomySummary, EvolveStatus, ShadowSummary } from '@tokenwise/mechanisms'
 
 /** The members of pi's Theme the panel uses. */
 export interface PanelTheme {
@@ -23,7 +23,7 @@ export interface PanelData {
   readonly evolve: EvolveStatus
   /** The learner a run started here would use, or why none can start. */
   readonly learner: { readonly label: string } | { readonly unavailable: string }
-  /** Learned rules switched off by `economy.learnedRules: false`. */
+  /** Learned rules switched off by `output.learnedRules: false`. */
   readonly learnedRulesOff: boolean
   readonly now: number
 }
@@ -102,17 +102,17 @@ export function renderPanel(data: PanelData, state: PanelState, width: number, t
   const lines: string[] = []
   const row = (text = '') => lines.push(text)
 
-  row(spread(`${t.fg('accent', '◆')} ${t.bold('LightCode')}`, t.fg('dim', data.modes), inner))
+  row(spread(`${t.fg('accent', '◆')} ${t.bold('TokenWise')}`, t.fg('dim', data.modes), inner))
   row()
 
   // This session.
   row(heading('THIS SESSION'))
   const e = data.economy
-  row(spread(`${label('Economy')}${e.projected} of ${e.projected + e.passed + e.previewed} outputs filtered`,
+  row(spread(`${label('Output')}${e.projected} of ${e.projected + e.passed + e.previewed} outputs filtered`,
     e.savedTokens > 0 ? t.fg('success', `−${formatTokens(e.savedTokens)} tokens`) : t.fg('dim', 'nothing saved yet'), inner))
   if (e.previewed > 0) row(`${label('')}${t.fg('dim', `observe mode: ${e.previewed} would have saved ~${formatTokens(e.previewSavedTokens)}`)}`)
   const s = data.shadow
-  row(`${label('LightShadow')}${s.checkpoints + s.standard === 0 ? t.fg('dim', 'no compaction yet')
+  row(`${label('Compaction')}${s.checkpoints + s.standard === 0 ? t.fg('dim', 'no compaction yet')
     : `${s.checkpoints} compaction${s.checkpoints === 1 ? '' : 's'} · ${s.references} results recallable · ${s.recalls} recalled`}`)
   if (data.subagents && data.subagents.sessions > 0) {
     const c = data.subagents.summary
@@ -151,7 +151,7 @@ export function renderPanel(data: PanelData, state: PanelState, width: number, t
       const stats = use && use.projections > 0 ? `${String(use.projections).padStart(4)}× ${t.fg('success', `−${formatTokens(use.savedTokens)}`.padStart(8))}${use.originalRecalls ? t.fg('warning', `  ↺ ${use.originalRecalls}`) : ''}` : t.fg('dim', 'not used yet')
       row(spread(`${label('')}${t.fg('accent', '•')} ${rule.id}`, stats, inner))
     }
-    if (rules.rules.length > 6) row(`${label('')}${t.fg('dim', `… ${rules.rules.length - 6} more (lc rules show)`)}`)
+    if (rules.rules.length > 6) row(`${label('')}${t.fg('dim', `… ${rules.rules.length - 6} more (tokenwise rules show)`)}`)
     if (rules.loadError) row(`${label('')}${t.fg('error', `cannot load: ${rules.loadError}`)}`)
   } else {
     row(`${label('Rules')}${t.fg('dim', rules.history > 0 ? 'none active (rolled back or switched off)' : 'none yet — learning turns recorded output into rules')}`)
@@ -165,7 +165,7 @@ export function renderPanel(data: PanelData, state: PanelState, width: number, t
         `${t.fg('dim', `~${formatTokens(item.leftTokens)} left`)} ${t.fg('accent', bar(item.leftTokens, max, 8))}`, inner))
     })
   } else if (!run?.running) {
-    row(`${label('Worth learning')}${t.fg('dim', scan ? 'nothing new yet — LightCode keeps collecting as you work' : 'looking at recorded output…')}`)
+    row(`${label('Worth learning')}${t.fg('dim', scan ? 'nothing new yet — TokenWise keeps collecting as you work' : 'looking at recorded output…')}`)
   }
 
   if (run && !run.running && run.outcome) {

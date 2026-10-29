@@ -1,10 +1,8 @@
 import { spawn } from 'node:child_process'
 import { basename } from 'node:path'
 import { constants } from 'node:os'
-import { EconomyEngine } from '@lightcode-ai/mechanisms'
-import { RuleStore, collectDaily } from '@lightcode-ai/store'
-import type { ShellResult } from '@lightcode-ai/core'
-import { cliContext, shellQuote } from './context.ts'
+import { shellQuote } from './context.ts'
+import { projectOutput } from './project.ts'
 
 export interface RunOptions {
   readonly host: string
@@ -17,12 +15,12 @@ export interface RunOptions {
   readonly argv?: readonly string[]
 }
 
-/** Per stream; beyond it LightCode stops buffering and passes the rest through unchanged. */
+/** Per stream; beyond it TokenWise stops buffering and passes the rest through unchanged. */
 const CAPTURE_LIMIT = 32 * 1024 * 1024
 const FORWARDED = ['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGQUIT'] as const
 const SHELLS = new Set(['sh', 'bash', 'zsh', 'dash', 'ksh'])
 
-/** The command text filters see: the script itself, never LightCode's wrapper. */
+/** The command text filters see: the script itself, never TokenWise's wrapper. */
 export function commandText(options: Pick<RunOptions, 'script' | 'argv'>): string {
   if (options.script !== undefined) return options.script
   const argv = options.argv ?? []
@@ -51,7 +49,7 @@ export function run(options: RunOptions): Promise<never> {
   const program = options.script !== undefined ? shellProgram(env) : options.argv?.[0]
   const args = options.script !== undefined ? ['-c', options.script] : (options.argv ?? []).slice(1)
   if (!program) {
-    process.stderr.write('lc run: missing command (use -c <script> or -- <program> [args...])\n')
+    process.stderr.write('tokenwise run: missing command (use -c <script> or -- <program> [args...])\n')
     process.exit(2)
   }
   const child = spawn(program, args, { stdio: ['inherit', 'pipe', 'pipe'], env })
@@ -79,7 +77,7 @@ export function run(options: RunOptions): Promise<never> {
     child.on('error', error => {
       for (const [signal, handler] of handlers) process.off(signal, handler)
       const code = (error as NodeJS.ErrnoException).code
-      process.stderr.write(`lc run: ${program}: ${code === 'ENOENT' ? 'command not found' : error.message}\n`)
+      process.stderr.write(`tokenwise run: ${program}: ${code === 'ENOENT' ? 'command not found' : error.message}\n`)
       process.exit(code === 'ENOENT' ? 127 : 126)
     })
     child.on('close', (code, signal) => {
@@ -116,33 +114,11 @@ function flushThen(next: () => void): void {
 
 function project(options: RunOptions, command: string, code: number | null, signal: NodeJS.Signals | null,
   order: readonly { fd: 1 | 2; chunk: Buffer }[]): { stdout?: string; stderr?: string; first: 1 | 2 } | undefined {
-  const context = cliContext()
-  const { config } = context.loaded
-  if (config.economy.mode === 'off') return undefined
-  // Originals must be savable before anything is filtered (sandboxed hosts may only allow TMPDIR).
-  const store = context.writable()
-  if (!store) return undefined
-  // One store, so the rules compile once however many streams this run filters.
-  const rules = new RuleStore(context.dataDir)
-  const engine = new EconomyEngine({ host: options.host, journal: store.journal, artifacts: store.artifacts,
-    config: config.economy, mode: config.economy.mode, delivery: 'command-wrapper', streams: 'separate',
-    learned: () => rules.load() })
   const stdout = decode(order.filter(item => item.fd === 1).map(item => item.chunk))
   const stderr = decode(order.filter(item => item.fd === 2).map(item => item.chunk))
   // Binary output is never filtered, and neither is the other stream of the same command.
   if (stdout === undefined || stderr === undefined) return undefined
-  const exitCode = code ?? -1
-  const interrupted = signal !== null || code === null
-  const request = (result: ShellResult) => ({ sessionId: options.sessionId, callId: options.callId, tool: options.tool, result })
-  let projectedOut: string | undefined, projectedErr: string | undefined
-  if (stdout !== '') {
-    projectedOut = engine.process(request({ command, exitCode, interrupted, rendered: stdout, stdout: { start: 0, text: stdout } })).text
-  }
-  if (stderr !== '') {
-    projectedErr = engine.process(request({ command, exitCode, interrupted, rendered: stderr,
-      stdout: { start: 0, text: '' }, stderr: { start: 0, text: stderr } })).text
-  }
-  try { collectDaily(store.dataDir, days => store.artifacts.prune(days), config.artifacts.retentionDays) } catch { /* Housekeeping only. */ }
-  if (projectedOut === undefined && projectedErr === undefined) return undefined
-  return { stdout: projectedOut ?? stdout, stderr: projectedErr ?? stderr, first: order[0]?.fd ?? 1 }
+  const projected = projectOutput({ host: options.host, delivery: 'command-wrapper', tool: options.tool, sessionId: options.sessionId,
+    callId: options.callId, command, exitCode: code ?? -1, interrupted: signal !== null || code === null, stdout, stderr })
+  return projected ? { ...projected, first: order[0]?.fd ?? 1 } : undefined
 }

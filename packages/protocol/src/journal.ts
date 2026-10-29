@@ -1,7 +1,7 @@
-import type { EconomyFilterName, EconomyMatchDetail, EconomyPassReason, EconomyTransformation, CommandRewriteRule } from '@lightcode-ai/core'
+import type { EconomyFilterName, EconomyMatchDetail, EconomyPassReason, EconomyTransformation, CommandRewriteRule } from '@tokenwise/core'
 
 /**
- * LightCode's own records. They live in LightCode's private journal, never in
+ * TokenWise's own records. They live in TokenWise's private journal, never in
  * the model context, and are anchored to host identifiers (session and tool
  * call IDs) so no host needs a patch to carry them.
  */
@@ -42,8 +42,8 @@ export interface EconomyRecord extends JournalBase {
   readonly tool: string
   readonly command: string
   readonly exitCode: number | null
-  /** How the projection reaches the model: inside the host process, or by `lc run`. */
-  readonly delivery: 'in-process' | 'command-wrapper'
+  /** How the projection reaches the model: inside the host process, by `tokenwise run`, or by a hook that replaces the tool result. */
+  readonly delivery: 'in-process' | 'command-wrapper' | 'result-hook'
   /** Whether the host keeps stdout and stderr apart. Merged streams are filtered as one text. */
   readonly streams: 'separate' | 'merged'
   readonly mode: 'apply' | 'observe'
@@ -62,7 +62,7 @@ export interface EconomyRecord extends JournalBase {
   /**
    * The original as the model would have seen it; `stored` means it is in the
    * artifact store (always for a projection; for other outcomes when evidence
-   * for `lc evolve` is kept).
+   * for `tokenwise evolve` is kept).
    */
   readonly raw?: TextMeasure & { readonly stored: boolean }
   /** Where stdout (and stderr, when the host keeps it apart) sit in the original, in UTF-16 units. */
@@ -110,18 +110,21 @@ export interface ShadowReference {
 
 /**
  * One compaction. `lightshadow`: the checkpoint (summary, exact user
- * messages, catalog) replaced the segment. `standard`: the host's own
- * compaction ran instead, for `reason`. `cut`: the host cut long results to a
- * head and tail, and LightShadow kept each complete text recallable.
+ * messages, catalog) replaced the segment. `assisted`: the host wrote its own
+ * summary, and LightShadow kept the segment's tool results recallable and put
+ * their catalog into the context after it (hosts that let a plugin add
+ * context but not write the summary). `standard`: the host's own compaction
+ * ran instead, for `reason`. `cut`: the host cut long results to a head and
+ * tail, and LightShadow kept each complete text recallable.
  */
 export interface ShadowCheckpointRecord extends JournalBase {
   readonly type: 'shadow/checkpoint'
-  readonly kind: 'lightshadow' | 'standard' | 'cut'
+  readonly kind: 'lightshadow' | 'assisted' | 'standard' | 'cut'
   readonly references: readonly ShadowReference[]
   readonly userMessages: number
   readonly segmentTokens: number
   readonly checkpointTokens: number
-  readonly reason?: 'checkpoint-not-smaller' | 'observe' | 'error'
+  readonly reason?: 'checkpoint-not-smaller' | 'nothing-recallable' | 'observe' | 'error'
   /** With `reason: 'error'`: what failed, in at most 300 characters. */
   readonly error?: string
 }
@@ -138,7 +141,7 @@ export interface ShadowRecallRecord extends JournalBase {
 
 export type JournalRecord = EconomyRecord | CommandRewriteRecord | SubagentRecord | ShadowCheckpointRecord | ShadowRecallRecord
 
-/** Private, append-only. Writes are synchronous so a short-lived `lc run` never loses one. */
+/** Private, append-only. Writes are synchronous so a short-lived `tokenwise run` never loses one. */
 export interface JournalPort {
   append(record: JournalRecord): void
 }

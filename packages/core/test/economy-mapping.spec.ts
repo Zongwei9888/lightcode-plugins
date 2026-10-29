@@ -37,6 +37,26 @@ describe('Economy copy provenance', () => {
     expect(literalCommand('git diff HEAD~1')).toEqual(['git', 'diff', 'HEAD~1'])
   })
 
+  it('names a program given by its path by its file name, for the built-in filters only', async () => {
+    const { toolArgv } = await import('../src/index.ts')
+    expect(toolArgv('/opt/homebrew/bin/python3 -m pytest -v')).toEqual(['python3', '-m', 'pytest', '-v'])
+    expect(toolArgv('.venv/bin/pytest -x')).toEqual(['pytest', '-x'])
+    expect(toolArgv('git status')).toEqual(['git', 'status'])
+    expect(toolArgv('./')).toBeUndefined()
+    expect(literalCommand('.venv/bin/pytest -x')).toEqual(['.venv/bin/pytest', '-x'])
+  })
+
+  it('accepts a final 2>&1 and | tee <file>, alone or after a quiet cd prefix, but no other redirect or pipe', () => {
+    expect(literalCommand('python3 -m pytest -v 2>&1')).toEqual(['python3', '-m', 'pytest', '-v'])
+    expect(literalCommand('cd /repo && python3 -m pytest -v 2>&1')).toEqual(['python3', '-m', 'pytest', '-v'])
+    expect(literalCommand('pytest 2>&1 -v')).toBeUndefined()
+    expect(literalCommand('pytest -v 2>/dev/null')).toBeUndefined()
+    expect(literalCommand('pytest -v 2>&1 | tee out.txt')).toEqual(['pytest', '-v'])
+    expect(literalCommand('cd /repo && python3 -m pytest -v 2>&1 | tee -a /tmp/first_run.txt')).toEqual(['python3', '-m', 'pytest', '-v'])
+    expect(literalCommand('pytest -v | tee $OUT')).toBeUndefined()
+    expect(literalCommand('pytest -v | tee out.txt | tail -5')).toBeUndefined()
+  })
+
   it.each(['pytest -s', 'pytest -vs', 'pytest --capture=no', 'pytest --capture tee-sys'])('preserves interleaved live test output: %s', command => {
     const stdout = '================ test session starts ================\ncollected 1 item\nimportant .\n================ 1 passed in 0.05s ================\n'
     expect(projectStaticFilter({ command, stdout, exitCode: 0 })).toBeUndefined()

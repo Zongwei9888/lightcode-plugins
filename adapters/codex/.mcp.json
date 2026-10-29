@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "tokenwise": {
+      "command": "tokenwise",
+      "args": ["mcp", "--host", "codex"]
+    }
+  }
+}

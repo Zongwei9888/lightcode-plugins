@@ -1,8 +1,8 @@
 /**
  * A throwaway npm registry (verdaccio) that serves the freshly packed
- * LightCode packages under their real names and proxies everything else to
- * the public registry, so `pi install npm:@lightcode-ai/pi` and DSH's
- * "Add plugin → @lightcode-ai/dsh" run exactly as they will after publishing.
+ * TokenWise packages under their real names and proxies everything else to
+ * the public registry, so `pi install npm:@tokenwise/pi` and DSH's
+ * "Add plugin → @tokenwise/dsh" run exactly as they will after publishing.
  */
 import { spawn, spawnSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -33,7 +33,7 @@ uplinks:
     url: ${upstream}
     timeout: 60s
 packages:
-  '@lightcode-ai/*':
+  '@tokenwise/*':
     access: $all
     publish: $all
     unpublish: $all
@@ -46,7 +46,7 @@ server:
 log: { type: stdout, format: pretty, level: warn }
 `)
   const npmrc = join(dir, 'npmrc')
-  writeFileSync(npmrc, `registry=${url}\n//127.0.0.1:${port}/:_authToken=lightcode-e2e\n`)
+  writeFileSync(npmrc, `registry=${url}\n//127.0.0.1:${port}/:_authToken=tokenwise-e2e\n`)
   const child = spawn(verdaccio, ['--config', join(dir, 'config.yaml'), '--listen', `127.0.0.1:${port}`], { stdio: ['ignore', 'pipe', 'pipe'] })
   let log = ''
   child.stdout.on('data', chunk => { log += chunk })

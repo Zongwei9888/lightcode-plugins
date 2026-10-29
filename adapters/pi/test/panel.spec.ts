@@ -4,10 +4,10 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { visibleWidth } from '@earendil-works/pi-tui'
-import { sha256 } from '@lightcode-ai/core'
-import type { EvolveStatus } from '@lightcode-ai/mechanisms'
-import { FileArtifactStore, FileJournal, RuleStore, removeTree } from '@lightcode-ai/store'
-import { createLightCodeExtension } from '../src/extension.ts'
+import { sha256 } from '@tokenwise/core'
+import type { EvolveStatus } from '@tokenwise/mechanisms'
+import { FileArtifactStore, FileJournal, RuleStore, removeTree } from '@tokenwise/store'
+import { createTokenWiseExtension } from '../src/extension.ts'
 import { evolveBadge, panelKey, renderPanel } from '../src/panel.ts'
 import type { PanelData } from '../src/panel.ts'
 
@@ -21,12 +21,12 @@ function data(evolve: Partial<EvolveStatus>, extra: Partial<PanelData> = {}): Pa
     evolve: { rules: { active: null, rules: [], history: 0 }, ...evolve }, ...extra } as PanelData
 }
 
-describe('the /lightcode panel', () => {
+describe('the /tokenwise panel', () => {
   it('shows savings, what is worth learning and the keys, inside the width it gets', () => {
     const lines = renderPanel(data({ scan: { schemaVersion: 1, time: '', evidence: 40, newEvidence: 12, leftTokens: 9000, ready: true, rules: [], disabled: [],
       opportunities: [{ command: 'cargo', cases: 6, leftTokens: 8400 }, { command: 'npm', cases: 3, leftTokens: 2100 }] } }), {}, 120, plain)
     const text = lines.join('\n')
-    expect(text).toContain('◆ LightCode')
+    expect(text).toContain('◆ TokenWise')
     expect(text).toContain('12 of 42 outputs filtered')
     expect(text).toContain('−24.1k tokens')
     expect(text).toContain('1 compaction · 17 results recallable · 2 recalled')
@@ -85,7 +85,7 @@ describe('the /lightcode panel', () => {
 })
 
 const dirs: string[] = []
-const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'lightcode-pi-learn-')); dirs.push(dir); return dir }
+const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'tokenwise-pi-learn-')); dirs.push(dir); return dir }
 afterEach(() => { for (const dir of dirs.splice(0)) removeTree(dir) })
 
 /** A pi stand-in that records what the extension registers and lets a test call it. */
@@ -110,7 +110,7 @@ function fakePi() {
 const progress = (seed: number) => Array.from({ length: 120 }, (_, i) => `[${String(i + 1).padStart(3)}/120] Compiling crate_${seed}_${i}`).join('\n') + '\nFinished\n'
 
 describe('learning from pi', () => {
-  it('/lightcode learn runs the learner in the background, adopts what verifies, and announces it', async () => {
+  it('/tokenwise learn runs the learner in the background, adopts what verifies, and announces it', async () => {
     const home = temp(), work = temp()
     for (const seed of [1, 2, 3]) {
       const output = progress(seed)
@@ -123,31 +123,31 @@ describe('learning from pi', () => {
     writeFileSync(script, `mkdir -p rules-work/rules
 echo '{ "schemaVersion": 1, "rules": [{ "id": "compile-progress", "file": "rules/compile-progress.js" }] }' > rules-work/index.json
 cat > rules-work/rules/compile-progress.js <<'JS'
-defineRule({ project(input, lc) {
+defineRule({ project(input, tw) {
   if (!input.argv || input.argv[0] !== './build.sh') return null
-  return lc.keepLines(input.raw, line => !/^\\[\\s*\\d+\\/\\d+\\] Compiling /.test(line.text), n => '[' + n + ' compile lines omitted]\\n')
+  return tw.keepLines(input.raw, line => !/^\\[\\s*\\d+\\/\\d+\\] Compiling /.test(line.text), n => '[' + n + ' compile lines omitted]\\n')
 } })
 JS
 ./check
 `)
     const pi = fakePi()
-    createLightCodeExtension({ dataDir: home, env: { ...process.env, LIGHTCODE_HOME: home },
+    createTokenWiseExtension({ dataDir: home, env: { ...process.env, TOKENWISE_HOME: home },
       runner: fileURLToPath(new URL('../../../packages/mechanisms/test/fixtures/runner.ts', import.meta.url)), runnerNodeArgs: ['--conditions=source'],
       learner: () => ({ argv: [`sh ${script}`], shell: true, label: 'test learner' }) })(pi.api as never)
-    const command = pi.commands.get('lightcode')!
+    const command = pi.commands.get('tokenwise')!
     expect((command.getArgumentCompletions!('ro') as { value: string }[]).map(item => item.value)).toEqual(['rollback'])
     await pi.handlers.get('session_start')!({}, pi.ctx)
     await command.handler('learn', pi.ctx)
     expect(pi.notes.at(-1)!.text).toContain('Learning with test learner in the background')
     // The footer follows the run, and the extension announces the adoption once it ends.
     const deadline = Date.now() + 30_000
-    while (!pi.notes.some(note => note.text.startsWith('LightCode learning adopted'))) {
+    while (!pi.notes.some(note => note.text.startsWith('TokenWise learning adopted'))) {
       if (Date.now() > deadline) throw new Error(`no announcement: ${JSON.stringify(pi.notes)}`)
       await new Promise(resolve => setTimeout(resolve, 200))
     }
     expect(pi.statuses.some(text => /learning \d+:\d\d/.test(text))).toBe(true)
-    expect(pi.notes.find(note => note.text.startsWith('LightCode learning adopted'))!.text)
-      .toMatch(/adopted rule compile-progress: \+[\d.]+k? tokens on 3 recorded outputs, confirmed on 1 it had not seen\. \/lightcode to review or roll back\./)
+    expect(pi.notes.find(note => note.text.startsWith('TokenWise learning adopted'))!.text)
+      .toMatch(/adopted rule compile-progress: \+[\d.]+k? tokens on 3 recorded outputs, confirmed on 1 it had not seen\. \/tokenwise to review or roll back\./)
     expect(new RuleStore(home).state().active).toMatch(/^[a-f0-9]{64}$/)
     await command.handler('rules', pi.ctx)
     expect(pi.notes.at(-1)!.text).toContain('compile-progress (preview)')

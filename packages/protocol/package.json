@@ -1,13 +1,13 @@
 {
-  "name": "@lightcode-ai/protocol",
-  "version": "0.2.0",
-  "description": "LightCode host capability vocabulary, host profiles, mechanism negotiation and journal record schemas.",
+  "name": "@tokenwise/protocol",
+  "version": "0.3.0",
+  "description": "TokenWise host capability vocabulary, host profiles, mechanism negotiation and journal record schemas.",
   "license": "MIT",
   "type": "module",
-  "homepage": "https://github.com/Zongwei9888/lightcode-plugins#readme",
+  "homepage": "https://github.com/Zongwei9888/tokenwise#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Zongwei9888/lightcode-plugins.git",
+    "url": "git+https://github.com/Zongwei9888/tokenwise.git",
     "directory": "packages/protocol"
   },
   "engines": {
@@ -29,7 +29,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@lightcode-ai/core": "workspace:*"
+    "@tokenwise/core": "workspace:*"
   },
   "sideEffects": false
 }

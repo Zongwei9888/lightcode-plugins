@@ -3,8 +3,8 @@
  * Only their complete rendering of the structured value qualifies: a result the
  * host capped, spilled or another listener rewrote is never touched.
  */
-import { nativeGrepSections, nativePathList } from '@lightcode-ai/core'
-import type { NativeResult } from '@lightcode-ai/core'
+import { nativeGrepSections, nativePathList } from '@tokenwise/core'
+import type { NativeResult } from '@tokenwise/core'
 import type { ContentBlock } from './host.ts'
 
 export const NATIVE_TOOLS: ReadonlySet<string> = new Set(['grep', 'glob'])

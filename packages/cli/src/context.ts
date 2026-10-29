@@ -1,9 +1,9 @@
-import { FileArtifactStore, FileJournal, dataDirs, loadConfig, readJournals, resolveDataDir, writableDataDir } from '@lightcode-ai/store'
-import type { LoadedConfig } from '@lightcode-ai/store'
-import type { JournalRecord } from '@lightcode-ai/protocol'
+import { FileArtifactStore, FileJournal, dataDirs, loadConfig, readJournals, resolveDataDir, writableDataDir } from '@tokenwise/store'
+import type { LoadedConfig } from '@tokenwise/store'
+import type { JournalRecord } from '@tokenwise/protocol'
 
 export interface CliContext {
-  /** Where configuration lives (`$LIGHTCODE_HOME` or `~/.lightcode`). */
+  /** Where configuration lives (`$TOKENWISE_HOME` or `~/.tokenwise`). */
   readonly dataDir: string
   /** Every location records may be in, primary first. */
   readonly dataDirs: readonly string[]
@@ -41,4 +41,4 @@ export function cliContext(options: { cwd?: string; env?: NodeJS.ProcessEnv } = 
   }
 }
 
-export { onPath, shellQuote } from '@lightcode-ai/mechanisms'
+export { onPath, shellQuote } from '@tokenwise/mechanisms'

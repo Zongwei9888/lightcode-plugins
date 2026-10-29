@@ -1,10 +1,10 @@
-import { literalCommand } from '../command.ts'
+import { toolArgv } from '../command.ts'
 import { ProjectionBuilder, sourceLines } from '../projection-map.ts'
 import type { EconomyFilter, FilterInput } from '../types.ts'
 
 /** Remove Cargo's recognized dependency progress, never compiler diagnostics or unknown build-script output. */
 function projectMapped(input: FilterInput) {
-  const argv = literalCommand(input.command)
+  const argv = toolArgv(input.command)
   if (argv?.[0] !== 'cargo' || !['build', 'check', 'clippy', 'install'].includes(argv[1] ?? '')
     || argv.some(arg => arg.startsWith('--message-format') || ['-v', '-vv', '--verbose'].includes(arg))
     || ![0, 101].includes(input.exitCode) || /[\u001b\0]|\r(?!\n)/.test(input.stdout)) return undefined

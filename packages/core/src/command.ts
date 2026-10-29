@@ -1,6 +1,12 @@
-/** Recognize literal argv and an optional quiet cd prefix; unknown shell syntax passes through. */
+/**
+ * Recognize literal argv, an optional quiet cd prefix, and the endings agents
+ * add to test runs that leave the output as it is: `2>&1` (stderr into the
+ * same output) and `| tee [-a] <file>` (a copy saved to a file). Unknown shell
+ * syntax passes through.
+ */
 export function literalCommand(command: string): readonly string[] | undefined {
   if (/[\r\n\0]/.test(command)) return undefined
+  command = command.replace(/\s*\|\s*tee(?:\s+-a)?\s+[\w./+-]+\s*$/u, '').replace(/\s+2>&1\s*$/u, '')
   const words: string[] = []
   const conjunctions: number[] = []
   let word = ''
@@ -42,6 +48,20 @@ export function literalCommand(command: string): readonly string[] | undefined {
   return words
 }
 
+/**
+ * `literalCommand` with the program named by its file name, so
+ * `/opt/homebrew/bin/python3 -m pytest` and `.venv/bin/pytest` read as the
+ * tools they run. For the built-in filters, which also check the output's
+ * shape; learned rules see the command as written.
+ */
+export function toolArgv(command: string): readonly string[] | undefined {
+  const argv = literalCommand(command)
+  const head = argv?.[0]
+  if (!argv || !head?.includes('/')) return argv
+  const name = head.slice(head.lastIndexOf('/') + 1)
+  return name ? [name, ...argv.slice(1)] : undefined
+}
+
 /** Unsupported compounds are never reduced to their final segment. */
 export function lastEffectiveCommand(command: string): string {
   return literalCommand(command)?.join(' ') ?? ''
@@ -49,7 +69,7 @@ export function lastEffectiveCommand(command: string): string {
 
 /** Only transparent, literal package runners; never infer a package script's body. */
 export function developerCommand(command: string): readonly string[] | undefined {
-  const argv = literalCommand(command)
+  const argv = toolArgv(command)
   if (argv === undefined) return undefined
   if (argv[0] === 'npx') return argv[1]?.startsWith('-') ? undefined : argv.slice(1)
   if (argv[0] === 'pnpm') {

@@ -1,5 +1,5 @@
 /**
- * The browser half's calls to the Host's /api/lightcode routes (./learning.ts
+ * The browser half's calls to the Host's /api/tokenwise routes (./learning.ts
  * on the Host). Paths are relative, so they resolve under whatever base the
  * Web client is served from, the Desktop app included.
  */
@@ -10,7 +10,7 @@ export type RulesAction = 'off' | 'on' | 'rollback'
 export interface ReadyCommand { readonly command: string; readonly cases: number; readonly leftTokens: number }
 
 async function call<T>(path: string, init?: { method: 'POST'; body?: unknown }): Promise<T> {
-  const response = await fetch(`api/lightcode/${path}`, {
+  const response = await fetch(`api/tokenwise/${path}`, {
     method: init?.method ?? 'GET', credentials: 'same-origin',
     ...init?.body === undefined ? {} : { body: JSON.stringify(init.body), headers: { 'content-type': 'application/json' } },
   })

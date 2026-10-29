@@ -1,5 +1,5 @@
 import { inspectShell } from '../shell-inspection.ts'
-import { literalCommand } from '../command.ts'
+import { toolArgv } from '../command.ts'
 import type { EconomyFilter, FilterInput } from '../types.ts'
 import { resemblesCustomTestReport } from './custom-test-report.ts'
 import { previewPositiveRows } from './test-preview.ts'
@@ -9,7 +9,7 @@ function isTestCommand(command: string): boolean {
   if (!inspectShell(command)) return false
   // Only stderr merge and a final line-window pipeline, not arbitrary compounds.
   const base = command.replace(/\s+2>&1(?=\s|$)/g, '').replace(/\s*\|\s*(?:tail|head)\s+(?:-\d+|-n\s+\d+)\s*$/, '')
-  const argv = literalCommand(base)
+  const argv = toolArgv(base)
   if (!argv) return false
   if (['npm', 'pnpm', 'yarn', 'bun'].includes(argv[0] ?? '')) return argv[1] === 'test' || argv[1] === 'run' && argv[2] === 'test'
   if (['vitest', 'jest', 'pytest'].includes(argv[0] ?? '')) return true

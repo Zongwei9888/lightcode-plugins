@@ -1,6 +1,6 @@
 /**
  * The DeepSeek Harness Plugins page, driven like a user: install
- * @lightcode-ai/dsh by name, enable it, work in a chat, read `/lightcode`, change
+ * @tokenwise/dsh by name, enable it, work in a chat, read `/tokenwise`, change
  * Mode on the plugin's page (applied live), switch the bundle off and on, and
  * uninstall it. Shared by the Web UI (`dsh web`) and the Desktop app, which
  * embeds the same client.
@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { COMMANDS } from './fixture.mjs'
-import { BUILD_LEARNED, adoptRules, linkLearnerCommand, writeBuildScript, writeLinkScript } from './rules.mjs'
+import { adoptRules, assertLearned, linkLearnerCommand, writeBuildScript, writeLinkScript } from './rules.mjs'
 import { SHADOW_PROMPT, checkpointRequest, readBack, seqCommands, shadowScript } from './shadow-script.mjs'
 import { toolResults } from './mock-llm.mjs'
 import { delivered, journal, verifyDeliveries } from './verify.mjs'
@@ -60,12 +60,12 @@ export async function until(check, what, timeoutMs = 60_000) {
 }
 
 /**
- * @param {{ page: import('playwright-core').Page, label: string, profileDir: string, lightcodeHome: string,
+ * @param {{ page: import('playwright-core').Page, label: string, profileDir: string, tokenwiseHome: string,
  *   mock: { requests: any[] }, shot: (name: string) => Promise<unknown>, log: (line: string) => void, pageErrors: string[] }} options
  */
-export async function exercisePluginsPage({ page, label, profileDir, lightcodeHome, workspace, mock, shot, log, pageErrors }) {
+export async function exercisePluginsPage({ page, label, profileDir, tokenwiseHome, workspace, mock, shot, log, pageErrors }) {
   await page.getByRole('button', { name: 'Continue' }).click({ timeout: 30_000 }).catch(() => {})
-  const decisions = () => journal(lightcodeHome, 'dsh').filter(record => record.type === 'economy/decision')
+  const decisions = () => journal(tokenwiseHome, 'dsh').filter(record => record.type === 'economy/decision')
   const profile = () => JSON.parse(readFileSync(join(profileDir, 'package.json'), 'utf8'))
   const patch = () => readFileSync(join(profileDir, 'cordis.patch.yml'), 'utf8')
   // The chat composer is a contenteditable textbox; the sidebar also has a search input.
@@ -84,7 +84,7 @@ export async function exercisePluginsPage({ page, label, profileDir, lightcodeHo
     }
     await list.waitFor()
   }
-  const openLightCode = async () => { await openPlugins(); await page.getByRole('button', { name: 'View LightCode' }).click(); await page.getByText('@lightcode-ai/dsh', { exact: true }).first().waitFor() }
+  const openTokenWise = async () => { await openPlugins(); await page.getByRole('button', { name: 'View TokenWise' }).click(); await page.getByText('@tokenwise/dsh', { exact: true }).first().waitFor() }
   const chat = async (name, prompt = 'Run the fixture commands.') => {
     const before = mock.requests.length
     // Start from an empty draft: under load the click can leave the previous chat on screen, and a prompt typed
@@ -120,14 +120,14 @@ export async function exercisePluginsPage({ page, label, profileDir, lightcodeHo
     const done = page.getByText('done', { exact: true }).last()
     // Under load the app can leave the view on a fresh draft while the chat runs: open the newest session then.
     if (!await done.waitFor({ timeout: 60_000 }).then(() => true, () => false)) {
-      await page.getByText('LightCode e2e', { exact: true }).first().click()
+      await page.getByText('TokenWise e2e', { exact: true }).first().click()
       await done.waitFor({ timeout: 180_000 })
     }
     await shot(name)
     return mock.requests.slice(before)
   }
   const saveMode = async (mode) => {
-    await openLightCode()
+    await openTokenWise()
     await page.getByRole('tab', { name: mode }).click()
     await page.getByRole('button', { name: 'Save', exact: true }).click()
     await page.getByRole('button', { name: 'Save', exact: true }).and(page.locator(':disabled')).waitFor()
@@ -136,23 +136,23 @@ export async function exercisePluginsPage({ page, label, profileDir, lightcodeHo
   // 1. Install by name from the Plugins page, then enable.
   await openPlugins()
   await page.getByRole('button', { name: 'Add plugin', exact: true }).click()
-  await page.getByPlaceholder(/for example/).fill('@lightcode-ai/dsh')
+  await page.getByPlaceholder(/for example/).fill('@tokenwise/dsh')
   await page.getByRole('button', { name: 'Install', exact: true }).click()
   await page.getByRole('button', { name: /Enable now/ }).waitFor({ timeout: 180_000 })
   await shot('01-installed')
   await page.getByRole('button', { name: /Enable now/ }).click()
-  const card = page.locator('[data-plugin-package="@lightcode-ai/dsh"]')
+  const card = page.locator('[data-plugin-package="@tokenwise/dsh"]')
   await card.waitFor()
-  assert.match(await card.innerText(), /LightCode\s+Shrinks test, build, diff and search output/)
+  assert.match(await card.innerText(), /TokenWise\s+Shrinks test, build, diff and search output/)
   const icon = await card.locator('img').first().getAttribute('src')
   assert.match(icon ?? '', /^data:image\/svg\+xml/, 'the card does not show the package icon')
-  await until(() => profile().dsh.profile.bundles.includes('@lightcode-ai/dsh'), 'the bundle to be selected')
+  await until(() => profile().dsh.profile.bundles.includes('@tokenwise/dsh'), 'the bundle to be selected')
   await shot('02-card')
   log(`${label}: installed and enabled from the Plugins page ✓`)
 
-  // 2. A chat: the model reads projections, the tool card shows them, /lightcode reports them.
+  // 2. A chat: the model reads projections, the tool card shows them, /tokenwise reports them.
   const applied = await chat('03-chat-apply')
-  const summary = verifyDeliveries({ requests: applied, lightcodeHome, host: 'dsh', commands: COMMAND_LIST, expect: PROJECTED })
+  const summary = verifyDeliveries({ requests: applied, tokenwiseHome, host: 'dsh', commands: COMMAND_LIST, expect: PROJECTED })
   // The tool cards sit in collapsed groups: the turn, then "Ran commands", then each command.
   await page.getByText(/Completed in/).first().click()
   await page.getByText('Ran commands').first().click()
@@ -161,12 +161,12 @@ export async function exercisePluginsPage({ page, label, profileDir, lightcodeHo
   await shot('04-tool-cards')
   const box = composer()
   await box.click()
-  await box.fill('/lightcode')
-  await page.getByRole('option', { name: /lightcode/ }).or(page.getByText('LightCode: tokens saved in this session and the current mode')).first().waitFor()
+  await box.fill('/tokenwise')
+  await page.getByRole('option', { name: /tokenwise/ }).or(page.getByText('TokenWise: tokens saved in this session and the current mode')).first().waitFor()
   await page.keyboard.press('Enter')
-  await page.getByText(/LightCode saved ~\S+ tokens in this session \(3 of 4 outputs filtered\)/).first().waitFor()
-  await shot('05-lightcode-command')
-  log(`${label}: chat ✓ ${summary.map(item => `${item.filter ?? item.outcome} ${item.rawTokens}→${item.projectedTokens ?? item.rawTokens}`).join(', ')}; tool card ✓; /lightcode ✓`)
+  await page.getByText(/TokenWise saved ~\S+ tokens in this session \(3 of 4 outputs filtered\)/).first().waitFor()
+  await shot('05-tokenwise-command')
+  log(`${label}: chat ✓ ${summary.map(item => `${item.filter ?? item.outcome} ${item.rawTokens}→${item.projectedTokens ?? item.rawTokens}`).join(', ')}; tool card ✓; /tokenwise ✓`)
 
   // 2b. LightShadow inside the agent preset: a chat long enough to compact, then a recall.
   const shadow = shadowScript(seqCommands(26))
@@ -177,23 +177,23 @@ export async function exercisePluginsPage({ page, label, profileDir, lightcodeHo
   assert.ok(shadow.state.summaries > 0, 'the preset never compacted')
   assert.ok(shadow.state.recalledId, 'the model found no catalog or no recall tool after compaction')
   checkpointRequest(compacted)
-  const { checkpoints } = readBack(compacted, shadow.state.recalledId, lightcodeHome, 'dsh')
+  const { checkpoints } = readBack(compacted, shadow.state.recalledId, tokenwiseHome, 'dsh')
   const box2 = composer()
   await box2.click()
-  await box2.fill('/lightcode')
-  await page.getByRole('option', { name: /lightcode/ }).or(page.getByText('LightCode: tokens saved in this session and the current mode')).first().waitFor()
+  await box2.fill('/tokenwise')
+  await page.getByRole('option', { name: /tokenwise/ }).or(page.getByText('TokenWise: tokens saved in this session and the current mode')).first().waitFor()
   await page.keyboard.press('Enter')
-  await page.getByText(/LightShadow: \d+ compactions?, \d+ long results? cut, \d+ tool results kept recallable/).first().waitFor()
-  await shot('05c-lightcode-lightshadow')
-  log(`${label}: LightShadow in the agent preset ✓ (${checkpoints.map(record => record.kind).join(', ')}); recall ✓; /lightcode ✓`)
+  await page.getByText(/Compaction: \d+ compactions?, \d+ long results? cut, \d+ tool results kept recallable/).first().waitFor()
+  await shot('05c-tokenwise-lightshadow')
+  log(`${label}: compaction in the agent preset ✓ (${checkpoints.map(record => record.kind).join(', ')}); recall ✓; /tokenwise ✓`)
 
-  // 2c. A learned rule (as lc evolve adopts one) applies in the next session: the rule sandbox runs in the host's process.
+  // 2c. A learned rule (as tokenwise evolve adopts one) applies in the next session: the rule sandbox runs in the host's process.
   writeBuildScript(workspace)
-  const adopted = adoptRules(lightcodeHome)
+  const adopted = adoptRules(tokenwiseHome)
   mock.setScript({ commands: ['./build.sh'], toolArguments: command => ({ description: `Fixture: ${command}`, command }) })
   let built
   try { built = await chat('05d-chat-learned-rule') } finally { mock.setScript(fixture) }
-  assert.equal(toolResults(built.at(-1)).at(-1)?.text, BUILD_LEARNED, 'the learned rule did not apply')
+  assertLearned(toolResults(built.at(-1)).at(-1)?.text)
   const learned = decisions().at(-1)
   assert.equal(learned.rule, 'build-progress')
   assert.equal(learned.learnedRulesHash, adopted)
@@ -207,40 +207,40 @@ export async function exercisePluginsPage({ page, label, profileDir, lightcodeHo
   try { await chat('05e-chat-evidence') } finally { mock.setScript(fixture) }
   // Wherever the person is, a toast says once that the new output is worth learning from. Output of the earlier
   // chats (the long one's seq) can be announced first, in a toast of its own.
-  await page.getByText(/LightCode can learn from your .*\.\/link\.sh/).first().waitFor({ timeout: 300_000 })
+  await page.getByText(/TokenWise can learn from your .*\.\/link\.sh/).first().waitFor({ timeout: 300_000 })
   await shot('05e2-evolve-ready-toast')
-  const told = JSON.parse(readFileSync(join(lightcodeHome, 'evolve', 'ready-notice.json'), 'utf8')).dsh.told
+  const told = JSON.parse(readFileSync(join(tokenwiseHome, 'evolve', 'ready-notice.json'), 'utf8')).dsh.told
   assert.ok(told['./link.sh'] > 0, `the notice did not cover ./link.sh: ${JSON.stringify(told)}`)
   log(`${label}: "worth learning" toast ✓`)
-  await openLightCode()
-  const section = page.locator('[data-lightcode-evolve]')
+  await openTokenWise()
+  const section = page.locator('[data-tokenwise-evolve]')
   await section.first().waitFor()
-  await page.locator('[data-lightcode-state="ready"]').waitFor({ timeout: 60_000 })
-  assert.match(await page.locator('[data-lightcode-worth]').innerText(), /\.\/link\.sh\s+3 outputs/)
+  await page.locator('[data-tokenwise-state="ready"]').waitFor({ timeout: 60_000 })
+  assert.match(await page.locator('[data-tokenwise-worth]').innerText(), /\.\/link\.sh\s+3 outputs/)
   await section.first().scrollIntoViewIfNeeded()
   await shot('05f-evolve-ready')
-  await page.locator('[data-lightcode-action="learn"]').click()
-  assert.match(await page.locator('[data-lightcode-confirm]').innerText(), /Learn with DSH · mock-model\?/)
+  await page.locator('[data-tokenwise-action="learn"]').click()
+  assert.match(await page.locator('[data-tokenwise-confirm]').innerText(), /Learn with DSH · mock-model\?/)
   await shot('05g-evolve-confirm')
   mock.setScript({ commands: [linkLearnerCommand(['build-progress'])], toolArguments: command => ({ description: 'Write the rule and check it', command }) })
   try {
-    await page.locator('[data-lightcode-action="confirm"]').click()
-    await page.locator('[data-lightcode-evolve="running"]').waitFor({ timeout: 30_000 })
+    await page.locator('[data-tokenwise-action="confirm"]').click()
+    await page.locator('[data-tokenwise-evolve="running"]').waitFor({ timeout: 30_000 })
     await shot('05h-evolve-running')
-    await page.locator('[data-lightcode-last="adopted"]').waitFor({ timeout: 300_000 })
+    await page.locator('[data-tokenwise-last="adopted"]').waitFor({ timeout: 300_000 })
   } catch (error) {
-    const runs = join(lightcodeHome, 'evolve')
+    const runs = join(tokenwiseHome, 'evolve')
     throw new Error(`${error.message}\n--- status\n${readFileSync(join(runs, 'status.json'), 'utf8')}`, { cause: error })
   } finally { mock.setScript(fixture) }
-  await page.locator('[data-lightcode-rule="link-progress"]').waitFor()
-  await page.getByText('LightCode learned link-progress (+', { exact: false }).first().waitFor({ timeout: 30_000 })
+  await page.locator('[data-tokenwise-rule="link-progress"]').waitFor()
+  await page.getByText('TokenWise learned link-progress (+', { exact: false }).first().waitFor({ timeout: 30_000 })
   await shot('05i-evolve-adopted')
   // The section uses the app's tokens only, so the dark theme (DSH follows the system's) restyles it.
   await page.emulateMedia({ colorScheme: 'dark' })
   await page.waitForTimeout(500)
   await shot('05j-evolve-dark')
   await page.emulateMedia({ colorScheme: 'light' })
-  const status = JSON.parse(readFileSync(join(lightcodeHome, 'evolve', 'status.json'), 'utf8'))
+  const status = JSON.parse(readFileSync(join(tokenwiseHome, 'evolve', 'status.json'), 'utf8'))
   assert.equal(status.host, 'dsh')
   assert.equal(status.learner, 'DSH · mock-model')
   const held = status.outcome.generalization
@@ -248,16 +248,16 @@ export async function exercisePluginsPage({ page, label, profileDir, lightcodeHo
   assert.deepEqual(held.commands, ['./link.sh'])
   assert.deepEqual(held.byCommand.map(item => [item.command, item.heldOutCases]), [['./link.sh', 1]])
   assert.ok(held.heldOutGain > 0, 'the rule gained nothing on the held-back output')
-  const activeRules = () => JSON.parse(readFileSync(join(lightcodeHome, 'rules', 'active.json'), 'utf8')).active
+  const activeRules = () => JSON.parse(readFileSync(join(tokenwiseHome, 'rules', 'active.json'), 'utf8')).active
   const learnedHash = activeRules()
   assert.notEqual(learnedHash, adopted)
-  await page.locator('[data-lightcode-action="rollback"]').click()
+  await page.locator('[data-tokenwise-action="rollback"]').click()
   await until(() => activeRules() === adopted, 'the rollback to the earlier rules')
-  await page.locator('[data-lightcode-rule="link-progress"]').waitFor({ state: 'detached' })
-  await page.locator('[data-lightcode-rules]').getByRole('switch').click()
+  await page.locator('[data-tokenwise-rule="link-progress"]').waitFor({ state: 'detached' })
+  await page.locator('[data-tokenwise-rules]').getByRole('switch').click()
   await until(() => activeRules() === null, 'learned rules to switch off')
-  await page.locator('[data-lightcode-rules="none"]').waitFor()
-  await page.locator('[data-lightcode-rules]').getByRole('switch').click()
+  await page.locator('[data-tokenwise-rules="none"]').waitFor()
+  await page.locator('[data-tokenwise-rules]').getByRole('switch').click()
   await until(() => activeRules() === adopted, 'learned rules to switch back on')
   log(`${label}: self-evolution from the Plugins page ✓ (learned link-progress with DSH headless, held-out confirmed, toast, rollback, off/on)`)
 
@@ -276,7 +276,7 @@ export async function exercisePluginsPage({ page, label, profileDir, lightcodeHo
   const offBefore = decisions().length
   assertUntouched(await chat('08-chat-off'), 'Off')
   assert.equal(decisions().length, offBefore, 'Off still recorded decisions')
-  await openLightCode()
+  await openTokenWise()
   await page.getByRole('button', { name: 'Reset to default' }).click()
   await page.getByRole('button', { name: 'Save', exact: true }).click()
   await page.getByRole('tab', { name: 'Apply', selected: true }).waitFor()
@@ -285,27 +285,27 @@ export async function exercisePluginsPage({ page, label, profileDir, lightcodeHo
 
   // 4. Switch the bundle off and on from the Plugins page.
   await openPlugins()
-  await page.getByRole('button', { name: 'Disable LightCode' }).or(card.getByRole('switch')).first().click()
-  await page.getByRole('button', { name: 'Enable LightCode' }).or(card.getByRole('switch', { checked: false })).first().waitFor()
-  await until(() => !profile().dsh.profile.bundles.includes('@lightcode-ai/dsh'), 'the bundle to be deselected')
+  await page.getByRole('button', { name: 'Disable TokenWise' }).or(card.getByRole('switch')).first().click()
+  await page.getByRole('button', { name: 'Enable TokenWise' }).or(card.getByRole('switch', { checked: false })).first().waitFor()
+  await until(() => !profile().dsh.profile.bundles.includes('@tokenwise/dsh'), 'the bundle to be deselected')
   const disabledBefore = decisions().length
   assertUntouched(await chat('09-chat-bundle-off'), 'a switched-off bundle')
   assert.equal(decisions().length, disabledBefore, 'a switched-off bundle still filtered')
   await openPlugins()
-  await page.getByRole('button', { name: 'Enable LightCode' }).or(card.getByRole('switch')).first().click()
-  await page.getByRole('button', { name: 'Disable LightCode' }).or(card.getByRole('switch', { checked: true })).first().waitFor()
-  await until(() => profile().dsh.profile.bundles.includes('@lightcode-ai/dsh'), 'the bundle to be selected again')
+  await page.getByRole('button', { name: 'Enable TokenWise' }).or(card.getByRole('switch')).first().click()
+  await page.getByRole('button', { name: 'Disable TokenWise' }).or(card.getByRole('switch', { checked: true })).first().waitFor()
+  await until(() => profile().dsh.profile.bundles.includes('@tokenwise/dsh'), 'the bundle to be selected again')
   const again = await chat('10-chat-bundle-on')
-  verifyDeliveries({ requests: again, lightcodeHome, host: 'dsh', commands: COMMAND_LIST, expect: PROJECTED })
+  verifyDeliveries({ requests: again, tokenwiseHome, host: 'dsh', commands: COMMAND_LIST, expect: PROJECTED })
   log(`${label}: bundle off/on ✓`)
 
   // 5. Uninstall from the plugin's page.
-  await openLightCode()
+  await openTokenWise()
   await page.getByRole('button', { name: 'Uninstall' }).first().click()
   await shot('11-uninstall-confirm')
   await page.getByRole('dialog').getByRole('button', { name: /Uninstall/ }).click()
   await card.waitFor({ state: 'detached', timeout: 120_000 })
-  await until(() => profile().dependencies?.['@lightcode-ai/dsh'] === undefined && !profile().dsh.profile.bundles.includes('@lightcode-ai/dsh'),
+  await until(() => profile().dependencies?.['@tokenwise/dsh'] === undefined && !profile().dsh.profile.bundles.includes('@tokenwise/dsh'),
     'the package and its bundle to leave the profile', 120_000)
   await shot('12-uninstalled')
   assert.deepEqual(pageErrors, [], `browser errors: ${pageErrors.join('\n')}`)

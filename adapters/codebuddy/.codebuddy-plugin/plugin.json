@@ -1,0 +1,12 @@
+{
+  "name": "tokenwise",
+  "version": "0.3.0",
+  "description": "Deterministic shell-output filtering: recognized Bash commands run through `tokenwise run`, which prints a smaller projection and keeps the original privately. LightShadow (a mod) turns the compaction summary into a checkpoint whose tool results the tokenwise_recall tool reads again.",
+  "keywords": [
+    "context",
+    "tokens",
+    "output-filtering"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/Zongwei9888/tokenwise#readme"
+}

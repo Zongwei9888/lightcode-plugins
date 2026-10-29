@@ -1,10 +1,10 @@
-import type { ShellResult } from '@lightcode-ai/core'
+import type { ShellResult } from '@tokenwise/core'
 import type { BashForegroundValue, ContentBlock } from './host.ts'
 
 const STDERR_HEADER = '[stderr]\n'
 
 /**
- * A finished DSH `bash` call as LightCode sees it. DSH renders the model text
+ * A finished DSH `bash` call as TokenWise sees it. DSH renders the model text
  * from the canonical value as: stdout, then `[stderr]\n` and stderr, then
  * status markers (`[exit code: N]`, timeout, signal, sandbox). Both streams are
  * located verbatim in the rendered text, so a projection replaces exactly one

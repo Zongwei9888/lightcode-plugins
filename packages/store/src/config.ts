@@ -1,7 +1,7 @@
 import { readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { resolveFilterOptions } from '@lightcode-ai/core'
-import type { MechanismMode } from '@lightcode-ai/protocol'
+import { resolveFilterOptions } from '@tokenwise/core'
+import type { MechanismMode } from '@tokenwise/protocol'
 
 export interface EconomyConfig {
   /** Ceiling for negotiation: the host decides whether `apply` is possible. */
@@ -11,34 +11,34 @@ export interface EconomyConfig {
   /** Bounded filter parameters; see `resolveFilterOptions`. */
   readonly filterOptions?: unknown
   readonly commandNormalization: boolean
-  /** Keep the original of every shell output (not only projected ones) as evidence for `lc evolve`. */
+  /** Keep the original of every shell output (not only projected ones) as evidence for `tokenwise evolve`. */
   readonly evidence: boolean
-  /** Try the learned rules `lc evolve` adopted before the built-in filters. */
+  /** Try the learned rules `tokenwise evolve` adopted before the built-in filters. */
   readonly learnedRules: boolean
 }
 
 export interface LightShadowConfig {
-  /** Ceiling for negotiation, like Economy's. */
+  /** Ceiling for negotiation, like the output filter's. */
   readonly mode: MechanismMode
 }
 
-export interface LightCodeConfig {
+export interface TokenWiseConfig {
   readonly economy: EconomyConfig
   readonly lightshadow: LightShadowConfig
   readonly artifacts: { readonly retentionDays: number }
 }
 
-export const DEFAULT_CONFIG: LightCodeConfig = Object.freeze({
+export const DEFAULT_CONFIG: TokenWiseConfig = Object.freeze({
   economy: Object.freeze({ mode: 'apply' as const, minimumSavedTokens: 16, commandNormalization: true, evidence: true, learnedRules: true }),
   lightshadow: Object.freeze({ mode: 'apply' as const }),
   artifacts: Object.freeze({ retentionDays: 14 }),
 })
 
 export interface LoadedConfig {
-  readonly config: LightCodeConfig
+  readonly config: TokenWiseConfig
   /** Files and variables that contributed, in precedence order. */
   readonly sources: readonly string[]
-  /** Any problem turns Economy and LightShadow off: a broken configuration must not silently filter. */
+  /** Any problem turns output filtering and compaction off: a broken configuration must not silently filter. */
   readonly problems: readonly string[]
 }
 
@@ -58,7 +58,7 @@ const RANK: Record<MechanismMode, number> = { off: 0, observe: 1, apply: 2 }
  */
 function mergeEconomy(base: EconomyConfig, input: unknown, where: string, problems: string[], lowerOnly = false): EconomyConfig {
   if (input === undefined) return base
-  if (!record(input)) { problems.push(`${where}: economy must be an object`); return base }
+  if (!record(input)) { problems.push(`${where}: output must be an object`); return base }
   let next = { ...base }
   for (const [key, value] of Object.entries(input)) {
     if (key === 'mode' && typeof value === 'string' && MODES.has(value)) {
@@ -69,30 +69,30 @@ function mergeEconomy(base: EconomyConfig, input: unknown, where: string, proble
     else if (key === 'minimumSavedTokens' && Number.isSafeInteger(value) && (value as number) >= 1 && (value as number) <= 1_000_000) next = { ...next, minimumSavedTokens: value as number }
     else if (key === 'filterOptions' && resolveFilterOptions(value) !== undefined) next = { ...next, filterOptions: value }
     else if (key === 'commandNormalization' && typeof value === 'boolean') next = { ...next, commandNormalization: value }
-    else problems.push(`${where}: invalid economy.${key}`)
+    else problems.push(`${where}: invalid output.${key}`)
   }
   return next
 }
 
 function mergeShadow(base: LightShadowConfig, input: unknown, where: string, problems: string[], lowerOnly = false): LightShadowConfig {
   if (input === undefined) return base
-  if (!record(input)) { problems.push(`${where}: lightshadow must be an object`); return base }
+  if (!record(input)) { problems.push(`${where}: compaction must be an object`); return base }
   let next = { ...base }
   for (const [key, value] of Object.entries(input)) {
     if (key === 'mode' && typeof value === 'string' && MODES.has(value)) {
       const mode = value as MechanismMode
       if (!lowerOnly || RANK[mode] <= RANK[next.mode]) next = { ...next, mode }
-    } else problems.push(`${where}: invalid lightshadow.${key}`)
+    } else problems.push(`${where}: invalid compaction.${key}`)
   }
   return next
 }
 
 /**
- * User file `<data>/config.json`, then project file `<cwd>/.lightcode/config.json`
- * (Economy settings only, and it can only lower the mode or switch command
+ * User file `<data>/config.json`, then project file `<cwd>/.tokenwise/config.json`
+ * (`output` and `compaction` settings only, and it can only lower the mode or switch command
  * rewriting off, so a cloned repository can neither change retention nor
- * re-enable what the user turned off), then `LIGHTCODE_ECONOMY=apply|observe|off`,
- * `LIGHTCODE_LIGHTSHADOW=apply|observe|off` and `LIGHTCODE_DISABLE=1`.
+ * re-enable what the user turned off), then `TOKENWISE_OUTPUT=apply|observe|off`,
+ * `TOKENWISE_COMPACTION=apply|observe|off` and `TOKENWISE_DISABLE=1`.
  */
 export function loadConfig(options: { dataDir: string; cwd?: string; env?: NodeJS.ProcessEnv }): LoadedConfig {
   const env = options.env ?? process.env
@@ -102,7 +102,7 @@ export function loadConfig(options: { dataDir: string; cwd?: string; env?: NodeJ
   let lightshadow: LightShadowConfig = DEFAULT_CONFIG.lightshadow
   let retentionDays = DEFAULT_CONFIG.artifacts.retentionDays
   const files = [{ path: join(options.dataDir, 'config.json'), project: false },
-    ...options.cwd === undefined ? [] : [{ path: join(options.cwd, '.lightcode', 'config.json'), project: true }]]
+    ...options.cwd === undefined ? [] : [{ path: join(options.cwd, '.tokenwise', 'config.json'), project: true }]]
   for (const file of files) {
     let value: unknown
     try { value = readJson(file.path) } catch (error) { problems.push(`${file.path}: ${(error as Error).message}`); continue }
@@ -110,28 +110,28 @@ export function loadConfig(options: { dataDir: string; cwd?: string; env?: NodeJ
     sources.push(file.path)
     if (!record(value)) { problems.push(`${file.path}: expected a JSON object`); continue }
     for (const [key, section] of Object.entries(value)) {
-      if (key === 'economy') economy = mergeEconomy(economy, section, file.path, problems, file.project)
-      else if (key === 'lightshadow') lightshadow = mergeShadow(lightshadow, section, file.path, problems, file.project)
+      if (key === 'output') economy = mergeEconomy(economy, section, file.path, problems, file.project)
+      else if (key === 'compaction') lightshadow = mergeShadow(lightshadow, section, file.path, problems, file.project)
       else if (key === 'artifacts' && !file.project && record(section) && Object.keys(section).every(item => item === 'retentionDays')
         && Number.isSafeInteger(section.retentionDays) && (section.retentionDays as number) >= 1 && (section.retentionDays as number) <= 3650) {
         retentionDays = section.retentionDays as number
       } else if (key !== '$schema') problems.push(`${file.path}: unsupported setting ${key}`)
     }
   }
-  const forced = env.LIGHTCODE_ECONOMY?.trim()
+  const forced = env.TOKENWISE_OUTPUT?.trim()
   if (forced) {
-    sources.push('LIGHTCODE_ECONOMY')
+    sources.push('TOKENWISE_OUTPUT')
     if (MODES.has(forced)) economy = { ...economy, mode: forced as MechanismMode }
-    else problems.push(`LIGHTCODE_ECONOMY: expected apply, observe or off`)
+    else problems.push(`TOKENWISE_OUTPUT: expected apply, observe or off`)
   }
-  const shadowForced = env.LIGHTCODE_LIGHTSHADOW?.trim()
+  const shadowForced = env.TOKENWISE_COMPACTION?.trim()
   if (shadowForced) {
-    sources.push('LIGHTCODE_LIGHTSHADOW')
+    sources.push('TOKENWISE_COMPACTION')
     if (MODES.has(shadowForced)) lightshadow = { mode: shadowForced as MechanismMode }
-    else problems.push(`LIGHTCODE_LIGHTSHADOW: expected apply, observe or off`)
+    else problems.push(`TOKENWISE_COMPACTION: expected apply, observe or off`)
   }
-  if (env.LIGHTCODE_DISABLE === '1') {
-    sources.push('LIGHTCODE_DISABLE')
+  if (env.TOKENWISE_DISABLE === '1') {
+    sources.push('TOKENWISE_DISABLE')
     economy = { ...economy, mode: 'off' }
     lightshadow = { mode: 'off' }
   }

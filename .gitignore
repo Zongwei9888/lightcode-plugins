@@ -8,8 +8,8 @@ coverage/
 .env
 .env.*
 *.log
-# Local LightCode data written by tests or manual runs
-.lightcode/
+# Local TokenWise data written by tests or manual runs
+.tokenwise/
 /packages/*/dist/
 /adapters/*/dist/
 # Written by scripts/bundle.mjs into each distributable package
@@ -25,3 +25,6 @@ packages/core/LICENSE.rtk
 packages/protocol/LICENSE
 packages/store/LICENSE
 packages/mechanisms/LICENSE
+
+# media kit preview frames
+/media/src/.frames/

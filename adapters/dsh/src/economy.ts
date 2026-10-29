@@ -4,12 +4,12 @@
  */
 import { statSync } from 'node:fs'
 import { join } from 'node:path'
-import { EconomyEngine, collectSubagents, describeToolCall, formatTokens, recordSubagent, summarizeEconomy, summarizeShadow } from '@lightcode-ai/mechanisms'
-import type { EconomySummary } from '@lightcode-ai/mechanisms'
-import { HOST_PROFILES, V0_2_SPECS, negotiate } from '@lightcode-ai/protocol'
-import type { ArtifactPort, JournalPort, JournalRecord, MechanismMode, Negotiation } from '@lightcode-ai/protocol'
-import { FileArtifactStore, FileJournal, RuleStore, collectDaily, dataDirs, loadConfig, readJournals, resolveDataDir, writableDataDir } from '@lightcode-ai/store'
-import type { LoadedConfig } from '@lightcode-ai/store'
+import { EconomyEngine, collectSubagents, describeToolCall, formatTokens, recordSubagent, summarizeEconomy, summarizeShadow } from '@tokenwise/mechanisms'
+import type { EconomySummary } from '@tokenwise/mechanisms'
+import { HOST_PROFILES, V0_2_SPECS, negotiate } from '@tokenwise/protocol'
+import type { ArtifactPort, JournalPort, JournalRecord, MechanismMode, Negotiation } from '@tokenwise/protocol'
+import { FileArtifactStore, FileJournal, RuleStore, collectDaily, dataDirs, loadConfig, readJournals, resolveDataDir, writableDataDir } from '@tokenwise/store'
+import type { LoadedConfig } from '@tokenwise/store'
 import { bashShellResult } from './bash.ts'
 import { NATIVE_TOOLS, nativeResult } from './native.ts'
 import type { PostToolDecision, ToolExecution, ToolExecutionResult } from './host.ts'
@@ -28,20 +28,20 @@ const MAX_WARNINGS = 32
  */
 export const INLINE_LIMIT_CHARS = 48_000
 
-/** The learned rules new sessions use, for `/lightcode`. */
+/** The learned rules new sessions use, for `/tokenwise`. */
 function learnedRulesLine(store: RuleStore, enabled: boolean): string {
   const active = store.state().active
-  if (!active) return 'Learned rules: none (/lightcode learn learns them from your sessions).'
+  if (!active) return 'Learned rules: none (/tokenwise learn learns them from your sessions).'
   const set = store.load()
-  return `Learned rules: ${active.slice(0, 12)}, ${set ? `${set.rules.length} rule${set.rules.length === 1 ? '' : 's'}` : 'not loadable'}${enabled ? '' : ' (off: economy.learnedRules is false)'}.`
+  return `Learned rules: ${active.slice(0, 12)}, ${set ? `${set.rules.length} rule${set.rules.length === 1 ? '' : 's'}` : 'not loadable'}${enabled ? '' : ' (off: output.learnedRules is false)'}.`
 }
 
 export interface DshEconomyOptions {
-  /** The plugin's live `mode` setting: a ceiling that can only lower LightCode's own configuration. */
+  /** The plugin's live `mode` setting: a ceiling that can only lower TokenWise's own configuration. */
   readonly mode: () => MechanismMode
   /** Longest projection delivered; see {@link INLINE_LIMIT_CHARS}. */
   readonly inlineLimitChars?: number
-  /** Defaults to `$LIGHTCODE_HOME` or `~/.lightcode`. */
+  /** Defaults to `$TOKENWISE_HOME` or `~/.tokenwise`. */
   readonly dataDir?: string
   readonly env?: NodeJS.ProcessEnv
   readonly warn?: (message: string) => void
@@ -60,7 +60,7 @@ export interface DshEconomy {
   /** Negotiated mechanisms for a session (or the defaults when unknown). */
   negotiated(session?: { id: string; cwd?: string | undefined }): readonly Negotiation[]
   summary(sessionId: string): EconomySummary
-  /** The `/lightcode` text for one session. */
+  /** The `/tokenwise` text for one session. */
   report(session: { id: string; cwd?: string | undefined }): string
   /** Where originals and the journal are written (resolved on first use). */
   readonly dataDir: string
@@ -73,7 +73,7 @@ export interface DshEconomy {
   journal(): JournalPort
   artifacts(): ArtifactPort
   read(sessionId: string): readonly JournalRecord[]
-  /** Extra lines for `/lightcode`, such as LightShadow's state. */
+  /** Extra lines for `/tokenwise`, such as LightShadow's state. */
   extraReport?: (sessionId: string) => readonly string[]
 }
 
@@ -85,7 +85,7 @@ export function createDshEconomy(options: DshEconomyOptions): DshEconomy {
   const env = options.env ?? process.env
   const configDir = options.dataDir ?? resolveDataDir(env)
   const readDirs = options.dataDir ? [options.dataDir] : dataDirs(env)
-  // Nothing is created on disk until LightCode first has something to keep.
+  // Nothing is created on disk until TokenWise first has something to keep.
   let store: { dataDir: string; journal: FileJournal; artifacts: FileArtifactStore } | undefined
   const storage = () => {
     if (!store) {
@@ -112,7 +112,7 @@ export function createDshEconomy(options: DshEconomyOptions): DshEconomy {
   }
 
   const sessionState = (id: string, cwd: string | undefined): SessionState => {
-    const stamp = `${fileStamp(join(configDir, 'config.json'))}|${cwd === undefined ? '' : fileStamp(join(cwd, '.lightcode', 'config.json'))}`
+    const stamp = `${fileStamp(join(configDir, 'config.json'))}|${cwd === undefined ? '' : fileStamp(join(cwd, '.tokenwise', 'config.json'))}`
     let state = sessions.get(id)
     if (!state || state.stamp !== stamp) {
       const loaded = loadConfig({ dataDir: configDir, ...cwd === undefined ? {} : { cwd }, env })
@@ -138,8 +138,10 @@ export function createDshEconomy(options: DshEconomyOptions): DshEconomy {
       const { journal, artifacts } = storage()
       engine = new EconomyEngine({ host: HOST, journal, artifacts, config: state.loaded.config.economy, mode,
         maxProjectedChars: options.inlineLimitChars ?? INLINE_LIMIT_CHARS,
-        delivery: 'in-process', streams: 'separate', onError: error => warn(`LightCode: ${String(error)}; delivering the original output`),
-        learned: () => ruleStore.load(error => warn(`LightCode: learned rules not loaded: ${String(error)}`)) })
+        delivery: 'in-process', streams: 'separate', onError: error => warn(`TokenWise: ${String(error)}; delivering the original output`),
+        // The recall tool is registered unless LightShadow is off (index.ts).
+        recallHint: state.loaded.config.lightshadow.mode !== 'off',
+        learned: () => ruleStore.load(error => warn(`TokenWise: learned rules not loaded: ${String(error)}`)) })
       state.engines.set(mode, engine)
     }
     return engine
@@ -174,7 +176,7 @@ export function createDshEconomy(options: DshEconomyOptions): DshEconomy {
       recordSubagent(storage().journal, HOST, header.parentSession, child)
     } catch (error) {
       // Only the parent's report loses this subagent; the tool result is still filtered.
-      warn(`LightCode: could not record subagent session ${child}: ${String(error)}`)
+      warn(`TokenWise: could not record subagent session ${child}: ${String(error)}`)
     }
     linked.add(child)
     if (linked.size > MAX_LINKED) linked.delete(linked.values().next().value!)
@@ -213,7 +215,7 @@ export function createDshEconomy(options: DshEconomyOptions): DshEconomy {
       return { kind: 'accept', content: [{ type: 'text', text: output.text }],
         ...decision.additionalContexts === undefined ? {} : { additionalContexts: decision.additionalContexts } }
     } catch (error) {
-      warn(`LightCode: ${String(error)}; delivering the original output`)
+      warn(`TokenWise: ${String(error)}; delivering the original output`)
       return decision
     }
   }
@@ -234,13 +236,13 @@ export function createDshEconomy(options: DshEconomyOptions): DshEconomy {
       const n = subagents.sessions.length
       const lines = [
         s.projected > 0
-          ? `LightCode saved ~${formatTokens(s.savedTokens)} tokens in this session (${s.projected} of ${s.projected + s.passed + s.previewed} outputs filtered).`
-          : `LightCode has not filtered any output in this session yet (${s.passed + s.previewed} seen).`,
+          ? `TokenWise saved ~${formatTokens(s.savedTokens)} tokens in this session (${s.projected} of ${s.projected + s.passed + s.previewed} outputs filtered).`
+          : `TokenWise has not filtered any output in this session yet (${s.passed + s.previewed} seen).`,
         ...n > 0 ? [`Its subagents (${n} session${n === 1 ? '' : 's'}) saved ~${formatTokens(c.savedTokens)} tokens (${c.projected} of ${c.projected + c.passed + c.previewed} outputs filtered).`] : [],
         ...s.previewed > 0 ? [`Observe mode: ${s.previewed} outputs would have been filtered, saving ~${formatTokens(s.previewSavedTokens)} tokens.`] : [],
         ...c.previewed > 0 ? [`Observe mode, subagents: ${c.previewed} outputs would have been filtered, saving ~${formatTokens(c.previewSavedTokens)} tokens.`] : [],
         ...s.byFilter.slice(0, 5).map(item => `  ${item.filter}: ${item.count}× −${formatTokens(item.savedTokens)} tokens`),
-        ...shadow.checkpoints + shadow.standard + shadow.cuts > 0 ? [`LightShadow: ${shadow.checkpoints} compaction${shadow.checkpoints === 1 ? '' : 's'}, ${shadow.cuts} long result${shadow.cuts === 1 ? '' : 's'} cut, `
+        ...shadow.checkpoints + shadow.standard + shadow.cuts > 0 ? [`Compaction: ${shadow.checkpoints} compaction${shadow.checkpoints === 1 ? '' : 's'}, ${shadow.cuts} long result${shadow.cuts === 1 ? '' : 's'} cut, `
           + `${shadow.references} tool results kept recallable (~${formatTokens(shadow.referencedTokens)} tokens), ${shadow.recalls} recalled${shadow.standard ? `; ${shadow.standard} compaction${shadow.standard === 1 ? '' : 's'} left to DSH` : ''}.`] : [],
         ...negotiateFor(loaded).map(item => `${item.mechanism}: ${item.mode} (${item.reason})`),
         ...loaded.problems.map(problem => `config problem: ${problem}`),

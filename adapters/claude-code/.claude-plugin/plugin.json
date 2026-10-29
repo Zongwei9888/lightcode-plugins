@@ -1,0 +1,12 @@
+{
+  "name": "tokenwise",
+  "version": "0.3.0",
+  "description": "Deterministic shell-output filtering: the output of recognized Bash commands is replaced by a smaller projection; TokenWise keeps the original privately. After a compaction, LightShadow adds the catalog of tool results it kept, and the tokenwise_recall tool reads any of them again.",
+  "keywords": [
+    "context",
+    "tokens",
+    "output-filtering"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/Zongwei9888/tokenwise#readme"
+}

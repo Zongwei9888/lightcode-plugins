@@ -1,4 +1,4 @@
-import { literalCommand } from '../command.ts'
+import { toolArgv } from '../command.ts'
 import { ProjectionBuilder, sourceLines } from '../projection-map.ts'
 import type { EconomyFilter, FilterInput } from '../types.ts'
 
@@ -10,7 +10,7 @@ const HINTS = new Set([
 ])
 
 function projectMapped(input: FilterInput) {
-  const argv = literalCommand(input.command)
+  const argv = toolArgv(input.command)
   if (argv?.[0] !== 'git' || argv[1] !== 'status' || input.exitCode !== 0 || /[\u001b\0]/.test(input.stdout)) return undefined
   if (argv.some(arg => /^(?:--(?:short|porcelain|null)(?:=|$)|-[^-]*[sz])/.test(arg))) return undefined
   const lines = sourceLines(input.stdout)

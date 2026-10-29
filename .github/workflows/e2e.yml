@@ -51,10 +51,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm e2e
         env:
-          LIGHTCODE_E2E_TMP: ${{ runner.temp }}
+          TOKENWISE_E2E_TMP: ${{ runner.temp }}
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: e2e-${{ matrix.os }}
-          path: ${{ runner.temp }}/lightcode-e2e-*
+          path: ${{ runner.temp }}/tokenwise-e2e-*
           if-no-files-found: ignore

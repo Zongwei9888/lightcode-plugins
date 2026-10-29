@@ -1,12 +1,12 @@
-# LightCode bundle layer, inserted when a profile installs @lightcode-ai/dsh
-# (`dsh plugin --profile web add @lightcode-ai/dsh`, or Plugins → Add plugin).
+# TokenWise bundle layer, inserted when a profile installs @tokenwise/dsh
+# (`dsh plugin --profile web add @tokenwise/dsh`, or Plugins → Add plugin).
 #
 # The row id is the configuration namespace: the Plugins page edits `mode`
 # under it, and a profile's own cordis.patch.yml can override it, e.g.
 #
-#   - id: lightcode
+#   - id: tokenwise
 #     config:
 #       mode: observe
 - insert:
-    - id: lightcode
-      name: '@lightcode-ai/dsh'
+    - id: tokenwise
+      name: '@tokenwise/dsh'

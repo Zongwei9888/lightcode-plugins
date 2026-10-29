@@ -9,7 +9,7 @@
 export interface TextBlock { readonly type: 'text'; readonly text: string }
 export type ContentBlock = TextBlock | { readonly type: string; readonly [key: string]: unknown }
 
-/** `@deepseek-ai/dsh-session` Session, as far as LightCode reads it. */
+/** `@deepseek-ai/dsh-session` Session, as far as TokenWise reads it. */
 export interface HostSession {
   readonly id: string
   readonly header?: {
@@ -68,7 +68,7 @@ export interface CommandRuntime {
 /** `@deepseek-ai/cordis` Volatile<T>: a live configuration value. */
 export interface Volatile<T> { get(): T }
 
-/** `@deepseek-ai/dsh-tools` ToolDefinition, as LightCode registers one. */
+/** `@deepseek-ai/dsh-tools` ToolDefinition, as TokenWise registers one. */
 export interface HostToolDefinition {
   readonly name: string
   readonly description: string

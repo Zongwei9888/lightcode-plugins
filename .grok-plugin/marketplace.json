@@ -1,0 +1,17 @@
+{
+  "name": "tokenwise",
+  "owner": {
+    "name": "Zongwei9888"
+  },
+  "plugins": [
+    {
+      "name": "tokenwise",
+      "source": {
+        "type": "local",
+        "path": "./adapters/grok"
+      },
+      "description": "TokenWise for Grok Build",
+      "version": "0.3.0"
+    }
+  ]
+}

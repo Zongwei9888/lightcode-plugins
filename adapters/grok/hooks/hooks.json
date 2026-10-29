@@ -1,0 +1,38 @@
+{
+  "description": "TokenWise: replace the model's copy of recognized shell results with a smaller projection; after a compaction, add the catalog of tool results TokenWise kept recallable with the next tool result.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tokenwise hook grok",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tokenwise hook grok",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tokenwise hook grok",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

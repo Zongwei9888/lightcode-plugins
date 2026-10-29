@@ -4,18 +4,18 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
-import { FileJournal, removeTree } from '@lightcode-ai/store'
-import type { EconomyRecord } from '@lightcode-ai/protocol'
+import { FileJournal, removeTree } from '@tokenwise/store'
+import type { EconomyRecord } from '@tokenwise/protocol'
 import { parseDuration } from '../src/evolve.ts'
 
 const main = fileURLToPath(new URL('../src/main.ts', import.meta.url))
 const dirs: string[] = []
-const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'lightcode-evolve-')); dirs.push(dir); return dir }
+const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'tokenwise-evolve-')); dirs.push(dir); return dir }
 afterEach(() => { for (const dir of dirs.splice(0)) removeTree(dir) })
 
-function lc(args: string[], options: { cwd?: string; home: string; env?: NodeJS.ProcessEnv }) {
+function tokenwise(args: string[], options: { cwd?: string; home: string; env?: NodeJS.ProcessEnv }) {
   const result = spawnSync(process.execPath, ['--conditions=source', main, ...args], {
-    cwd: options.cwd, encoding: 'utf8', env: { ...process.env, SHELL: '/bin/sh', LIGHTCODE_HOME: options.home, ...options.env },
+    cwd: options.cwd, encoding: 'utf8', env: { ...process.env, SHELL: '/bin/sh', TOKENWISE_HOME: options.home, ...options.env },
   })
   return { status: result.status, out: result.stdout, err: result.stderr }
 }
@@ -43,7 +43,7 @@ cat > rules-work/index.json <<'JSON'
 { "schemaVersion": 1, "rules": [{ "id": "${name}", "file": "rules/${name}.js", "transformation": "noise-removal" }] }
 JSON
 cat > rules-work/rules/${name}.js <<'JS'
-defineRule({ project(input, lc) {
+defineRule({ project(input, tw) {
   if (!(${match})) return null
   ${rule}
 } })
@@ -55,17 +55,17 @@ echo "${name}: see evidence" > rules-work/CHANGELOG.md
   return `sh ${script}`
 }
 
-const PROGRESS_RULE = "return lc.keepLines(input.raw, line => !/^\\[\\s*\\d+\\/\\d+\\] Compiling /.test(line.text), n => '[' + n + ' compile progress lines omitted]\\n')"
+const PROGRESS_RULE = "return tw.keepLines(input.raw, line => !/^\\[\\s*\\d+\\/\\d+\\] Compiling /.test(line.text), n => '[' + n + ' compile progress lines omitted]\\n')"
 
-describe('lc evolve', () => {
+describe('tokenwise evolve', () => {
   it('learns a rule from recorded evidence, verifies and adopts it, and new sessions use it', () => {
     const home = temp(), cwd = project(), work = temp()
-    for (let i = 0; i < 3; i++) expect(lc(['run', '-c', './build.sh'], { cwd, home }).status).toBe(0)
+    for (let i = 0; i < 3; i++) expect(tokenwise(['run', '-c', './build.sh'], { cwd, home }).status).toBe(0)
     // Nothing is filtered yet, but the originals are kept as evidence.
     const before = new FileJournal(home).read({ host: 'shell' }) as EconomyRecord[]
     expect(before.map(record => [record.outcome, record.reason, record.raw?.stored])).toEqual(Array(3).fill(['passed', 'no-filter-match', true]))
 
-    const run = lc(['evolve', '--learner', learner(work, 'build-progress', PROGRESS_RULE), '--json'], { cwd, home })
+    const run = tokenwise(['evolve', '--learner', learner(work, 'build-progress', PROGRESS_RULE), '--json'], { cwd, home })
     expect(run.err).toContain('1 observations as evidence, 1 shown to the learner')
     const report = JSON.parse(run.out)
     expect(report).toMatchObject({ accepted: true, cases: 1, improved: 1, regressions: [], reasons: [] })
@@ -76,61 +76,62 @@ describe('lc evolve', () => {
     expect(readFileSync(join(report.workspace, 'try.txt'), 'utf8')).toContain('projected by rule build-progress')
     expect(JSON.parse(readFileSync(join(report.workspace, 'cases', '0001.json'), 'utf8'))).toMatchObject({ command: './build.sh', occurrences: 3 })
 
-    expect(lc(['rules'], { home }).out).toContain(`active: ${report.adopted.slice(0, 12)}`)
-    expect(lc(['rules', 'show'], { home }).out).toContain('--- rules/build-progress.js')
-    const filtered = lc(['run', '-c', './build.sh'], { cwd, home })
-    expect(filtered.out).toBe('Finished release in 4.2s\n[80 compile progress lines omitted]\n')
+    expect(tokenwise(['rules'], { home }).out).toContain(`active: ${report.adopted.slice(0, 12)}`)
+    expect(tokenwise(['rules', 'show'], { home }).out).toContain('--- rules/build-progress.js')
+    const filtered = tokenwise(['run', '-c', './build.sh'], { cwd, home })
+    // The shortened output ends with where its original is (Economy's recall hint).
+    expect(filtered.out).toMatch(/^Finished release in 4\.2s\n\[80 compile progress lines omitted\]\n\[TokenWise shortened this output\. The complete output is observation (o-[a-f0-9]{12}): .*`tokenwise recall \1`\.\]\n$/u)
     const last = (new FileJournal(home).read({ host: 'shell' }) as EconomyRecord[]).at(-1)!
     expect(last).toMatchObject({ outcome: 'projected', filter: 'learned-rule', rule: 'build-progress', learnedRulesHash: report.adopted })
 
     // The build output is now short: nothing is left to learn from it.
-    const again = JSON.parse(lc(['evolve', '--learner', 'true', '--json'], { cwd, home }).out)
+    const again = JSON.parse(tokenwise(['evolve', '--learner', 'true', '--json'], { cwd, home }).out)
     expect(again).toMatchObject({ accepted: false, reasons: ['nothing-to-learn'], adopted: null })
     // A learner that leaves the rules as they were is not adopted either.
-    lc(['run', '-c', 'seq 1 2000'], { cwd, home })
-    const unchanged = JSON.parse(lc(['evolve', '--learner', 'true', '--json'], { cwd, home }).out)
+    tokenwise(['run', '-c', 'seq 1 2000'], { cwd, home })
+    const unchanged = JSON.parse(tokenwise(['evolve', '--learner', 'true', '--json'], { cwd, home }).out)
     expect(unchanged).toMatchObject({ accepted: false, reasons: ['unchanged', 'no-incremental-token-gain'], adopted: null })
-    expect(lc(['rules'], { home }).out).toContain(`active: ${report.adopted.slice(0, 12)}`)
+    expect(tokenwise(['rules'], { home }).out).toContain(`active: ${report.adopted.slice(0, 12)}`)
 
     // Roll back: new sessions read the build output in full again.
-    expect(lc(['rules', 'rollback'], { home }).out).toContain('No learned rules are active now.')
-    expect(lc(['run', '-c', './build.sh'], { cwd, home }).out).toContain('[ 80/80] Compiling module_79.rs')
+    expect(tokenwise(['rules', 'rollback'], { home }).out).toContain('No learned rules are active now.')
+    expect(tokenwise(['run', '-c', './build.sh'], { cwd, home }).out).toContain('[ 80/80] Compiling module_79.rs')
   }, 60_000)
 
   it('rejects a rule that loses literal data, or that does worse than the built-in filters', () => {
     const home = temp(), cwd = project(), work = temp()
-    lc(['run', '-c', './build.sh'], { cwd, home })
-    lc(['run', '-c', 'cat module.py'], { cwd, home })
-    expect(lc(['run', '-c', 'grep -rn value src'], { cwd, home }).out).toContain('omitted')
+    tokenwise(['run', '-c', './build.sh'], { cwd, home })
+    tokenwise(['run', '-c', 'cat module.py'], { cwd, home })
+    expect(tokenwise(['run', '-c', 'grep -rn value src'], { cwd, home }).out).toContain('omitted')
 
     // Squeezing blank lines also hits the preservation requirement on a Python string literal.
-    const blanks = lc(['evolve', '--learner', learner(work, 'squeeze-blanks', "return lc.keepLines(input.raw, (line, i, all) => !(line.text === '' && i > 0 && all[i - 1].text === ''))",
+    const blanks = tokenwise(['evolve', '--learner', learner(work, 'squeeze-blanks', "return tw.keepLines(input.raw, (line, i, all) => !(line.text === '' && i > 0 && all[i - 1].text === ''))",
       "input.argv !== null"), '--json'], { cwd, home })
     expect(JSON.parse(blanks.out)).toMatchObject({ accepted: false, adopted: null, reasons: expect.arrayContaining(['preservation-requirement-failed']) })
     expect(JSON.parse(blanks.out).requirementFailures.map((item: { id: string }) => item.id)).toContain('cat-python-string-blanks')
 
     // A rule that keeps nearly all of a grep the built-in filter shortens far more saves less there.
-    const greedy = lc(['evolve', '--learner', learner(work, 'grep-lite', 'return lc.keepLines(input.raw, (line, i) => i >= 8)', "input.argv && input.argv[0] === 'grep'"), '--json'], { cwd, home })
+    const greedy = tokenwise(['evolve', '--learner', learner(work, 'grep-lite', 'return tw.keepLines(input.raw, (line, i) => i >= 8)', "input.argv && input.argv[0] === 'grep'"), '--json'], { cwd, home })
     expect(JSON.parse(greedy.out)).toMatchObject({ accepted: false, adopted: null, reasons: ['no-incremental-token-gain', 'replay-token-regression'],
       regressions: [{ command: 'grep -rn value src' }] })
 
     // A rule that throws is a rule error.
-    const broken = lc(['evolve', '--learner', learner(work, 'broken', "throw new Error('boom')"), '--json'], { cwd, home })
+    const broken = tokenwise(['evolve', '--learner', learner(work, 'broken', "throw new Error('boom')"), '--json'], { cwd, home })
     expect(JSON.parse(broken.out)).toMatchObject({ accepted: false, reasons: expect.arrayContaining(['rule-error']), ruleFailures: { broken: expect.any(Number) } })
-    expect(lc(['rules'], { home }).out).toContain('No learned rules yet')
+    expect(tokenwise(['rules'], { home }).out).toContain('No learned rules yet')
   }, 60_000)
 
   it('refuses a rule directory that does not load, and reports when there is nothing to learn from', () => {
     const home = temp(), cwd = project(), work = temp()
-    expect(lc(['evolve', '--learner', 'true'], { cwd, home }).err).toContain('nothing to learn from yet')
-    lc(['run', '-c', './build.sh'], { cwd, home })
+    expect(tokenwise(['evolve', '--learner', 'true'], { cwd, home }).err).toContain('nothing to learn from yet')
+    tokenwise(['run', '-c', './build.sh'], { cwd, home })
     const script = join(work, 'bad.sh')
     writeFileSync(script, 'mkdir -p rules-work/rules\necho \'{"schemaVersion":1,"rules":[{"id":"x","file":"rules/x.js"}]}\' > rules-work/index.json\necho "not javascript (" > rules-work/rules/x.js\n')
-    const result = lc(['evolve', '--learner', `sh ${script}`], { cwd, home })
+    const result = tokenwise(['evolve', '--learner', `sh ${script}`], { cwd, home })
     expect(result.status).toBe(1)
     expect(result.out).toMatch(/^NOT ACCEPTED: loading rules failed/)
-    expect(lc(['evolve'], { home }).err).toContain('choose a learner')
-    expect(lc(['evolve', '--learner', 'true', '--since', 'yesterday'], { home }).status).toBe(2)
+    expect(tokenwise(['evolve'], { home }).err).toContain('choose a learner')
+    expect(tokenwise(['evolve', '--learner', 'true', '--since', 'yesterday'], { home }).status).toBe(2)
     // Each run keeps its workspace, learner log and verdict for inspection.
     const runs = readdirSync(join(home, 'evolve'), { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => entry.name).sort()
     expect(runs.length).toBeGreaterThanOrEqual(1)
@@ -142,16 +143,16 @@ describe('lc evolve', () => {
 
   it('verifies against its own record of the evidence, and stops whatever the learner left running', () => {
     const home = temp(), cwd = project(), work = temp()
-    lc(['run', '-c', './build.sh'], { cwd, home })
-    expect(lc(['run', '-c', 'grep -rn value src'], { cwd, home }).out).toContain('omitted')
+    tokenwise(['run', '-c', './build.sh'], { cwd, home })
+    expect(tokenwise(['run', '-c', 'grep -rn value src'], { cwd, home }).out).toContain('omitted')
     // A learner that shadows the built-in grep filter (a regression there) and hides that observation from the checker file.
     const script = join(work, 'tamper.sh')
-    writeFileSync(script, `${readFileSync(learner(work, 'grep-lite', 'return lc.keepLines(input.raw, (line, i) => i >= 8)', "input.argv && (input.argv[0] === 'grep' || input.argv[0] === './build.sh')").slice(3), 'utf8')}
+    writeFileSync(script, `${readFileSync(learner(work, 'grep-lite', 'return tw.keepLines(input.raw, (line, i) => i >= 8)', "input.argv && (input.argv[0] === 'grep' || input.argv[0] === './build.sh')").slice(3), 'utf8')}
 node -e "const f='../checker.json';const s=JSON.parse(require('fs').readFileSync(f,'utf8'));s.caseIds=s.caseIds.slice(0,1);require('fs').writeFileSync(f,JSON.stringify(s))"
 (sleep 30; echo late > rules-work/late.txt) &
 `)
     const started = Date.now()
-    const result = JSON.parse(lc(['evolve', '--learner', `sh ${script}`, '--json'], { cwd, home }).out)
+    const result = JSON.parse(tokenwise(['evolve', '--learner', `sh ${script}`, '--json'], { cwd, home }).out)
     expect(Date.now() - started).toBeLessThan(20_000)
     expect(result).toMatchObject({ accepted: false, cases: 2, reasons: expect.arrayContaining(['replay-token-regression']) })
   }, 60_000)

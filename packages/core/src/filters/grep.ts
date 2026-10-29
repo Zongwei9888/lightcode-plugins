@@ -1,4 +1,4 @@
-import { literalCommand } from '../command.ts'
+import { toolArgv } from '../command.ts'
 import { resolveFilterOptions } from '../filter-options.ts'
 import { ProjectionBuilder, sourceLines } from '../projection-map.ts'
 import type { MappedProjection } from '../projection-map.ts'
@@ -14,7 +14,7 @@ function projectMapped(input: FilterInput): MappedProjection | undefined {
   const options = resolveFilterOptions(input.options)
   if (options === undefined) return undefined
   const maxPerFile = options.grep.maxPerFile
-  const argv = literalCommand(input.command)
+  const argv = toolArgv(input.command)
   if (argv === undefined || !['grep', 'rg', 'ripgrep'].includes(argv[0] ?? '')
     || argv.some(arg => NON_RECORD.test(arg))
     || (argv[0] !== 'grep' && argv.some(arg => /^-[^-]*r/.test(arg)))

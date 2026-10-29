@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "tokenwise": {
+      "command": "tokenwise",
+      "args": ["mcp", "--host", "claude"],
+      "alwaysLoad": true
+    }
+  }
+}

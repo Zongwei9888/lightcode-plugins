@@ -1,0 +1,99 @@
+// Renders the media kit from the HTML sources in this folder with headless Chromium.
+//   node render.mjs stills            every still image into ../
+//   node render.mjs stills social     just the ones whose name contains "social"
+//   node render.mjs video en|zh       the explainer video (frames piped to ffmpeg)
+import { createServer } from 'node:http'
+import { readFileSync, existsSync, mkdirSync } from 'node:fs'
+import { extname, join } from 'node:path'
+import { spawn } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
+import { createRequire } from 'node:module'
+
+const here = fileURLToPath(new URL('.', import.meta.url))
+const out = join(here, '..')
+const require = createRequire(import.meta.url)
+const { chromium } = require(join(here, '../../e2e/.cache/playwright-core-1.63.0/node_modules/playwright-core'))
+const CHROME = process.env.CHROME ?? `${process.env.HOME}/Library/Caches/ms-playwright/chromium-1228/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing`
+
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.ttf': 'font/ttf', '.svg': 'image/svg+xml', '.png': 'image/png' }
+const server = createServer((req, res) => {
+  const path = join(here, decodeURIComponent(new URL(req.url, 'http://x').pathname))
+  if (!path.startsWith(here) || !existsSync(path)) { res.writeHead(404); res.end(); return }
+  res.writeHead(200, { 'content-type': TYPES[extname(path)] ?? 'application/octet-stream' }); res.end(readFileSync(path))
+}).listen(0)
+const base = `http://127.0.0.1:${server.address().port}/`
+
+const STILLS = [
+  { name: 'social-preview', page: 'hero.html?layout=social', w: 1280, h: 640, scale: 1 },
+  { name: 'social-preview-zh', page: 'hero.html?layout=social&lang=zh', w: 1280, h: 640, scale: 1 },
+  { name: 'banner', page: 'hero.html?layout=banner', w: 1600, h: 560, scale: 2 },
+  { name: 'banner-zh', page: 'hero.html?layout=banner&lang=zh', w: 1600, h: 560, scale: 2 },
+  { name: 'card-read-less', page: 'card.html?topic=read', w: 1200, h: 675, scale: 2 },
+  { name: 'card-lose-nothing', page: 'card.html?topic=keep', w: 1200, h: 675, scale: 2 },
+  { name: 'card-get-better', page: 'card.html?topic=learn', w: 1200, h: 675, scale: 2 },
+  { name: 'card-read-less-zh', page: 'card.html?topic=read&lang=zh', w: 1200, h: 675, scale: 2 },
+  { name: 'card-lose-nothing-zh', page: 'card.html?topic=keep&lang=zh', w: 1200, h: 675, scale: 2 },
+  { name: 'card-get-better-zh', page: 'card.html?topic=learn&lang=zh', w: 1200, h: 675, scale: 2 },
+  { name: 'before-after', page: 'before-after.html', w: 1600, h: 900, scale: 2 },
+  { name: 'before-after-zh', page: 'before-after.html?lang=zh', w: 1600, h: 900, scale: 2 },
+  { name: 'results', page: 'results.html', w: 1600, h: 900, scale: 2 },
+  { name: 'results-zh', page: 'results.html?lang=zh', w: 1600, h: 900, scale: 2 },
+]
+
+const browser = await chromium.launch({ executablePath: CHROME })
+try {
+  const [mode, arg] = process.argv.slice(2)
+  if (mode === 'stills') {
+    mkdirSync(join(out, 'images'), { recursive: true })
+    for (const still of STILLS.filter(s => !arg || s.name.includes(arg))) {
+      const page = await browser.newPage({ viewport: { width: still.w, height: still.h }, deviceScaleFactor: still.scale })
+      await page.goto(base + still.page)
+      await page.evaluate(() => document.fonts.ready)
+      await page.waitForFunction(() => window.ready === true, null, { timeout: 10000 })
+      await page.screenshot({ path: join(out, 'images', `${still.name}.png`) })
+      await page.close()
+      console.log('wrote images/' + still.name + '.png')
+    }
+  } else if (mode === 'video') {
+    const lang = arg ?? 'en'
+    const fps = 30
+    const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 })
+    await page.goto(base + `video.html?lang=${lang}`)
+    await page.evaluate(() => document.fonts.ready)
+    await page.waitForFunction(() => window.ready === true)
+    const duration = await page.evaluate(() => window.DURATION)
+    mkdirSync(join(out, 'video'), { recursive: true })
+    const file = join(out, 'video', `tokenwise-${lang}.mp4`)
+    const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'png', '-i', '-',
+      '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', file], { stdio: ['pipe', 'inherit', 'inherit'] })
+    const frames = Math.round(duration * fps)
+    for (let i = 0; i < frames; i++) {
+      await page.evaluate(t => window.render(t), i / fps)
+      const png = await page.screenshot({ type: 'png' })
+      if (!ff.stdin.write(png)) await new Promise(r => ff.stdin.once('drain', r))
+      if (i % 150 === 0) console.log(`frame ${i}/${frames}`)
+    }
+    ff.stdin.end()
+    await new Promise(r => ff.on('close', r))
+    console.log('wrote', file)
+  } else if (mode === 'frames') {
+    // Preview: node render.mjs frames en 3,9,12 -> frames written to $FRAMES_DIR (default ./.frames)
+    const [lang, list] = [arg ?? 'en', process.argv[4] ?? '0']
+    const dir = process.env.FRAMES_DIR ?? join(here, '.frames'); mkdirSync(dir, { recursive: true })
+    const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } })
+    await page.goto(base + `video.html?lang=${lang}`)
+    await page.evaluate(() => document.fonts.ready)
+    await page.waitForFunction(() => window.ready === true)
+    for (const t of list.split(',').map(Number)) {
+      // replay from 0 so state that depends on earlier frames (none should) cannot hide a bug
+      await page.evaluate(t => window.render(t), t)
+      await page.screenshot({ path: join(dir, `${lang}-${String(t).padStart(5, '0')}.png`) })
+    }
+    console.log('frames in', dir)
+  } else {
+    console.log('usage: node render.mjs stills [filter] | video [en|zh]')
+  }
+} finally {
+  await browser.close()
+  server.close()
+}

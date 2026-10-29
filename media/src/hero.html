@@ -1,0 +1,86 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="brand.css">
+<style>
+  body { display: grid; }
+  .wrap { position: relative; width: 100vw; height: 100vh; display: grid; }
+  .copy { position: relative; z-index: 2; display: flex; flex-direction: column; }
+  .copy .mark { color: var(--ink); }
+  .copy .display { color: var(--ink); }
+  .copy .who { color: #4F6B66; font-weight: 450; font-stretch: 96%; }
+  .copy .who b { color: var(--ink); font-weight: 620; }
+
+  /* The fold: raw rows squeeze toward a seam; what the model reads sits below it. */
+  .fold { position: relative; }
+  .fold .term { position: absolute; inset: 0; box-shadow: 0 30px 60px -30px rgba(14,42,38,.45); }
+  .fold .body { padding: 10px 22px 0; }
+  .fold .raw .row { transform-origin: 0 100%; }
+  .fold .raw .hair { height: 2px; margin: 0 0 2px; max-width: 100%; background: #5FB8A6; border-radius: 1px; }
+  .seam { position: relative; height: 26px; margin: 4px 0 6px; display: flex; align-items: center; gap: 12px; color: var(--mint); font-family: Archivo; font-stretch: 86%; font-weight: 600; }
+  .seam::before, .seam::after { content: ''; height: 1px; flex: 1; background: linear-gradient(90deg, rgba(204,251,241,.0), rgba(204,251,241,.55), rgba(204,251,241,.0)); }
+  .proj .row { color: #BFE9DF; }
+  .proj .row.ev { color: #FFE7A3; background: rgba(242,183,5,.13); box-shadow: inset 3px 0 0 var(--kept); margin-left: -22px; padding-left: 19px; }
+  .stat { position: absolute; z-index: 3; background: var(--paper); color: var(--ink); border-radius: 16px; padding: 14px 20px 16px; box-shadow: 0 18px 40px -22px rgba(14,42,38,.5); }
+  .stat .n { font-weight: 820; font-stretch: 66%; line-height: .95; }
+  .stat .n s { text-decoration: none; color: var(--noise); font-weight: 700; }
+  .stat .l { font-stretch: 94%; color: #4F6B66; margin-top: 6px; }
+
+  /* social 1280x640 */
+  .social .wrap { grid-template-columns: 640px 1fr; padding: 64px 0 64px 72px; }
+  .social .mark { font-size: 34px; }
+  .social .display { font-size: 100px; margin-top: 50px; }
+  .social .who { font-size: 19px; margin-top: auto; line-height: 1.45; max-width: 560px; }
+  .social .fold { margin: -10px -80px -90px 26px; }
+  .social .term { font-size: 12.5px; line-height: 17px; border-radius: 22px 0 0 22px; }
+  .social .stat { left: -54px; top: 168px; }
+  .social .stat .n { font-size: 56px; }
+  .social .stat .l { font-size: 16px; }
+  .zh.social .display { font-size: 72px; margin-top: 50px; }
+
+  /* banner 1600x560 */
+  .banner .wrap { grid-template-columns: 760px 1fr; padding: 60px 0 60px 84px; }
+  .banner .mark { font-size: 32px; }
+  .banner .display { font-size: 92px; margin-top: 34px; }
+  .banner .lede { font-size: 21px; margin-top: 24px; max-width: 560px; }
+  .banner .fold { margin: -10px -60px -100px 40px; }
+  .banner .term { font-size: 12px; line-height: 16px; border-radius: 22px 0 0 22px; }
+  .banner .stat { left: -64px; top: 112px; }
+  .banner .stat .n { font-size: 58px; }
+  .banner .stat .l { font-size: 16px; }
+  .zh.banner .display { font-size: 68px; margin-top: 34px; }
+</style></head>
+<body><div class="wrap"><div class="copy"></div><div class="fold"></div></div>
+<script type="module">
+import { LOGO, esc } from './shared.js'
+const q = new URLSearchParams(location.search), lang = q.get('lang') ?? 'en', layout = q.get('layout') ?? 'social'
+document.body.classList.add(layout, lang)
+const data = await (await fetch('data.json')).json()
+const T = {
+  en: { head: 'Make every<br>token count<br>for your agent.', lede: 'TokenWise shows your coding agent less tool output, loses nothing when the agent compacts, and learns your own tools.',
+        who: 'Open source. Works in <b>Claude Code, Codex, pi, DeepSeek Harness, OpenCode, Hermes, CodeBuddy, Grok</b> and any shell.',
+        seam: '243 rows the model no longer reads', stat: `${data.rawLines} <s>→</s> ${data.projectedLines}`, statL: 'lines of pytest the model reads' },
+  zh: { head: '让 agent 的<br>每个 token<br>都物有所值', lede: 'TokenWise 让编程 agent 少读工具输出，压缩历史时不丢东西，还会学会你自己的工具。',
+        who: '开源。支持 <b>Claude Code、Codex、pi、DeepSeek Harness、OpenCode、Hermes、CodeBuddy、Grok</b> 和任意 shell。',
+        seam: '模型不再需要读的 243 行', stat: `${data.rawLines} <s>→</s> ${data.projectedLines}`, statL: '模型实际读到的 pytest 行数' },
+}[lang]
+const copy = document.querySelector('.copy')
+copy.innerHTML = `<div class="mark">${LOGO}<span>TokenWise</span></div><h1 class="display">${T.head}</h1>`
+  + (layout === 'banner' ? `<p class="lede">${T.lede}</p>` : `<p class="who">${T.who}</p>`)
+
+// Raw rows above the seam: full height at the top, squeezed toward the seam, fading into noise.
+const raw = data.raw.trimEnd().split('\n').slice(3, 3 + 34)
+const proj = data.projected.trimEnd().split('\n')
+const lh = layout === 'banner' ? 16 : 17
+// Rows squeeze toward the seam; the flattest become hairlines as long as the row was: what the model skips.
+const rawRows = raw.map((t, i) => {
+  const k = Math.max(0, i - 3), squeeze = Math.pow(0.78, k), op = Math.max(0.4, 1 - k * 0.07)
+  if (squeeze < 0.2) return `<div class="hair" style="width:${t.length}ch;opacity:${(0.62 - (i - 3) * 0.01).toFixed(2)}"></div>`
+  const cls = /FAILED/.test(t) ? 'fail' : 'pass'
+  return `<div class="row ${cls}" style="height:${(lh * squeeze).toFixed(2)}px;line-height:${lh}px;transform:scaleY(${squeeze.toFixed(3)});opacity:${op.toFixed(2)}">${esc(t)}</div>`
+}).join('')
+const evidence = t => /^(E |>|FAILED|tests\/.*FAILED|=+ 1 failed)/.test(t)
+const projRows = proj.map(t => `<div class="row${evidence(t) ? ' ev' : ''}" style="line-height:${lh}px">${esc(t) || '&nbsp;'}</div>`).join('')
+document.querySelector('.fold').innerHTML = `<div class="term"><div class="bar"><i></i><i></i><i></i><b>python3 -m pytest -v</b></div>
+  <div class="body"><div class="raw">${rawRows}</div><div class="seam">${T.seam}</div><div class="proj">${projRows}</div></div></div>
+  <div class="stat"><div class="n counter">${T.stat}</div><div class="l">${T.statL}</div></div>`
+window.ready = true
+</script></body></html>

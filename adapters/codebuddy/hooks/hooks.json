@@ -1,0 +1,18 @@
+{
+  "description": "TokenWise: run recognized Bash commands through `tokenwise run`, which filters their output (CodeBuddy's permission check still runs on the command as written); LightShadow, a mod, keeps compacted tool results recallable.",
+  "modules": ["./compaction.js"],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tokenwise hook codebuddy",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /**
  * Build the self-contained files the distributable packages ship. Each one
- * carries the LightCode packages it uses inline, so installing `@lightcode-ai/pi`,
- * `@lightcode-ai/dsh` or `@lightcode-ai/cli` needs no other LightCode package; the
- * host's own modules stay external and come from the running host.
+ * carries the TokenWise packages it uses inline, so installing `@tokenwise/pi`,
+ * `@tokenwise/dsh`, `@tokenwise/opencode` or `@tokenwise/cli` needs no
+ * other TokenWise package; the host's own modules stay external and come from the
+ * running host.
  */
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -12,7 +13,7 @@ import { build } from 'esbuild'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const at = (...parts) => join(root, ...parts)
-const LICENSE_BANNER = name => `/*! ${name} — MIT License. Bundles the LightCode packages; the RTK filter data inside is Apache-2.0 (see NOTICE.md). */`
+const LICENSE_BANNER = name => `/*! ${name} — MIT License. Bundles the TokenWise packages; the RTK filter data inside is Apache-2.0 (see NOTICE.md). */`
 
 const node = {
   bundle: true,
@@ -44,9 +45,9 @@ async function bundleDshClient() {
     external: ['react', 'react/jsx-runtime', '@deepseek-ai/*'],
   })
   const code = result.outputFiles[0].text
-  const wrapped = `${LICENSE_BANNER('@lightcode-ai/dsh (browser half)')}
+  const wrapped = `${LICENSE_BANNER('@tokenwise/dsh (browser half)')}
 window.__ModuleLoader__.load({
-\tid: "@lightcode-ai/dsh",
+\tid: "@tokenwise/dsh",
 \tfactory: (require) => {
 \t\tvar module = { exports: {} };
 \t\tvar exports = module.exports;
@@ -62,38 +63,39 @@ ${code}
 
 const RTK_COMMIT = readFileSync(at('third-party/rtk/NOTICE.md'), 'utf8').match(/`([0-9a-f]{40})`/)[1]
 
-/** Each bundled package carries LightCode's license, RTK's license and a notice naming both. */
+/** Each bundled package carries TokenWise's license, RTK's license and a notice naming both. */
 function writeLegal(dir, name) {
   copyFileSync(at('LICENSE'), at(dir, 'LICENSE'))
   copyFileSync(at('third-party/rtk/LICENSE'), at(dir, 'LICENSE.rtk'))
   writeFileSync(at(dir, 'NOTICE.md'), `# Notices
 
-\`${name}\` is part of LightCode (https://github.com/Zongwei9888/lightcode-plugins), MIT
-licensed (see \`LICENSE\`). Its JavaScript bundles include the LightCode packages
+\`${name}\` is part of TokenWise (https://github.com/Zongwei9888/tokenwise), MIT
+licensed (see \`LICENSE\`). Its JavaScript bundles include the TokenWise packages
 it uses.
 
 The bundles also contain filter definitions generated from the built-in TOML
 filters of RTK (https://github.com/rtk-ai/rtk) at commit \`${RTK_COMMIT}\`,
 redistributed under the Apache License 2.0 (see \`LICENSE.rtk\`). The
-TypeScript code that executes them is LightCode code under the MIT license.
+TypeScript code that executes them is TokenWise code under the MIT license.
 `)
 }
 
-for (const [dir, name] of [['adapters/pi', '@lightcode-ai/pi'], ['adapters/dsh', '@lightcode-ai/dsh'], ['packages/cli', '@lightcode-ai/cli']]) writeLegal(dir, name)
+for (const [dir, name] of [['adapters/pi', '@tokenwise/pi'], ['adapters/dsh', '@tokenwise/dsh'], ['adapters/opencode', '@tokenwise/opencode'], ['packages/cli', '@tokenwise/cli']]) writeLegal(dir, name)
 // The library packages are published as they are; they carry the project license (and core the RTK one).
 for (const dir of ['packages/core', 'packages/protocol', 'packages/store', 'packages/mechanisms']) copyFileSync(at('LICENSE'), at(dir, 'LICENSE'))
 copyFileSync(at('third-party/rtk/LICENSE'), at('packages/core', 'LICENSE.rtk'))
 
 await Promise.all([
-  bundleNode({ entry: 'adapters/pi/src/extension.ts', outfile: 'adapters/pi/dist/extension.js', name: '@lightcode-ai/pi',
+  bundleNode({ entry: 'adapters/pi/src/extension.ts', outfile: 'adapters/pi/dist/extension.js', name: '@tokenwise/pi',
     external: ['@earendil-works/*', 'typebox'] }),
-  bundleNode({ entry: 'adapters/dsh/src/index.ts', outfile: 'adapters/dsh/lib/index.js', name: '@lightcode-ai/dsh',
+  bundleNode({ entry: 'adapters/dsh/src/index.ts', outfile: 'adapters/dsh/lib/index.js', name: '@tokenwise/dsh',
     external: ['@deepseek-ai/*'] }),
+  bundleNode({ entry: 'adapters/opencode/src/index.ts', outfile: 'adapters/opencode/dist/index.js', name: '@tokenwise/opencode', external: [] }),
   // The learning runner each plugin starts as its own process.
-  bundleNode({ entry: 'adapters/pi/src/evolve.ts', outfile: 'adapters/pi/dist/evolve.js', name: '@lightcode-ai/pi (learning runner)', external: [] }),
-  bundleNode({ entry: 'adapters/dsh/src/evolve.ts', outfile: 'adapters/dsh/lib/evolve.js', name: '@lightcode-ai/dsh (learning runner)', external: [] }),
-  bundleNode({ entry: 'packages/cli/src/main.ts', outfile: 'packages/cli/dist/lc.js', name: '@lightcode-ai/cli',
+  bundleNode({ entry: 'adapters/pi/src/evolve.ts', outfile: 'adapters/pi/dist/evolve.js', name: '@tokenwise/pi (learning runner)', external: [] }),
+  bundleNode({ entry: 'adapters/dsh/src/evolve.ts', outfile: 'adapters/dsh/lib/evolve.js', name: '@tokenwise/dsh (learning runner)', external: [] }),
+  bundleNode({ entry: 'packages/cli/src/main.ts', outfile: 'packages/cli/dist/tokenwise.js', name: '@tokenwise/cli',
     external: [], executable: true }),
   bundleDshClient(),
 ])
-console.log('bundled @lightcode-ai/pi, @lightcode-ai/dsh (Host and browser halves), their learning runners and @lightcode-ai/cli')
+console.log('bundled @tokenwise/pi, @tokenwise/dsh (Host and browser halves), their learning runners, @tokenwise/opencode and @tokenwise/cli')

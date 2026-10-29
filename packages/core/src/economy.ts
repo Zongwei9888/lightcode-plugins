@@ -17,10 +17,10 @@ export interface RenderedStream {
 
 /** One shell execution, exactly as the host would otherwise deliver it to the model. */
 export interface ShellResult {
-  /** Command text as the agent wrote it (before any LightCode wrapping). */
+  /** Command text as the agent wrote it (before any TokenWise wrapping). */
   readonly command: string
   readonly exitCode: number
-  /** Complete text the model would receive without LightCode. */
+  /** Complete text the model would receive without TokenWise. */
   readonly rendered: string
   readonly stdout: RenderedStream
   /** Present only when the host keeps stderr apart from stdout. */
@@ -222,7 +222,7 @@ export function decideShellProjection(result: ShellResult, options: EconomyDecis
 
 /** A host tool's own result (no shell), with the layout its adapter verified against that exact text. */
 export interface NativeResult {
-  /** Complete text the model would receive without LightCode. */
+  /** Complete text the model would receive without TokenWise. */
   readonly rendered: string
   /** From the `native*` functions; undefined when the text is not the shape they accept. */
   readonly projection: FilterCandidate | undefined

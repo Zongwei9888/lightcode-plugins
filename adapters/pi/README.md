@@ -1,4 +1,4 @@
-# LightCode for pi
+# TokenWise for pi
 
 [中文](#中文说明)
 
@@ -16,57 +16,57 @@ and the exit status are always kept.
   the full output.
 - **Strictly smaller or nothing**: a projection is used only if it is smaller
   in bytes and saves tokens; otherwise the original passes through.
-- LightCode also keeps a private copy of each projected original
-  (`~/.lightcode`, user-only permissions, 14 days) with a source map.
-- **Fail-open**: any LightCode error delivers the original output.
+- TokenWise also keeps a private copy of each projected original
+  (`~/.tokenwise`, user-only permissions, 14 days) with a source map.
+- **Fail-open**: any TokenWise error delivers the original output.
 - **No network access.**
 
-It also makes pi's **compaction recoverable** (LightShadow): when pi
+It also makes pi's **compaction recoverable**: when pi
 compacts a long session, tool results in the compacted part become
-references the model can read again with the `lightcode_recall` tool, and
+references the model can read again with the `tokenwise_recall` tool, and
 your messages are kept word for word in the summary. And rules learned from
-your own sessions with `lc evolve` apply here too.
+your own sessions with `tokenwise evolve` apply here too.
 
 Requires pi **1.1 or newer** (tested with 1.1.0 and 1.2.0) and Node.js 22.
 
 ## Install
 
 ```sh
-pi install npm:@lightcode-ai/pi
+pi install npm:@tokenwise/pi
 ```
 
 Add `-l` to install it for the current project only. To try it for one run
-without installing: `pi -e npm:@lightcode-ai/pi`.
+without installing: `pi -e npm:@tokenwise/pi`.
 
 ## Use
 
 Nothing to do: from the next `bash`, `grep` or `find` call on, recognized output is filtered.
 
-- The status bar shows the tokens saved in the session (`LightCode −5.8k tok`).
-- `/lightcode` opens LightCode's panel: the session's savings and
+- The status bar shows the tokens saved in the session (`TokenWise −5.8k tok`).
+- `/tokenwise` opens TokenWise's panel: the session's savings and
   compactions, the learned rules and what each saved, the commands worth
   learning from, and a learning run in progress. Keys: `l` learn now, `c`
   cancel, `r` roll back, `o` switch learned rules off or on, `esc` close.
-  `/lightcode status` prints the same as text (also in `-p` and RPC mode);
-  `/lightcode learn | cancel | rules | rollback | off | on` act directly.
+  `/tokenwise status` prints the same as text (also in `-p` and RPC mode);
+  `/tokenwise learn | cancel | rules | rollback | off | on` act directly.
 - While a run goes, the status bar shows it (`◐ learning 2:31`); it shows
   `✦ ready to learn` when there is enough new output to learn from.
-- `pi --lightcode observe` (or `off`) lowers the mode for one run: `observe`
+- `pi --tokenwise observe` (or `off`) lowers the mode for one run: `observe`
   records what would change without changing anything.
 - `pi config` lists the package; switching its extension off unloads
-  LightCode completely.
+  TokenWise completely.
 
-LightCode also normalizes a few commands before they run so their output is
+TokenWise also normalizes a few commands before they run so their output is
 recognizable and colour-free: plain `rg`/`grep` searches gain `-n -H`,
 `git diff` gains `--no-color`, `pytest` gains `--color=no`. The assistant
 message in pi's session keeps the command as the model wrote it, and
-LightCode's journal records every rewrite.
+TokenWise's journal records every rewrite.
 
-Configuration (`~/.lightcode/config.json`, a project's
-`.lightcode/config.json`, `LIGHTCODE_ECONOMY`, `LIGHTCODE_LIGHTSHADOW`,
-`LIGHTCODE_DISABLE=1`) is shared
-with the other LightCode hosts; see the
-[main README](https://github.com/Zongwei9888/lightcode-plugins#configuration).
+Configuration (`~/.tokenwise/config.json`, a project's
+`.tokenwise/config.json`, `TOKENWISE_OUTPUT`, `TOKENWISE_COMPACTION`,
+`TOKENWISE_DISABLE=1`) is shared
+with the other TokenWise hosts; see the
+[main README](https://github.com/Zongwei9888/tokenwise#configuration).
 
 ## What it changes, exactly
 
@@ -82,10 +82,10 @@ with the other LightCode hosts; see the
 - pi merges stdout and stderr and appends `Command exited with code N` on
   failure; that footer is always kept.
 
-## Compaction (LightShadow)
+## Compaction
 
 When pi compacts (automatically near the context limit, or with `/compact`),
-LightCode supplies the summary through `session_before_compact`:
+TokenWise supplies the summary through `session_before_compact`:
 
 - pi's own summarizer (the same `compact()` call and model pi would use)
   writes the summary, asked to keep the findings of tool results rather than
@@ -94,38 +94,38 @@ LightCode supplies the summary through `session_before_compact`:
   reference;
 - the summary is followed by your messages, verbatim, and a catalog of the
   references; pi's own file tracking is kept;
-- `lightcode_recall` becomes available to the model: it returns a result
+- `tokenwise_recall` becomes available to the model: it returns a result
   exactly as the model read it, a window of up to 8 KB around a string or a
   line number (numbered, the asked line marked), or
-  the complete original when Economy had shortened it. The references are
+  the complete original when TokenWise had shortened it. The references are
   stored in pi's compaction entry, so `/fork` and `/resume` keep them.
 
 If the result would not be smaller, or anything fails, pi compacts as it
-always does. `pi --lightcode observe` records what a checkpoint would keep
+always does. `pi --tokenwise observe` records what a checkpoint would keep
 without changing pi's compaction. If you restrict tools with `--tools`,
-include `lightcode_recall` for the model to be able to recall.
+include `tokenwise_recall` for the model to be able to recall.
 
 ## Learned rules
 
-Press `l` in the `/lightcode` panel (or run `/lightcode learn`) and confirm:
-LightCode starts pi itself as the learner, in the background, with the
+Press `l` in the `/tokenwise` panel (or run `/tokenwise learn`) and confirm:
+TokenWise starts pi itself as the learner, in the background, with the
 session's model (`pi -p --provider <yours> --model <yours>`). It reads up to
 40 recorded outputs, so they go to that model's provider. The panel shows the
 steps (prepare, learn, verify) and the learner's checks; pi tells you the
 result when it ends, and the running session uses adopted rules from its next
 output on. Runs need Node.js (pi's own, or `node` on PATH) and stop after 20
-minutes. `lc evolve --learner pi` (from `@lightcode-ai/cli`) does the same in a
+minutes. `tokenwise evolve --learner pi` (from `@tokenwise/cli`) does the same in a
 terminal. See the
-[main README](https://github.com/Zongwei9888/lightcode-plugins#self-evolving-filters).
+[main README](https://github.com/Zongwei9888/tokenwise#self-evolving-filters).
 
 ## Subagents
 
 pi has no built-in subagents. Subagent extensions that run each subagent as a
 separate `pi` process, such as the subagent example that ships with pi
-(`examples/extensions/subagent` in `@earendil-works/pi-coding-agent`), load LightCode in that process as well, so the subagent's `bash` output is
-filtered the same way. The parent's status bar and `/lightcode` include what
-its subagents saved: LightCode hands the parent session's ID to the processes
-pi starts in the `LIGHTCODE_PARENT_SESSION` environment variable, and only a
+(`examples/extensions/subagent` in `@earendil-works/pi-coding-agent`), load TokenWise in that process as well, so the subagent's `bash` output is
+filtered the same way. The parent's status bar and `/tokenwise` include what
+its subagents saved: TokenWise hands the parent session's ID to the processes
+pi starts in the `TOKENWISE_PARENT_SESSION` environment variable, and only a
 direct child process of that pi takes it up, so a later session in the same pi
 (`/new`, `/resume`, `/fork`) is not counted as a subagent. Tested with
 the subagent example in single and parallel mode; subagents that run inside the
@@ -134,29 +134,29 @@ parent's process are not covered.
 ## Remove
 
 ```sh
-pi remove npm:@lightcode-ai/pi
+pi remove npm:@tokenwise/pi
 ```
 
-Saved originals expire on their own; delete `~/.lightcode` to remove them at
+Saved originals expire on their own; delete `~/.tokenwise` to remove them at
 once.
 
 ---
 
 ## 中文说明
 
-LightCode 的 pi 扩展包：在模型读取之前精简可识别的 `bash` 输出（测试、构建、
+TokenWise 的 pi 扩展包：在模型读取之前精简可识别的 `bash` 输出（测试、构建、
 diff、搜索、安装等约 80 类命令），失败信息、诊断、警告和退出码一律保留。投影通过
 pi 的 `context_edit` 交付，**pi 自己的会话文件、TUI 和导出仍是完整原文**。精简结果
-必须在字节和 token 上都严格变小才会使用；LightCode 出任何错都交付原文；不联网。
+必须在字节和 token 上都严格变小才会使用；TokenWise 出任何错都交付原文；不联网。
 
 需要 pi **1.1 及以上**（已在 1.1.0 和 1.2.0 上测试）。
 
-- 安装：`pi install npm:@lightcode-ai/pi`（加 `-l` 只装到当前项目）
-- 可找回的压缩（LightShadow）：pi 压缩长会话时，被压缩部分的工具结果换成引用，模型可以用 `lightcode_recall` 原样读回；你的原话逐字保留在摘要里；结果没变小或出错时交给 pi 自己压缩
-- `/lightcode` 打开面板：本会话的节省和压缩、学到的规则及各自省下的 token、值得学习的命令、正在进行的学习。按键：`l` 开始学习，`c` 取消，`r` 回滚，`o` 开关学到的规则，`esc` 关闭；`/lightcode status` 输出文字版
-- 学到的规则：在面板里按 `l` 并确认，LightCode 会在后台用当前会话的模型启动 pi 作为学习者，从记录的输出里学新规则，验证通过才采用，正在运行的会话从下一条输出起生效；也可以用 `lc evolve --learner pi`
-- 状态栏显示本会话省下的 token；`/lightcode` 查看明细
+- 安装：`pi install npm:@tokenwise/pi`（加 `-l` 只装到当前项目）
+- 可找回的压缩：pi 压缩长会话时，被压缩部分的工具结果换成引用，模型可以用 `tokenwise_recall` 原样读回；你的原话逐字保留在摘要里；结果没变小或出错时交给 pi 自己压缩
+- `/tokenwise` 打开面板：本会话的节省和压缩、学到的规则及各自省下的 token、值得学习的命令、正在进行的学习。按键：`l` 开始学习，`c` 取消，`r` 回滚，`o` 开关学到的规则，`esc` 关闭；`/tokenwise status` 输出文字版
+- 学到的规则：在面板里按 `l` 并确认，TokenWise 会在后台用当前会话的模型启动 pi 作为学习者，从记录的输出里学新规则，验证通过才采用，正在运行的会话从下一条输出起生效；也可以用 `tokenwise evolve --learner pi`
+- 状态栏显示本会话省下的 token；`/tokenwise` 查看明细
 - pi 自带的 `grep`、`find` 工具的结果做无损排版（同一文件的匹配、同一目录的路径归到一起，每行、每个路径和提示都保留）；`read`、`edit`、`write`、`ls` 从不改动
-- 子 agent：每个子 agent 单独起一个 `pi` 进程的子 agent 扩展（如 pi 自带的 subagent 示例）里，LightCode 同样生效；父会话的状态栏和 `/lightcode` 会把子 agent 省下的一起算上（通过环境变量 `LIGHTCODE_PARENT_SESSION` 传递父会话 ID，只有该 pi 直接启动的子进程才会认领；同一个 pi 里 `/new`、`/resume`、`/fork` 出来的会话不算子 agent）
-- `pi --lightcode observe` 本次运行只记录不改动；`pi config` 里可以关闭扩展
-- 卸载：`pi remove npm:@lightcode-ai/pi`
+- 子 agent：每个子 agent 单独起一个 `pi` 进程的子 agent 扩展（如 pi 自带的 subagent 示例）里，TokenWise 同样生效；父会话的状态栏和 `/tokenwise` 会把子 agent 省下的一起算上（通过环境变量 `TOKENWISE_PARENT_SESSION` 传递父会话 ID，只有该 pi 直接启动的子进程才会认领；同一个 pi 里 `/new`、`/resume`、`/fork` 出来的会话不算子 agent）
+- `pi --tokenwise observe` 本次运行只记录不改动；`pi config` 里可以关闭扩展
+- 卸载：`pi remove npm:@tokenwise/pi`

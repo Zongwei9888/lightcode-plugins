@@ -1,9 +1,9 @@
 /**
  * LightShadow, end to end, on both hosts: a session long enough to make the
  * host compact, then the model reads a compacted tool result again with
- * `lightcode_recall`. Checks that the checkpoint the model receives carries
+ * `tokenwise_recall`. Checks that the checkpoint the model receives carries
  * the user's exact words and the catalog, that the recalled text is exactly
- * what the model first read, and what LightCode journaled.
+ * what the model first read, and what TokenWise journaled.
  */
 import assert from 'node:assert/strict'
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -20,15 +20,15 @@ export async function runShadow({ cache, root, registry, log, hosts }) {
       const bin = ensureTool(cache, 'dsh', version)
       const dsh = join(bin, 'dsh')
       const base = join(root, `shadow-dsh-${version}`)
-      const dshHome = join(base, 'home'), work = join(base, 'work'), lightcodeHome = join(base, 'lc')
+      const dshHome = join(base, 'home'), work = join(base, 'work'), tokenwiseHome = join(base, 'tokenwise')
       mkdirSync(dshHome, { recursive: true })
       mkdirSync(work, { recursive: true })
       const { state, script } = shadowScript()
       const mock = await startMockLlm(script)
-      const env = childEnv({ ...registry.env, DSH_HOME: dshHome, LIGHTCODE_HOME: lightcodeHome, MOCK_LLM_API_KEY: 'e2e',
+      const env = childEnv({ ...registry.env, DSH_HOME: dshHome, TOKENWISE_HOME: tokenwiseHome, MOCK_LLM_API_KEY: 'e2e',
         PATH: `${pnpmBin}:${bin}:${process.env.PATH}`, npm_config_cache: join(cache, 'npm-cache'), npm_config_store_dir: join(cache, 'pnpm-store') })
       try {
-        run(dsh, ['plugin', '--profile', 'headless', 'add', '@lightcode-ai/dsh'], { cwd: base, env })
+        run(dsh, ['plugin', '--profile', 'headless', 'add', '@tokenwise/dsh'], { cwd: base, env })
         // A 60k-token window, compaction at 30% of it, a 3k-token tail: the session above must compact.
         writeFileSync(join(dshHome, 'profiles', 'headless', 'cordis.patch.yml'), `- id: llm-pi-ai
   config:
@@ -59,9 +59,9 @@ export async function runShadow({ cache, root, registry, log, hosts }) {
         assert.ok(state.summaries > 0, `DSH never compacted:\n${result.stderr.slice(-2000)}`)
         assert.ok(state.recalledId, `the model found no catalog or no recall tool (last reply: ${JSON.stringify(mock.requests.at(-1)?.messages?.at(-1))?.slice(0, 300)})`)
         checkpointRequest(mock.requests)
-        const { checkpoints } = readBack(mock.requests, state.recalledId, lightcodeHome, 'dsh')
+        const { checkpoints } = readBack(mock.requests, state.recalledId, tokenwiseHome, 'dsh')
         const kinds = checkpoints.map(record => record.kind)
-        assert.ok(kinds.includes('lightshadow'), `no LightShadow checkpoint: ${kinds.join(', ')}`)
+        assert.ok(kinds.includes('lightshadow'), `no TokenWise checkpoint: ${kinds.join(', ')}`)
         log(`shadow dsh ${version}: compacted (${kinds.join(', ')}), checkpoint carries the user's words and the catalog ✓, recall returned the original ✓`)
       } finally {
         await mock.close()
@@ -73,17 +73,17 @@ export async function runShadow({ cache, root, registry, log, hosts }) {
       const bin = ensureTool(cache, 'pi', version)
       const pi = join(bin, 'pi')
       const base = join(root, `shadow-pi-${version}`)
-      const agentDir = join(base, 'agent'), work = join(base, 'work'), lightcodeHome = join(base, 'lc')
+      const agentDir = join(base, 'agent'), work = join(base, 'work'), tokenwiseHome = join(base, 'tokenwise')
       mkdirSync(agentDir, { recursive: true })
       mkdirSync(work, { recursive: true })
       const { state, script } = shadowScript()
       const mock = await startMockLlm(script)
       writeFileSync(join(agentDir, 'models.json'), JSON.stringify({ providers: { mock: { baseUrl: mock.url, api: 'openai-completions', apiKey: 'e2e',
         models: [{ id: 'mock-model', contextWindow: 40000, maxTokens: 4096 }] } } }, null, 2))
-      const env = childEnv({ ...registry.env, PI_CODING_AGENT_DIR: agentDir, LIGHTCODE_HOME: lightcodeHome,
+      const env = childEnv({ ...registry.env, PI_CODING_AGENT_DIR: agentDir, TOKENWISE_HOME: tokenwiseHome,
         PI_SKIP_VERSION_CHECK: '1', PI_TELEMETRY: '0', npm_config_cache: join(cache, 'npm-cache') })
       try {
-        run(pi, ['install', 'npm:@lightcode-ai/pi'], { cwd: base, env })
+        run(pi, ['install', 'npm:@tokenwise/pi'], { cwd: base, env })
         // Compact once the context passes 40k − 12k tokens, keeping about 3k recent tokens.
         const settingsFile = join(agentDir, 'settings.json')
         const settings = JSON.parse(run('cat', [settingsFile]).stdout)
@@ -96,8 +96,8 @@ export async function runShadow({ cache, root, registry, log, hosts }) {
         assert.ok(state.summaries > 0, `pi never compacted:\n${result.stderr.slice(-2000)}`)
         assert.ok(state.recalledId, `the model found no catalog or no recall tool (last reply: ${JSON.stringify(mock.requests.at(-1)?.messages?.at(-1))?.slice(0, 300)})`)
         checkpointRequest(mock.requests)
-        const { checkpoints } = readBack(mock.requests, state.recalledId, lightcodeHome, 'pi')
-        assert.ok(checkpoints.some(record => record.kind === 'lightshadow'), 'no LightShadow checkpoint')
+        const { checkpoints } = readBack(mock.requests, state.recalledId, tokenwiseHome, 'pi')
+        assert.ok(checkpoints.some(record => record.kind === 'lightshadow'), 'no TokenWise checkpoint')
         log(`shadow pi ${version}: compacted (${checkpoints.map(record => record.kind).join(', ')}), checkpoint carries the user's words and the catalog ✓, recall returned the original ✓`)
       } finally {
         await mock.close()

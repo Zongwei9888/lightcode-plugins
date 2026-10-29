@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { readRuleDirectory, removeTree, RuleStore } from '../src/index.ts'
 
 const dirs: string[] = []
-const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'lightcode-rules-')); dirs.push(dir); return dir }
+const temp = () => { const dir = mkdtempSync(join(tmpdir(), 'tokenwise-rules-')); dirs.push(dir); return dir }
 afterEach(() => { for (const dir of dirs.splice(0)) removeTree(dir) })
 
 function ruleDir(name = 'x', body = "defineRule({ project() { return null } })") {

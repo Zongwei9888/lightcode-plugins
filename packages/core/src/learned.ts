@@ -7,14 +7,14 @@ import type { MappedProjection, SourceMap } from './projection-map.ts'
 import type { EconomyTransformation, FilterCandidate, FilterInput } from './types.ts'
 
 /**
- * Learned rules: filters `lc evolve` adopted after verification, kept as a
+ * Learned rules: filters `tokenwise evolve` adopted after verification, kept as a
  * content-hashed directory and run before the built-in filters.
  *
  *   index.json        {"schemaVersion": 1, "rules": [{"id", "file", "transformation"}]}
- *   rules/<id>.js     a script that calls defineRule({ project(input, lc) { ... } }) once
+ *   rules/<id>.js     a script that calls defineRule({ project(input, tw) { ... } }) once
  *
  * A rule's `project` returns null (not recognized) or `{ text, sourceMap }`,
- * built with the `lc` helpers so every copied span is exact. Each rule set
+ * built with the `tw` helpers so every copied span is exact. Each rule set
  * runs in its own V8 context that holds nothing of the host: no `require`,
  * `process`, file system, network, timers or string evaluation, and only
  * strings cross the boundary. Every call has a time limit. A result must
@@ -152,7 +152,7 @@ const __builder = raw => {
     finish() { return { text, sourceMap: { version: 1, unit: 'utf16', sourceLength: raw.length, outputLength: text.length, spans: spans.slice() } }; },
   });
 };
-const lc = Object.freeze({
+const tw = Object.freeze({
   lines: __lines,
   builder: __builder,
   stripAnsi: value => String(value).replace(/\x1b\[[0-9;]*[a-zA-Z]/g, ''),
@@ -170,7 +170,7 @@ const lc = Object.freeze({
 const defineRule = definition => {
   if (__current === null) throw new Error('defineRule may only run while the rule file loads');
   if (__rules[__current] !== undefined) throw new Error('defineRule called twice');
-  if (!definition || typeof definition.project !== 'function') throw new Error('defineRule needs { project(input, lc) }');
+  if (!definition || typeof definition.project !== 'function') throw new Error('defineRule needs { project(input, tw) }');
   __rules[__current] = definition.project;
 };
 var __load = id => { __current = id; };
@@ -179,7 +179,7 @@ Object.defineProperty(globalThis, '__input', { value: '', writable: true, enumer
 var __call = id => {
   try {
     const input = Object.freeze(JSON.parse(__input));
-    const result = __rules[id](input, lc);
+    const result = __rules[id](input, tw);
     if (result === null || result === undefined) return 'null';
     return JSON.stringify({ text: result.text, sourceMap: result.sourceMap });
   } catch (error) {
@@ -249,7 +249,7 @@ const reply = message => { port.postMessage(message); Atomics.store(shared, 0, 1
 let prepared;
 try {
   prepared = {
-    prelude: new vm.Script(prelude, { filename: 'lightcode-prelude.js' }),
+    prelude: new vm.Script(prelude, { filename: 'tokenwise-prelude.js' }),
     rules: rules.map(rule => ({
       id: rule.id,
       load: new vm.Script('__load(' + JSON.stringify(rule.id) + ')'),
