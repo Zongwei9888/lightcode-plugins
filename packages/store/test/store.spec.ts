@@ -12,7 +12,7 @@ afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: tru
 const record = (sessionId: string | null, callId: string): EconomyRecord => ({
   schemaVersion: 1, type: 'economy/decision', time: '2026-10-13T00:00:00.000Z', host: 'pi', sessionId, callId,
   tool: 'bash', command: 'grep -rn x .', exitCode: 0, delivery: 'in-process', streams: 'merged', mode: 'apply',
-  outcome: 'passed', reason: 'no-filter-match', runtimeVersion: 'static-v10', policyHash: 'p',
+  outcome: 'passed', reason: 'no-filter-match', runtimeVersion: 'static-v11', policyHash: 'p',
 })
 
 describe('paths', () => {
