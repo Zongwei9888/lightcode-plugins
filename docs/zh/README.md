@@ -141,8 +141,6 @@ TokenWise 能做到多深，取决于每个 agent 允许插件做什么。在其
 
 **pi**：`/tokenwise` 打开一个面板，显示本次会话省了多少、学到的过滤规则，以及值得学习的命令。按 `l` 开始学习，按 `r` 回滚一次采用。
 
-<p align="center"><img src="../assets/screenshots/pi-panel-adopted.png" alt="pi 的 /tokenwise 面板，已采用一条过滤规则" width="820"></p>
-
 **DeepSeek Harness**（Web 和桌面版）：插件页面上有 **Learn now**、实时进度、带开关和 **Roll back** 的已学规则列表；有值得学习的新输出时会弹出提示。
 
 <p align="center"><img src="../assets/screenshots/dsh-self-evolution.png" alt="DeepSeek Harness 插件页面：已采用一条过滤规则" width="900"></p>

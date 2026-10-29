@@ -7,7 +7,7 @@
     {
       "name": "tokenwise",
       "source": "./adapters/codebuddy",
-      "description": "TokenWise Economy for CodeBuddy Code",
+      "description": "TokenWise for CodeBuddy Code",
       "version": "0.3.0"
     }
   ]

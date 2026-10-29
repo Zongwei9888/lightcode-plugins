@@ -7,7 +7,7 @@
     {
       "name": "tokenwise",
       "source": "./adapters/claude-code",
-      "description": "TokenWise Economy for Claude Code",
+      "description": "TokenWise for Claude Code",
       "version": "0.3.0"
     }
   ]

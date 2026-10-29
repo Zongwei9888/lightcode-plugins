@@ -10,7 +10,7 @@
         "type": "local",
         "path": "./adapters/grok"
       },
-      "description": "TokenWise Economy for Grok Build",
+      "description": "TokenWise for Grok Build",
       "version": "0.3.0"
     }
   ]

@@ -189,15 +189,13 @@ agent takes a thin adapter over the same core:
 filters and the commands worth learning from. Press `l` to learn; `r` rolls
 an adoption back.
 
-<p align="center"><img src="docs/assets/screenshots/pi-panel-adopted.png" alt="pi /tokenwise panel after a filter was adopted" width="820"></p>
-
 **DeepSeek Harness** (Web and Desktop) — the plugin's page has **Learn now**,
 live progress, the learned filters with a switch and **Roll back**, and a
 toast when there is new output worth learning from.
 
 <p align="center"><img src="docs/assets/screenshots/dsh-self-evolution.png" alt="DeepSeek Harness plugin page: a learned filter adopted" width="900"></p>
 
-Screenshots come from the end-to-end suite, which drives the real apps with
+The screenshot comes from the end-to-end suite, which drives the real app with
 a scripted model.
 
 </details>
