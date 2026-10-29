@@ -468,7 +468,12 @@ export function recallObservation(args: RecallArguments, options: {
   if (line !== undefined && !(Number.isInteger(line) && line >= 1 && line <= lines.length)) {
     return { ok: false, error: `${id} has ${lines.length} lines; pass a line from 1 to ${lines.length}` }
   }
-  const hit = line !== undefined ? line - 1 : lines.findIndex(item => item.includes(query))
+  // The exact string first; then the same ignoring case (models ask for "archived" where the text says "Archived").
+  const folded = query.toLowerCase()
+  const exact = line !== undefined ? -1 : lines.findIndex(item => item.includes(query))
+  const caseless = exact >= 0 || line !== undefined ? exact : lines.findIndex(item => item.toLowerCase().includes(folded))
+  const matchAt = (whole: string) => exact >= 0 ? whole.indexOf(query) : whole.toLowerCase().indexOf(folded)
+  const hit = line !== undefined ? line - 1 : caseless
   if (hit < 0) return { ok: false, error: `${JSON.stringify(query)} does not occur in ${id}; try a shorter exact string, or a line number` }
   // Grow the window around the match one line at a time, alternating sides.
   // Numbered lines carry 8 more bytes each (marker, number, tab).
@@ -477,7 +482,7 @@ export function recallObservation(args: RecallArguments, options: {
   if (size > windowBytes) {
     // One line longer than the window (minified JSON, a JSON-escaped log): the part around the match, not its start.
     const whole = lines[hit]!
-    const at = line === undefined ? Math.max(0, whole.indexOf(query)) : 0
+    const at = line === undefined ? Math.max(0, matchAt(whole)) : 0
     let from = Math.max(0, at - Math.floor(windowBytes / 2))
     let piece = whole.slice(from, from + windowBytes)
     while (bytes(piece) > windowBytes) piece = piece.slice(0, Math.max(1, Math.floor(piece.length * 0.9)))

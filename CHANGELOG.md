@@ -76,6 +76,9 @@ allows it (in full on five, assisted on three), and self-evolving filters. (0.1.
   `/opt/homebrew/bin/python3 -m pytest`, `/usr/bin/git diff`) is recognized
   by the built-in filters, the RTK filter catalog included, like the bare
   name; learned rules still see the command as written.
+- A recall query that does not occur exactly is matched again ignoring
+  case: Kimi K2.6 on OpenCode searched a spec it had read for "archived"
+  where the text said "Archived", and got nothing.
 - Recall on a line longer than its 8 KB window (minified JSON, a
   JSON-escaped log) returns the part around the match, not the line's start.
 - An assisted catalog under a tight limit (Claude Code's 10,000 characters)
