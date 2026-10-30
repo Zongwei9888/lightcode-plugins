@@ -17,7 +17,7 @@
 
 **[Watch the 1-minute video](media/video/tokenwise-en.mp4)** · [中文视频](media/video/tokenwise-zh.mp4)
 
-[Why](#why-tokenwise) · [How it works](#how-it-works) · [Results](#results-on-real-sessions) · [Install](#install) · [Agents](#supported-agents) · [Commands](#commands) · [Development](#development)
+[Why](#why-tokenwise) · [How it works](#how-it-works) · [Install](#install) · [Agents](#supported-agents) · [Commands](#commands) · [Development](#development)
 
 </div>
 
@@ -95,31 +95,6 @@ switched off on its own, and any adoption can be rolled back.
   compaction TokenWise cannot improve is left to the agent.
 - **Local.** Originals are kept under `~/.tokenwise` with user-only
   permissions for 14 days. TokenWise makes no network requests of its own.
-
-## Results on real sessions
-
-Long real tasks, each agent at its **default** compaction settings, run until
-the agent compacted on its own. Afterwards the agent had to quote, exactly,
-lines it had read before the compaction.
-
-<div align="center">
-<img src="media/images/results.png" alt="Real sessions at default settings: each agent kept 3 to 6 percent of the compacted history" width="100%">
-</div>
-
-| Agent · model | Compacted history → what the model kept | Saved results | Afterwards |
-|---|---|---|---|
-| pi · DeepSeek V4 (1M) | 949k → 29.5k tokens | 624 | 2 recalls, every answer correct |
-| DeepSeek Harness · DeepSeek V4 (1M) | 539k → 30.8k tokens | 589 | 2 recalls, every answer correct |
-| pi · Kimi K2.6 (262k) | 274k → 8.0k tokens | 113 | 3 recalls, every answer correct |
-| OpenCode · Kimi K2.6 (262k) | 190k → 7.1k tokens | 67 | every answer correct |
-| Hermes Agent · Kimi K2.6 (262k) | 180k → 8.9k tokens | 83 | 8 recalls, every answer correct |
-| Grok Build · default model | 199k span; catalog added after Grok's summary | 82 | every answer correct |
-| Claude Code · everyday session | automatic compaction at 661k; catalog added after Claude's summary | 202 | — |
-
-In the 262k runs each agent fixed six bugs against a 720 KB specification and
-then copied 60 change requests verbatim; every one got all of it right.
-CodeBuddy finished the same task without needing to compact: compact tool
-output had saved it about 58k tokens.
 
 ## Install
 

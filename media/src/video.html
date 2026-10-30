@@ -51,16 +51,6 @@
   .checks div { opacity: 0; }
   .checks b { color: var(--teal); }
 
-  /* results scene */
-  .bars { left: 760px; top: 190px; width: 1060px; }
-  .bars .r { display: grid; grid-template-columns: 250px 1fr; align-items: center; height: 118px; }
-  .bars .who { font-size: 26px; font-weight: 650; font-stretch: 92%; line-height: 1.1; }
-  .bars .who small { display: block; font-size: 17px; font-weight: 420; color: #5B7671; margin-top: 4px; }
-  .bars .track { position: relative; height: 34px; }
-  .bars .hist { position: absolute; left: 0; top: 0; bottom: 0; background: #0B9182; border-radius: 0 4px 4px 0; }
-  .bars .keep { position: absolute; left: 0; top: 0; bottom: 0; background: #B87E00; box-shadow: 2px 0 0 var(--paper); }
-  .bars .val { position: absolute; top: -40px; font-size: 24px; font-weight: 720; font-stretch: 80%; white-space: nowrap; }
-
   /* agents + end card */
   .chips { left: 760px; top: 250px; width: 1060px; display: flex; flex-wrap: wrap; gap: 22px; }
   .chip { padding: 22px 34px; border-radius: 999px; background: #fff; border: 2px solid var(--rule); font-size: 32px; font-weight: 650; font-stretch: 90%; opacity: 0; }
@@ -78,7 +68,6 @@
 <section class="scene" id="sFold"></section>
 <section class="scene" id="sCompact"></section>
 <section class="scene" id="sLearn"></section>
-<section class="scene" id="sResults"></section>
 <section class="scene" id="sAgents"></section>
 <section class="scene" id="sEnd"></section>
 <script type="module">
@@ -97,19 +86,19 @@ const p = (t, a, b) => clamp((t - a) / (b - a))
 const lerp = (a, b, x) => a + (b - a) * x
 const window_ = (t, a, b, f = .5) => Math.min(outc(p(t, a, a + f)), 1 - p(t, b - f, b))
 
-const SCENES = { sFold: [0, 15.2], sCompact: [15, 29.2], sLearn: [29, 41.2], sResults: [41, 50.2], sAgents: [50, 55.8], sEnd: [55.6, 62] }
-window.DURATION = 62
+const SCENES = { sFold: [0, 15.2], sCompact: [15, 29.2], sLearn: [29, 41.2], sAgents: [41, 46.8], sEnd: [46.6, 53] }
+window.DURATION = 53
 
 const CAPS = zh ? [
   [0.4, 7, 'agent 会把这些<br>一行行全读进去。'], [7.4, 15, 'TokenWise 只给模型<br>看要紧的部分，<br>失败信息一行不少。'],
   [15.4, 22, '会话一长就要压缩，<br>摘要没写到的内容<br>通常就丢了。'], [22, 29, '有了 TokenWise，<br>每个工具结果<br>都能一次调回。'],
-  [29.4, 41, '它还会学会你自己的工具，<br>只采用在没见过的输出上<br>也成立的规则。'], [41.4, 50, '真实会话、默认设置：<br>历史只留 3%–6%，<br>压缩后全部答对。'],
-  [50.4, 55.6, '装进你正在用的 agent。'],
+  [29.4, 41, '它还会学会你自己的工具，<br>只采用在没见过的输出上<br>也成立的规则。'],
+  [41.4, 46.6, '装进你正在用的 agent。'],
 ] : [
   [0.4, 7, 'Your agent reads every line of this.'], [7.4, 15, 'TokenWise shows the model what matters. Every failure stays.'],
   [15.4, 22, 'Long sessions get compacted. What the summary leaves out is usually gone.'], [22, 29, 'With TokenWise, every tool result stays one call away.'],
-  [29.4, 41, 'It learns your own tools, and keeps a filter only if it holds on output it never saw.'], [41.4, 50, 'Real sessions, default settings: 3–6% of the history kept, every answer right.'],
-  [50.4, 55.6, 'Works in the agent you already use.'],
+  [29.4, 41, 'It learns your own tools, and keeps a filter only if it holds on output it never saw.'],
+  [41.4, 46.6, 'Works in the agent you already use.'],
 ]
 const capEl = document.getElementById('cap')
 capEl.innerHTML = CAPS.map(c => `<div class="line">${c[2]}</div>`).join('')
@@ -196,15 +185,14 @@ function renderCompact(t) {
 const learn = document.getElementById('sLearn')
 const PROG = Array.from({ length: 120 }, (_, i) => `[${String(i + 1).padStart(3)}/120] Compiling module_${i}`)
 const RULE = ["defineRule({ project(input, tw) {", "  if (input.argv?.[0] !== './build.sh') return null", "  return tw.keepLines(input.raw,", "    line => !/Compiling /.test(line.text),", "    n => `[${n} progress lines omitted]\\n`)", "} })"].join('\n')
-const CHECKS = zh ? ['用当前规则和新规则重放全部 35 条记录', '每一行错误都保留', '没有任何一条输出省得更少', '在没见过的输出上也省了'] : ['replayed all 35 recorded outputs', 'every error line kept', 'no output saves less', 'also saves on output it never saw']
+const CHECKS = zh ? ['用当前规则和新规则重放所有记录', '每一行错误都保留', '没有任何一条输出省得更少', '在没见过的输出上也省了'] : ['replayed every recorded output', 'every error line kept', 'no output saves less', 'also saves on output it never saw']
 learn.innerHTML = `<div class="term abs tw" style="width:560px;left:760px;height:760px;top:150px"><div class="bar"><i></i><i></i><i></i><b>./build.sh</b></div>
   <div class="body"><div class="rows">${PROG.map(t => `<div class="row pass"><span>${t}</span></div>`).join('')}</div>
   <div class="seam" style="font-size:16px">${zh ? '学到的规则' : 'a learned filter'}</div>
   <div class="proj"><div class="row">Finished in 3.1s</div><div class="row ev">[120 progress lines omitted]</div></div></div></div>
-  <div class="abs rule" style="left:1370px;top:150px;width:470px"></div><div class="abs checks" style="left:1370px;top:400px">${CHECKS.map(c => `<div><b>✓</b> ${c}</div>`).join('')}</div>
-  <div class="abs badge" style="left:1370px;top:640px"><div class="n counter">+4.1k</div><div class="l">${zh ? '35 条记录上省下的 tokens' : 'tokens on 35 recorded outputs'}</div></div>`
+  <div class="abs rule" style="left:1370px;top:150px;width:470px"></div><div class="abs checks" style="left:1370px;top:400px">${CHECKS.map(c => `<div><b>✓</b> ${c}</div>`).join('')}</div>`
 const lRows = [...learn.querySelectorAll('.rows .row')], lBox = learn.querySelector('.rows'), lSeam = learn.querySelector('.seam'), lProj = [...learn.querySelectorAll('.proj .row')]
-const lRule = learn.querySelector('.rule'), lChecks = [...learn.querySelectorAll('.checks div')], lBadge = learn.querySelector('.badge')
+const lRule = learn.querySelector('.rule'), lChecks = [...learn.querySelectorAll('.checks div')]
 function renderLearn(t) {
   const shown = Math.min(120, Math.floor(Math.max(0, t - 29.5) * 50))
   const fp = ease(p(t, 37.4, 39.4)), rewind = ease(p(t, 36.6, 37.3))
@@ -220,28 +208,9 @@ function renderLearn(t) {
   const rr = outc(p(t, 31.6, 32.2)); lRule.style.opacity = rr
   lRule.textContent = RULE.slice(0, Math.floor(RULE.length * p(t, 32, 34.6)))
   lChecks.forEach((c, i) => { const a = outc(p(t, 34.9 + i * .55, 35.3 + i * .55)); c.style.opacity = a; c.style.transform = `translateX(${(1 - a) * 16}px)` })
-  const b = outc(p(t, 39.8, 40.4)); lBadge.style.opacity = b; lBadge.style.transform = `translateY(${(1 - b) * 20}px)`
 }
 
-// ---- scene 5: results ----
-const res = document.getElementById('sResults')
-const R = [['pi', 'DeepSeek V4, 1M', 949, 29.5], ['DeepSeek Harness', 'DeepSeek V4, 1M', 539, 30.8], ['pi', 'Kimi K2.6, 262k', 274, 8.0], ['OpenCode', 'Kimi K2.6, 262k', 190, 7.1], ['Hermes Agent', 'Kimi K2.6, 262k', 180, 8.9]]
-res.innerHTML = `<div class="abs bars">${R.map(([n, m]) => `<div class="r"><div class="who">${n}<small>${m}</small></div><div class="track"><div class="hist"></div><div class="keep"></div><div class="val counter"></div></div></div>`).join('')}</div>`
-const rRows = [...res.querySelectorAll('.r')]
-function renderResults(t) {
-  rRows.forEach((row, i) => {
-    const [, , h, k] = R[i], g = ease(p(t, 41.6 + i * .25, 43 + i * .25)), shrink = ease(p(t, 44.6, 46.4))
-    const W = 790
-    row.querySelector('.hist').style.width = (W * h / 1000 * g) + 'px'
-    row.querySelector('.hist').style.opacity = lerp(1, .22, shrink)
-    row.querySelector('.keep').style.width = (W * k / 1000 * g) + 'px'
-    const v = row.querySelector('.val'); v.style.left = (W * h / 1000 * g + 18) + 'px'; v.style.top = '0px'
-    v.style.opacity = outc(p(t, 42.6 + i * .25, 43.2 + i * .25))
-    v.innerHTML = shrink < .5 ? `${h}k` : `${h}k → <span style="color:#8A5E00">${k.toFixed(1)}k</span>`
-  })
-}
-
-// ---- scene 6 + 7: agents, end card ----
+// ---- scene 5 + 6: agents, end card ----
 const ag = document.getElementById('sAgents')
 ag.innerHTML = `<div class="abs chips">${['Claude Code', 'Codex', 'pi', 'DeepSeek Harness', 'OpenCode', 'Hermes Agent', 'CodeBuddy', 'Grok Build'].map(a => `<div class="chip">${a}</div>`).join('')}<div class="chip any">tw run -c 'cargo test'</div></div>`
 const chips = [...ag.querySelectorAll('.chip')]
@@ -253,13 +222,12 @@ endEl.innerHTML = `<div class="abs end"><div class="big mark">${LOGO}<span>Token
 window.render = t => {
   for (const [id, [a, b]] of Object.entries(SCENES)) document.getElementById(id).style.opacity = (a === 0 ? (t < b - .5 ? 1 : 1 - p(t, b - .5, b)) : window_(t, a, b)).toFixed(3)
   capLines.forEach((el, i) => { const [a, b] = CAPS[i]; const o = window_(t, a, b, .45); el.style.opacity = o.toFixed(3); el.style.transform = `translateY(${((1 - outc(p(t, a, a + .45))) * 18).toFixed(1)}px)` })
-  const markO = 1 - p(t, 55.2, 55.7); document.getElementById('mark').style.opacity = markO
+  const markO = 1 - p(t, 46.2, 46.7); document.getElementById('mark').style.opacity = markO
   if (t < 15.3) renderFold(t)
   if (t > 14.8 && t < 29.4) renderCompact(t)
   if (t > 28.8 && t < 41.4) renderLearn(t)
-  if (t > 40.8 && t < 50.4) renderResults(t)
-  chips.forEach((c, i) => { const a = outc(p(t, 50.5 + i * .16, 50.95 + i * .16)); c.style.opacity = a; c.style.transform = `translateY(${(1 - a) * 18}px) scale(${lerp(.96, 1, a)})` })
-  const e = outc(p(t, 55.8, 56.6)); endEl.firstChild.style.transform = `translateY(${(1 - e) * 20}px)`
+  chips.forEach((c, i) => { const a = outc(p(t, 41.5 + i * .16, 41.95 + i * .16)); c.style.opacity = a; c.style.transform = `translateY(${(1 - a) * 18}px) scale(${lerp(.96, 1, a)})` })
+  const e = outc(p(t, 46.8, 47.6)); endEl.firstChild.style.transform = `translateY(${(1 - e) * 20}px)`
 }
 window.render(0)
 window.ready = true

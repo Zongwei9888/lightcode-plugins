@@ -17,7 +17,7 @@
 
 **[观看 1 分钟视频](../../media/video/tokenwise-zh.mp4)** · [English video](../../media/video/tokenwise-en.mp4)
 
-[为什么](#为什么需要-tokenwise) · [怎么工作](#怎么工作) · [真实效果](#真实会话里的效果) · [安装](#安装) · [支持的 agent](#支持的-agent) · [命令](#命令) · [开发](#开发)
+[为什么](#为什么需要-tokenwise) · [怎么工作](#怎么工作) · [安装](#安装) · [支持的 agent](#支持的-agent) · [命令](#命令) · [开发](#开发)
 
 </div>
 
@@ -62,26 +62,6 @@ TokenWise 从 agent 开放给插件的位置接进去，只改变一件事：**�
 - **结果确定。** 同样的输出永远得到同样的结果，事后也不会重新生成，所以 prompt 缓存一直有效。
 - **出错就放行。** 任何环节出错，模型都拿到原文；TokenWise 改进不了的压缩，就交给 agent 自己处理。
 - **只在本地。** 原文存在 `~/.tokenwise`，只有你自己能读，保留 14 天。TokenWise 自己不发任何网络请求。
-
-## 真实会话里的效果
-
-用真实的长任务，每个 agent 都用**默认**压缩设置，一直跑到它自己压缩为止。压缩之后，agent 必须一字不差地引用压缩前读过的内容。
-
-<div align="center">
-<img src="../../media/images/results-zh.png" alt="真实会话、默认设置：每个 agent 只保留了被压缩历史的 3% 到 6%" width="100%">
-</div>
-
-| Agent · 模型 | 被压缩的历史 → 模型保留的内容 | 保存的结果数 | 压缩之后 |
-|---|---|---|---|
-| pi · DeepSeek V4（1M） | 949k → 29.5k tokens | 624 | 取回 2 次，全部答对 |
-| DeepSeek Harness · DeepSeek V4（1M） | 539k → 30.8k tokens | 589 | 取回 2 次，全部答对 |
-| pi · Kimi K2.6（262k） | 274k → 8.0k tokens | 113 | 取回 3 次，全部答对 |
-| OpenCode · Kimi K2.6（262k） | 190k → 7.1k tokens | 67 | 全部答对 |
-| Hermes Agent · Kimi K2.6（262k） | 180k → 8.9k tokens | 83 | 取回 8 次，全部答对 |
-| Grok Build · 默认模型 | 199k 的历史；在 Grok 的摘要后补上目录 | 82 | 全部答对 |
-| Claude Code · 日常会话 | 661k 时自动压缩；在 Claude 的摘要后补上目录 | 202 | — |
-
-262k 窗口的那几轮里，每个 agent 都要对照 720 KB 的规格文档修 6 个 bug，再一字不差地抄出 60 条变更请求，全部做对。CodeBuddy 跑同一个任务时根本没压缩：精简输出替它省了约 5.8 万 tokens。
 
 ## 安装
 

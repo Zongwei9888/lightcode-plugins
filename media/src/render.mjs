@@ -36,8 +36,6 @@ const STILLS = [
   { name: 'card-get-better-zh', page: 'card.html?topic=learn&lang=zh', w: 1200, h: 675, scale: 2 },
   { name: 'before-after', page: 'before-after.html', w: 1600, h: 900, scale: 2 },
   { name: 'before-after-zh', page: 'before-after.html?lang=zh', w: 1600, h: 900, scale: 2 },
-  { name: 'results', page: 'results.html', w: 1600, h: 900, scale: 2 },
-  { name: 'results-zh', page: 'results.html?lang=zh', w: 1600, h: 900, scale: 2 },
 ]
 
 const browser = await chromium.launch({ executablePath: CHROME })

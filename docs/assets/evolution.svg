@@ -54,7 +54,6 @@
     <text x="762" y="204" class="s">Sandboxed: worker thread,</text>
     <text x="762" y="222" class="s">no files, network or eval,</text>
     <text x="762" y="240" class="s">100 ms per call.</text>
-    <text x="762" y="282" class="m">+4.1k tokens saved</text>
 
     <rect x="976" y="70" width="184" height="236" rx="14" class="card"/>
     <text x="996" y="100" class="n">5 · WATCH</text>

@@ -47,10 +47,10 @@ const kb = n => (n / 1024).toFixed(1) + ' KB'
 const T = {
   read: { en: ['Read less.', 'Tests, builds, diffs and searches reach the model without the noise. Every failure, warning and total stays.', `${kb(data.rawBytes)} → ${data.projectedBytes} B`, 'one pytest run, filtered by TokenWise itself'],
           zh: ['少读。', '测试、构建、diff 和搜索的输出，去掉噪音再交给模型。失败、警告和总数一行不少。', `${kb(data.rawBytes)} → ${data.projectedBytes} B`, '一次 pytest 运行，由 TokenWise 实际过滤'] },
-  keep: { en: ['Lose nothing.', 'When the agent compacts its history, every tool result becomes a reference it can read back in one call.', '949k → 29.5k', 'tokens after a real pi session compacted; 624 results kept'],
-          zh: ['不丢。', 'agent 压缩历史时，每个工具结果都变成一个引用，一次调用就能原样读回。', '949k → 29.5k', '真实 pi 会话压缩前后的 tokens；保留 624 个结果'] },
-  learn: { en: ['Get better.', 'Your own agent writes filters for your build scripts and logs. TokenWise keeps one only if it holds on output it never saw.', '+4.1k', 'tokens on 35 recorded outputs, confirmed on one it had not seen'],
-           zh: ['越用越好。', '由你自己的 agent 为构建脚本和日志写过滤规则；只有在没见过的输出上也成立，TokenWise 才会采用。', '+4.1k', '35 条记录输出上省下的 tokens，并在一条没见过的输出上确认'] },
+  keep: { en: ['Lose nothing.', 'When the agent compacts its history, every tool result becomes a reference it can read back in one call.', '1 call', 'reads any saved tool result back, exactly as the agent first saw it'],
+          zh: ['不丢。', 'agent 压缩历史时，每个工具结果都变成一个引用，一次调用就能原样读回。', '1 次调用', '就能读回任何保存过的工具结果，和 agent 当时看到的一样'] },
+  learn: { en: ['Get better.', 'Your own agent writes filters for your build scripts and logs. TokenWise keeps one only if it holds on output it never saw.', '0', 'error lines a learned filter may drop, and it must also save on output it never saw'],
+           zh: ['越用越好。', '由你自己的 agent 为构建脚本和日志写过滤规则；只有在没见过的输出上也成立，TokenWise 才会采用。', '0', '学到的规则允许丢掉的错误行数；而且在没见过的输出上也必须省 token'] },
 }[topic][lang]
 document.querySelector('.copy').innerHTML = `<div class="mark">${LOGO}<span>TokenWise</span></div>
   <h1 class="display">${T[0]}</h1><p class="lede">${T[1]}</p>
@@ -86,8 +86,8 @@ if (topic === 'read') {
   }).join('')
   const rule = ['defineRule({ project(input, tw) {', "  if (input.argv?.[0] !== './build.sh') return null", '  return tw.keepLines(input.raw,', "    line => !/^\\[\\s*\\d+\\/\\d+\\] Compiling /.test(line.text),", "    n => `[${n} progress lines omitted]\\n`)", '} })']
   const checks = lang === 'zh'
-    ? ['用当前规则和新规则重放全部 35 条记录', '每一行错误都保留', '没有任何一条输出省得更少', '在一条没见过的输出上也省了']
-    : ['replayed all 35 recorded outputs, old rules vs new', 'every error line kept', 'no output saves less', 'also saves on output it never saw']
+    ? ['用当前规则和新规则重放所有记录', '每一行错误都保留', '没有任何一条输出省得更少', '在一条没见过的输出上也省了']
+    : ['replayed every recorded output, old rules vs new', 'every error line kept', 'no output saves less', 'also saves on output it never saw']
   v.innerHTML = `<div class="term"><div class="bar"><i></i><i></i><i></i><b>./build.sh</b></div><div class="body">${rows}
     <div class="seam">${lang === 'zh' ? '学到的规则' : 'a learned filter'}</div>
     <div class="row" style="color:#BFE9DF">Finished in 3.1s</div><div class="row ev">[120 progress lines omitted]</div>

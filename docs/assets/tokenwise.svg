@@ -57,14 +57,14 @@
   <text x="457" y="314" class="s">When the agent compacts, each result</text>
   <text x="457" y="335" class="s">becomes a reference in a catalog, and</text>
   <text x="457" y="356" class="s">the agent reads any of them back.</text>
-  <text x="457" y="390" class="m">949k tokens → 29.5k, 624 refs</text>
+  <text x="457" y="390" class="m">tokenwise_recall: one call</text>
   <rect x="800" y="222" width="330" height="186" rx="14" class="card"/>
   <text x="822" y="254" class="hc">3 · GET BETTER</text>
   <text x="822" y="284" class="t">Filters for your own tools</text>
   <text x="822" y="314" class="s">Your agent writes rules for your</text>
   <text x="822" y="335" class="s">scripts; TokenWise adopts one only if</text>
   <text x="822" y="356" class="s">it also holds on output it never saw.</text>
-  <text x="822" y="390" class="m">./build.sh: +4.1k tokens saved</text>
+  <text x="822" y="390" class="m">checked on unseen output</text>
   <g stroke="#CCFBF1" stroke-width="2" fill="none" marker-end="url(#w)"><path d="M404 315h27"/><path d="M769 315h27"/></g>
   <path d="M965 412v26H235v-22" stroke="#CCFBF1" stroke-width="2" fill="none" stroke-dasharray="5 5" marker-end="url(#w)"/>
   <text x="600" y="462" class="wl" text-anchor="middle">learned filters shorten the next output, on every agent</text>
