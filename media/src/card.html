@@ -13,7 +13,7 @@
   .visual { position: relative; }
   .visual .term { position: absolute; inset: 0 0 0 0; font-size: 13px; line-height: 18px; border-radius: 20px 0 0 20px; box-shadow: 0 30px 60px -30px rgba(14,42,38,.45); }
   .visual .body { padding: 14px 22px; }
-  .hair { height: 2px; margin: 0 0 2px; background: #5FB8A6; border-radius: 1px; max-width: 100%; }
+  .hair { height: 2px; margin: 0 0 2px; background: #5FB8A6; border-radius: 99px; max-width: 100%; }
   .ev { color: #FFE7A3; background: rgba(242,183,5,.13); box-shadow: inset 3px 0 0 var(--kept); margin-left: -22px; padding-left: 19px; }
   .seam { height: 24px; margin: 4px 0 6px; display: flex; align-items: center; gap: 12px; color: var(--mint); font-family: Archivo; font-stretch: 86%; font-weight: 600; font-size: 14px; }
   .seam::before, .seam::after { content: ''; height: 1px; flex: 1; background: linear-gradient(90deg, rgba(204,251,241,0), rgba(204,251,241,.55), rgba(204,251,241,0)); }
@@ -61,9 +61,9 @@ const evidence = t => /^(E |>|FAILED|tests\/.*FAILED|=+ 1 failed)/.test(t)
 if (topic === 'read') {
   const raw = data.raw.trimEnd().split('\n').slice(3, 3 + 30)
   const rows = raw.map((t, i) => {
-    const k = Math.max(0, i - 3), sq = Math.pow(0.78, k)
-    if (sq < 0.2) return `<div class="hair" style="width:${t.length}ch;opacity:${(0.6 - k * 0.01).toFixed(2)}"></div>`
-    return `<div class="row pass" style="height:${(18 * sq).toFixed(2)}px;transform:scaleY(${sq.toFixed(3)});transform-origin:0 100%;opacity:${Math.max(.4, 1 - k * .07).toFixed(2)}">${esc(t)}</div>`
+    if (i < 4) return `<div class="row pass">${esc(t)}</div>`
+    const k = i - 4, h = Math.max(2, 18 * 0.5 * Math.pow(0.8, k)), gap = Math.max(2, 18 * 0.32 * Math.pow(0.8, k))
+    return `<div class="hair" style="width:${t.length}ch;height:${h.toFixed(2)}px;margin-bottom:${gap.toFixed(2)}px;opacity:${Math.max(0.42, 0.78 - k * 0.012).toFixed(2)}"></div>`
   }).join('')
   const proj = data.projected.trimEnd().split('\n').map(t => `<div class="row${evidence(t) ? ' ev' : ''}" style="color:${evidence(t) ? '' : '#BFE9DF'}">${esc(t) || '&nbsp;'}</div>`).join('')
   v.innerHTML = `<div class="term"><div class="bar"><i></i><i></i><i></i><b>python3 -m pytest -v</b></div><div class="body">${rows}
@@ -80,9 +80,9 @@ if (topic === 'read') {
 } else {
   const prog = Array.from({ length: 120 }, (_, i) => `[${String(i + 1).padStart(3)}/120] Compiling module_${i}`)
   const rows = prog.slice(0, 22).map((t, i) => {
-    const k = Math.max(0, i - 2), sq = Math.pow(0.76, k)
-    if (sq < 0.2) return `<div class="hair" style="width:${t.length}ch;opacity:${(0.6 - k * 0.01).toFixed(2)}"></div>`
-    return `<div class="row pass" style="height:${(18 * sq).toFixed(2)}px;transform:scaleY(${sq.toFixed(3)});transform-origin:0 100%;opacity:${Math.max(.4, 1 - k * .08).toFixed(2)}">${esc(t)}</div>`
+    if (i < 3) return `<div class="row pass">${esc(t)}</div>`
+    const k = i - 3, h = Math.max(2, 18 * 0.5 * Math.pow(0.8, k)), gap = Math.max(2, 18 * 0.32 * Math.pow(0.8, k))
+    return `<div class="hair" style="width:${t.length}ch;height:${h.toFixed(2)}px;margin-bottom:${gap.toFixed(2)}px;opacity:${Math.max(0.42, 0.78 - k * 0.012).toFixed(2)}"></div>`
   }).join('')
   const rule = ['defineRule({ project(input, tw) {', "  if (input.argv?.[0] !== './build.sh') return null", '  return tw.keepLines(input.raw,', "    line => !/^\\[\\s*\\d+\\/\\d+\\] Compiling /.test(line.text),", "    n => `[${n} progress lines omitted]\\n`)", '} })']
   const checks = lang === 'zh'

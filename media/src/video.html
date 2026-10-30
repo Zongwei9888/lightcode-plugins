@@ -119,7 +119,7 @@ const fRows = [...fold.querySelectorAll('.rows .row')], fSeam = fold.querySelect
 const fRowsBox = fold.querySelector('.rows'), fTok = fold.querySelector('.tokens .n'), fBadge = fold.querySelector('.badge'), fTokens = fold.querySelector('.tokens')
 const LH = 22
 // final height of raw row i after the fold: three full rows, a squeeze, hairlines, then nothing
-const finalH = i => i < 3 ? LH : i < 11 ? LH * Math.pow(0.76, i - 2) : i < 34 ? 4 : 0
+const finalH = i => i < 3 ? LH : i < 34 ? Math.max(4, LH * 0.82 * Math.pow(0.8, i - 3)) : 0
 function renderFold(t) {
   const shown = Math.min(raw.length, Math.floor(Math.max(0, t - .3) * 48))
   const fp = ease(p(t, 7.6, 10.2))                              // the fold
@@ -136,7 +136,7 @@ function renderFold(t) {
     r.firstChild.style.display = 'inline-block'
     r.firstChild.style.transform = `scaleY(${Math.max(sq, .02).toFixed(3)})`
     r.firstChild.style.transformOrigin = '0 100%'
-    if (i >= 11 && i < 34) { r.style.background = `rgba(95,184,166,${(.6 * stagger).toFixed(2)})`; r.style.borderBottom = `${(2 * stagger).toFixed(2)}px solid var(--term)`; r.firstChild.style.opacity = (1 - stagger).toFixed(2) }
+    if (i >= 3 && i < 34) { r.style.background = `rgba(95,184,166,${(.6 * stagger).toFixed(2)})`; r.style.borderBottom = `${(Math.max(2, h * .38) * stagger).toFixed(2)}px solid var(--term)`; r.firstChild.style.opacity = clamp(1 - stagger * 2.2).toFixed(2) }
   })
   fSeam.style.opacity = outc(p(t, 9.6, 10.4))
   fProj.forEach((r, i) => { const a = outc(p(t, 10 + i * .07, 10.5 + i * .07)); r.style.opacity = a; r.style.transform = `translateY(${(1 - a) * 14}px)` })
@@ -201,7 +201,7 @@ function renderLearn(t) {
     const s = clamp(fp * 1.25 - (i % 30) * .008), h = lerp(LH, finalH(i), s)
     r.style.height = h.toFixed(2) + 'px'; r.style.opacity = i < shown ? lerp(1, i < 3 ? 1 : .5, s).toFixed(2) : 0
     r.firstChild.style.display = 'inline-block'; r.firstChild.style.transformOrigin = '0 100%'; r.firstChild.style.transform = `scaleY(${Math.max(h / LH, .02).toFixed(3)})`
-    if (i >= 11 && i < 34) { r.style.background = `rgba(95,184,166,${(.6 * s).toFixed(2)})`; r.style.borderBottom = `${(2 * s).toFixed(2)}px solid var(--term)`; r.firstChild.style.opacity = (1 - s).toFixed(2) }
+    if (i >= 3 && i < 34) { r.style.background = `rgba(95,184,166,${(.6 * s).toFixed(2)})`; r.style.borderBottom = `${(Math.max(2, h * .38) * s).toFixed(2)}px solid var(--term)`; r.firstChild.style.opacity = clamp(1 - s * 2.2).toFixed(2) }
   })
   lSeam.style.opacity = outc(p(t, 39, 39.6))
   lProj.forEach((r, i) => { const a = outc(p(t, 39.4 + i * .15, 39.9 + i * .15)); r.style.opacity = a })

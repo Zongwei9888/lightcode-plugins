@@ -36,6 +36,9 @@ const STILLS = [
   { name: 'card-get-better-zh', page: 'card.html?topic=learn&lang=zh', w: 1200, h: 675, scale: 2 },
   { name: 'before-after', page: 'before-after.html', w: 1600, h: 900, scale: 2 },
   { name: 'before-after-zh', page: 'before-after.html?lang=zh', w: 1600, h: 900, scale: 2 },
+  // README diagrams: sized to their content, transparent around the rounded panel.
+  ...['overview', 'compaction', 'learning'].flatMap(d => ['en', 'zh'].map(l => (
+    { name: `diagram-${d}${l === 'zh' ? '-zh' : ''}`, page: `diagram.html?d=${d}&lang=${l}`, w: 1200, h: 400, scale: 2, fit: '.d' }))),
 ]
 
 const browser = await chromium.launch({ executablePath: CHROME })
@@ -48,7 +51,11 @@ try {
       await page.goto(base + still.page)
       await page.evaluate(() => document.fonts.ready)
       await page.waitForFunction(() => window.ready === true, null, { timeout: 10000 })
-      await page.screenshot({ path: join(out, 'images', `${still.name}.png`) })
+      if (still.fit) {
+        const box = await page.evaluate(sel => { const r = document.querySelector(sel).getBoundingClientRect(); return { w: Math.ceil(r.width), h: Math.ceil(r.height) } }, still.fit)
+        await page.setViewportSize({ width: box.w, height: box.h })
+      }
+      await page.screenshot({ path: join(out, 'images', `${still.name}.png`), omitBackground: !!still.fit })
       await page.close()
       console.log('wrote images/' + still.name + '.png')
     }
