@@ -1,5 +1,5 @@
 {
-  "description": "TokenWise: replace the output of recognized Bash commands with a smaller projection (in bypassPermissions mode, run them through `tokenwise run`); after a compaction, add the catalog of tool results TokenWise kept recallable.",
+  "description": "TokenWise: replace the output of recognized Bash commands with a smaller projection (in bypassPermissions mode, run them through `tokenwise run`); after a compaction, add the catalog of tool results TokenWise kept recallable. At startup, say so if the tokenwise command is missing.",
   "hooks": {
     "PreToolUse": [
       {
@@ -47,6 +47,16 @@
       }
     ],
     "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v tokenwise >/dev/null 2>&1 || echo '{\"systemMessage\":\"TokenWise: the tokenwise command is not on PATH, so the plugin does nothing yet. Install it: https://github.com/Zongwei9888/tokenwise#install\"}'",
+            "timeout": 5
+          }
+        ]
+      },
       {
         "matcher": "compact",
         "hooks": [

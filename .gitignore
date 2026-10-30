@@ -12,6 +12,8 @@ coverage/
 .tokenwise/
 /packages/*/dist/
 /adapters/*/dist/
+# Plugin copies scripts/bundle.mjs puts into the CLI package for `tokenwise setup`
+/packages/cli/assets/
 # Written by scripts/bundle.mjs into each distributable package
 adapters/*/LICENSE
 adapters/*/LICENSE.rtk
