@@ -83,34 +83,37 @@ around switches itself off, and any adoption can be rolled back.
 ## Install
 
 TokenWise is not on npm yet. Build it once from a checkout (Node.js 22 and
-pnpm):
+pnpm), then let it add itself to every agent it finds:
 
 ```sh
 git clone https://github.com/Zongwei9888/tokenwise.git
 cd tokenwise && pnpm install && pnpm build
-npm install -g ./packages/cli          # the tokenwise command, tw for short
+npm install -g ./packages/cli     # the tokenwise command, tw for short
+tokenwise setup                   # or name agents: tokenwise setup claude codex
 ```
 
-Then, from the same folder, add it to your agent:
+`tokenwise setup` prints each command before it runs it; `--dry-run` only
+prints them. In Codex, trust the TokenWise hooks in `/hooks` afterwards. For
+any other agent or a plain shell, wrap the command: `tokenwise run -c 'cargo test'`.
+
+There is nothing to configure; it works from the next tool call.
+`tokenwise report` shows what was saved and `tokenwise doctor` what your agent
+supports. `tokenwise uninstall` takes it out again (`--purge` also deletes the
+saved data).
+
+<details>
+<summary>The same, by hand</summary>
+<br>
+
+From the checkout:
 
 ```sh
-# pi
-pi install "$PWD/adapters/pi"
-
-# DeepSeek Harness: Web, Desktop and CLI (use your own profile)
-dsh plugin --profile web add "$PWD/adapters/dsh"
-
-# Claude Code
+pi install "$PWD/adapters/pi"                                   # pi
+dsh plugin --profile web add "$PWD/adapters/dsh"                # DeepSeek Harness (your profile)
 claude plugin marketplace add "$PWD" && claude plugin install tokenwise@tokenwise
-
-# Codex: afterwards, trust the hooks in /hooks
 codex plugin marketplace add "$PWD" && codex plugin add tokenwise@tokenwise
-
-# CodeBuddy
 codebuddy plugin marketplace add "$PWD" && codebuddy plugin install tokenwise@tokenwise
-
-# Grok Build
-grok plugin marketplace add "$PWD" && grok plugin install tokenwise --trust
+grok plugin marketplace add "$PWD" && grok plugin install tokenwise@tokenwise --trust
 
 # OpenCode
 mkdir -p ~/.config/opencode/plugins
@@ -120,14 +123,11 @@ cp adapters/opencode/dist/index.js ~/.config/opencode/plugins/tokenwise.js
 mkdir -p ~/.hermes/plugins
 cp -R adapters/hermes/tokenwise ~/.hermes/plugins/tokenwise
 hermes plugins enable tokenwise && hermes config set context.engine tokenwise
-
-# Anything else: wrap the command
-tokenwise run -c 'cargo test'
 ```
 
-There is nothing to configure; it works from the next tool call.
-`tokenwise report` shows what was saved and `tokenwise doctor` what your agent
-supports. Each agent's folder under [`adapters/`](adapters) has the details.
+Each agent's folder under [`adapters/`](adapters) has the details.
+
+</details>
 
 ## Supported agents
 
@@ -176,6 +176,7 @@ scripted model.
 
 | Command | What it does |
 |---|---|
+| `tokenwise setup [agent...]`, `uninstall [--purge]` | add TokenWise to your agents, or take it out |
 | `tokenwise report [--host H] [--session S] [--json]` | what was saved, per session or agent |
 | `tokenwise doctor [--json]` | configuration, and what each agent supports |
 | `tokenwise run -c '<command>'` | run a command and print the compact output |

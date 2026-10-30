@@ -1,6 +1,8 @@
 {
-  "description": "TokenWise: run recognized Bash commands through `tokenwise run`, which filters their output (CodeBuddy's permission check still runs on the command as written); LightShadow, a mod, keeps compacted tool results recallable.",
-  "modules": ["./compaction.js"],
+  "description": "TokenWise: run recognized Bash commands through `tokenwise run`, which filters their output (CodeBuddy's permission check still runs on the command as written); LightShadow, a mod, keeps compacted tool results recallable. At startup, say so if the tokenwise command is missing.",
+  "modules": [
+    "./compaction.js"
+  ],
   "hooks": {
     "PreToolUse": [
       {
@@ -10,6 +12,18 @@
             "type": "command",
             "command": "tokenwise hook codebuddy",
             "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v tokenwise >/dev/null 2>&1 || echo '{\"systemMessage\":\"TokenWise: the tokenwise command is not on PATH, so the plugin does nothing yet. Install it: https://github.com/Zongwei9888/tokenwise#install\"}'",
+            "timeout": 5
           }
         ]
       }

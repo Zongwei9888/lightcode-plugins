@@ -1,5 +1,5 @@
 {
-  "description": "TokenWise: replace the model's copy of recognized shell results with a smaller projection; after a compaction, add the catalog of tool results TokenWise kept recallable with the next tool result.",
+  "description": "TokenWise: replace the model's copy of recognized shell results with a smaller projection; after a compaction, add the catalog of tool results TokenWise kept recallable with the next tool result. At startup, say so if the tokenwise command is missing.",
   "hooks": {
     "PostToolUse": [
       {
@@ -30,6 +30,17 @@
             "type": "command",
             "command": "tokenwise hook grok",
             "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v tokenwise >/dev/null 2>&1 || echo '{\"systemMessage\":\"TokenWise: the tokenwise command is not on PATH, so the plugin does nothing yet. Install it: https://github.com/Zongwei9888/tokenwise#install\"}'",
+            "timeout": 5
           }
         ]
       }

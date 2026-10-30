@@ -1,7 +1,7 @@
 {
   "name": "@tokenwise/cli",
   "version": "0.3.0",
-  "description": "The tokenwise command: run any command with TokenWise filtering, the Codex hook, savings reports and diagnostics.",
+  "description": "The tokenwise command: set TokenWise up for your agents, run any command with TokenWise filtering, the agent hooks, savings reports and diagnostics.",
   "license": "MIT",
   "type": "module",
   "keywords": [
@@ -29,6 +29,7 @@
   },
   "files": [
     "dist/tokenwise.js",
+    "assets/",
     "README.md",
     "NOTICE.md",
     "LICENSE",

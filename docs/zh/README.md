@@ -54,34 +54,32 @@ agent 运行 `pytest`、`cargo test`、`git diff`、`grep -rn`、`tsc`、装依�
 
 ## 安装
 
-TokenWise 还没有发布到 npm，需要先从源码构建一次（需要 Node.js 22 和 pnpm）：
+TokenWise 还没有发布到 npm，需要先从源码构建一次（需要 Node.js 22 和 pnpm），然后让它自动装进本机找到的每个 agent：
 
 ```sh
 git clone https://github.com/Zongwei9888/tokenwise.git
 cd tokenwise && pnpm install && pnpm build
-npm install -g ./packages/cli          # tokenwise 命令，简写为 tw
+npm install -g ./packages/cli     # tokenwise 命令，简写为 tw
+tokenwise setup                   # 也可以指定 agent：tokenwise setup claude codex
 ```
 
-然后在同一个目录下，装进你的 agent：
+`tokenwise setup` 每执行一条命令前都会先打印出来；加 `--dry-run` 只打印不执行。Codex 装好后要在 `/hooks` 里信任 TokenWise 的钩子。其他 agent 或普通 shell，用它包一层命令：`tokenwise run -c 'cargo test'`。
+
+不用配置，下一次工具调用就生效。`tokenwise report` 查看省了多少，`tokenwise doctor` 查看你的 agent 支持哪些功能。`tokenwise uninstall` 可以卸载（加 `--purge` 会同时删掉保存的数据）。
+
+<details>
+<summary>手动安装</summary>
+<br>
+
+在源码目录下：
 
 ```sh
-# pi
-pi install "$PWD/adapters/pi"
-
-# DeepSeek Harness：网页版、桌面版和 CLI（profile 换成你自己的）
-dsh plugin --profile web add "$PWD/adapters/dsh"
-
-# Claude Code
+pi install "$PWD/adapters/pi"                                   # pi
+dsh plugin --profile web add "$PWD/adapters/dsh"                # DeepSeek Harness（换成你的 profile）
 claude plugin marketplace add "$PWD" && claude plugin install tokenwise@tokenwise
-
-# Codex：装好后在 /hooks 里信任钩子
 codex plugin marketplace add "$PWD" && codex plugin add tokenwise@tokenwise
-
-# CodeBuddy
 codebuddy plugin marketplace add "$PWD" && codebuddy plugin install tokenwise@tokenwise
-
-# Grok Build
-grok plugin marketplace add "$PWD" && grok plugin install tokenwise --trust
+grok plugin marketplace add "$PWD" && grok plugin install tokenwise@tokenwise --trust
 
 # OpenCode
 mkdir -p ~/.config/opencode/plugins
@@ -91,12 +89,11 @@ cp adapters/opencode/dist/index.js ~/.config/opencode/plugins/tokenwise.js
 mkdir -p ~/.hermes/plugins
 cp -R adapters/hermes/tokenwise ~/.hermes/plugins/tokenwise
 hermes plugins enable tokenwise && hermes config set context.engine tokenwise
-
-# 其他任何 agent：用它包一层命令
-tokenwise run -c 'cargo test'
 ```
 
-不用配置，下一次工具调用就生效。`tokenwise report` 查看省了多少，`tokenwise doctor` 查看你的 agent 支持哪些功能。各 agent 的细节见 [`adapters/`](../../adapters) 下对应的目录。
+各 agent 的细节见 [`adapters/`](../../adapters) 下对应的目录。
+
+</details>
 
 ## 支持的 agent
 
@@ -136,6 +133,7 @@ TokenWise 能做到多深，取决于每个 agent 允许插件做什么。
 
 | 命令 | 作用 |
 |---|---|
+| `tokenwise setup [agent...]`、`uninstall [--purge]` | 装进你的 agent，或卸载 |
 | `tokenwise report [--host H] [--session S] [--json]` | 按会话或 agent 查看省了多少 |
 | `tokenwise doctor [--json]` | 查看配置，以及每个 agent 支持什么 |
 | `tokenwise run -c '<命令>'` | 运行命令，输出精简后的结果 |

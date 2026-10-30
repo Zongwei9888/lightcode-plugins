@@ -48,7 +48,7 @@ From a checkout of this repository (it doubles as a Grok marketplace):
 
 ```sh
 grok plugin marketplace add /path/to/tokenwise
-grok plugin install tokenwise --trust
+grok plugin install tokenwise@tokenwise --trust
 ```
 
 For one ACP process only: `grok agent --plugin-dir /path/to/tokenwise/adapters/grok stdio`.

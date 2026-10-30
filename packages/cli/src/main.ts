@@ -10,10 +10,16 @@ import { mcp } from './mcp.ts'
 import { report } from './report.ts'
 import { run } from './run.ts'
 import { recall, shadow } from './shadow.ts'
+import { AGENTS, setup } from './setup.ts'
 
 const HELP = `tokenwise — TokenWise ${VERSION}
 
 Usage:
+  tokenwise setup [agent...] [--dsh-profile P] [--dry-run]
+                                   add TokenWise to your agents (default: every one found on PATH)
+  tokenwise uninstall [agent...] [--dsh-profile P] [--purge] [--dry-run]
+                                   take it out again; --purge also deletes the saved data
+                                   agents: ${AGENTS.map(agent => agent.id).join(' ')}
   tokenwise run [--host H] [--session S] [--call C] -c <script>   run a shell script, print filtered output
   tokenwise run [--host H] [--session S] [--call C] -- <program> [args...]
   tokenwise hook codex|claude|codebuddy|grok|hermes
@@ -142,6 +148,14 @@ async function dispatch(command: string | undefined, rest: string[]): Promise<nu
       return mcp({ ...values.host === undefined ? {} : { host: values.host }, ...values.session === undefined ? {} : { session: values.session } })
     }
     case 'shadow': return shadow(rest[0])
+    case 'setup': case 'uninstall': {
+      const { values, positionals } = parseArgs({ args: rest, allowPositionals: true, options: {
+        'dry-run': { type: 'boolean' }, 'dsh-profile': { type: 'string' }, ...command === 'uninstall' ? { purge: { type: 'boolean' } } : {},
+      } })
+      return setup({ action: command, agents: positionals, dryRun: values['dry-run'] === true,
+        ...values['dsh-profile'] === undefined ? {} : { dshProfile: values['dsh-profile'] as string },
+        ...values.purge === true ? { purge: cliContext().dataDir } : {} })
+    }
     case '--version': case '-v': case 'version': process.stdout.write(`${VERSION}\n`); return 0
     case undefined: case '--help': case '-h': case 'help': process.stdout.write(HELP); return 0
     default:

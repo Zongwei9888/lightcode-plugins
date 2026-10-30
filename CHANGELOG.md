@@ -6,6 +6,16 @@ First open-source release line: compact tool output on eight hosts and any shell
 recoverable compaction on every host whose plugin interface
 allows it (in full on five, assisted on three), and self-evolving filters. (0.1.0 and 0.2.0 were never published; their contents are part of this release.)
 
+- `tokenwise setup [agent...]` adds TokenWise to every supported agent found
+  on PATH (or the ones named) with each agent's own plugin commands, printing
+  each one first (`--dry-run` only prints); `tokenwise uninstall [--purge]`
+  takes it out again. From a checkout the plugins come from the checkout; from
+  the published package, the marketplaces from GitHub, pi and DeepSeek
+  Harness from npm, and OpenCode and Hermes from copies the CLI package
+  carries.
+- The Claude Code, Codex, CodeBuddy and Grok plugins say at startup when the
+  `tokenwise` command is missing, instead of doing nothing silently (Codex
+  asks to trust the changed hooks again).
 - Names: packages `@tokenwise/*`, the `tokenwise` command (alias `tw`), plugin
   ids `tokenwise@tokenwise`, the `tokenwise_recall` tool, data in
   `~/.tokenwise` (`TOKENWISE_HOME`) and `TOKENWISE_*` variables. The
