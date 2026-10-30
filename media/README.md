@@ -16,6 +16,9 @@ pytest log through the real filter (260 lines → 17, 19.0 KB → 852 bytes).
 | `images/card-get-better.png` | 2400×1350 | filters learned from your own tools |
 | `images/card-*-zh.png` | 2400×1350 | the three cards in Chinese |
 | `images/before-after.png`, `-zh` | 3200×1800 | the one-image explanation: same run, 17 lines instead of 260 |
+| `images/diagram-overview.png`, `-zh` | 2400 wide | the README's overview: three ideas, one product |
+| `images/diagram-compaction.png`, `-zh` | 2400 wide | compaction: a long session, the checkpoint, a recall |
+| `images/diagram-learning.png`, `-zh` | 2400 wide | one learning run, step by step |
 | `video/tokenwise-en.mp4`, `-zh.mp4` | 1920×1080, 53 s | the explainer: launch posts, the repository, talks |
 | `video/fold.gif` | 960 wide, 8 s | the fold, looping: README and chat where video does not play |
 

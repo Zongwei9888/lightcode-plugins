@@ -14,7 +14,7 @@
   .fold .term { position: absolute; inset: 0; box-shadow: 0 30px 60px -30px rgba(14,42,38,.45); }
   .fold .body { padding: 10px 22px 0; }
   .fold .raw .row { transform-origin: 0 100%; }
-  .fold .raw .hair { height: 2px; margin: 0 0 2px; max-width: 100%; background: #5FB8A6; border-radius: 1px; }
+  .fold .raw .hair { height: 2px; margin: 0 0 2px; max-width: 100%; background: #5FB8A6; border-radius: 99px; }
   .seam { position: relative; height: 26px; margin: 4px 0 6px; display: flex; align-items: center; gap: 12px; color: var(--mint); font-family: Archivo; font-stretch: 86%; font-weight: 600; }
   .seam::before, .seam::after { content: ''; height: 1px; flex: 1; background: linear-gradient(90deg, rgba(204,251,241,.0), rgba(204,251,241,.55), rgba(204,251,241,.0)); }
   .proj .row { color: #BFE9DF; }
@@ -66,16 +66,14 @@ const copy = document.querySelector('.copy')
 copy.innerHTML = `<div class="mark">${LOGO}<span>TokenWise</span></div><h1 class="display">${T.head}</h1>`
   + (layout === 'banner' ? `<p class="lede">${T.lede}</p>` : `<p class="who">${T.who}</p>`)
 
-// Raw rows above the seam: full height at the top, squeezed toward the seam, fading into noise.
+// Raw rows above the seam: the first few readable, the rest tapering into bars, what the model skips.
 const raw = data.raw.trimEnd().split('\n').slice(3, 3 + 34)
 const proj = data.projected.trimEnd().split('\n')
 const lh = layout === 'banner' ? 16 : 17
-// Rows squeeze toward the seam; the flattest become hairlines as long as the row was: what the model skips.
 const rawRows = raw.map((t, i) => {
-  const k = Math.max(0, i - 3), squeeze = Math.pow(0.78, k), op = Math.max(0.4, 1 - k * 0.07)
-  if (squeeze < 0.2) return `<div class="hair" style="width:${t.length}ch;opacity:${(0.62 - (i - 3) * 0.01).toFixed(2)}"></div>`
-  const cls = /FAILED/.test(t) ? 'fail' : 'pass'
-  return `<div class="row ${cls}" style="height:${(lh * squeeze).toFixed(2)}px;line-height:${lh}px;transform:scaleY(${squeeze.toFixed(3)});opacity:${op.toFixed(2)}">${esc(t)}</div>`
+  if (i < 4) return `<div class="row ${/FAILED/.test(t) ? 'fail' : 'pass'}" style="line-height:${lh}px">${esc(t)}</div>`
+  const k = i - 4, h = Math.max(2, lh * 0.5 * Math.pow(0.8, k)), gap = Math.max(2, lh * 0.32 * Math.pow(0.8, k))
+  return `<div class="hair" style="width:${t.length}ch;height:${h.toFixed(2)}px;margin-bottom:${gap.toFixed(2)}px;opacity:${Math.max(0.42, 0.78 - k * 0.012).toFixed(2)}"></div>`
 }).join('')
 const evidence = t => /^(E |>|FAILED|tests\/.*FAILED|=+ 1 failed)/.test(t)
 const projRows = proj.map(t => `<div class="row${evidence(t) ? ' ev' : ''}" style="line-height:${lh}px">${esc(t) || '&nbsp;'}</div>`).join('')
