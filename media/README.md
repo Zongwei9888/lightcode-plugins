@@ -1,9 +1,8 @@
 # TokenWise media kit
 
 Everything here is rendered from the HTML in [`src/`](src) by headless Chromium, so any of it can be
-changed and rebuilt. The "after" text and every number come from TokenWise itself or from recorded test
-runs: `src/gen-data.mts` runs the sample pytest log through the real filter (260 lines → 17, 19.0 KB →
-852 bytes); the compaction figures are from real sessions at each agent's default settings.
+changed and rebuilt. The "after" text and its numbers come from TokenWise itself: `src/gen-data.mts` runs the sample
+pytest log through the real filter (260 lines → 17, 19.0 KB → 852 bytes).
 
 ## Files
 
@@ -17,8 +16,7 @@ runs: `src/gen-data.mts` runs the sample pytest log through the real filter (260
 | `images/card-get-better.png` | 2400×1350 | filters learned from your own tools |
 | `images/card-*-zh.png` | 2400×1350 | the three cards in Chinese |
 | `images/before-after.png`, `-zh` | 3200×1800 | the one-image explanation: same run, 17 lines instead of 260 |
-| `images/results.png`, `-zh` | 3200×1800 | real sessions: how much of a compacted history the model keeps |
-| `video/tokenwise-en.mp4`, `-zh.mp4` | 1920×1080, 62 s | the explainer: launch posts, the repository, talks |
+| `video/tokenwise-en.mp4`, `-zh.mp4` | 1920×1080, 53 s | the explainer: launch posts, the repository, talks |
 | `video/fold.gif` | 960 wide, 8 s | the fold, looping: README and chat where video does not play |
 
 The 16:9 cards and charts are rendered at 2× for sharp text on any screen.
