@@ -97,10 +97,11 @@ describe('tokenwise setup', () => {
   it('prints the plan and changes nothing with --dry-run', () => {
     const home = temp()
     const result = spawnSync(process.execPath, ['--conditions=source', main, 'uninstall', 'opencode', 'pi', '--purge', '--dry-run'],
-      { env: { ...process.env, HOME: home, TOKENWISE_HOME: join(home, 'data') }, encoding: 'utf8' })
+      { env: { ...process.env, HOME: home, XDG_CONFIG_HOME: join(home, 'config'), TOKENWISE_HOME: join(home, 'data') }, encoding: 'utf8' })
     expect(result.status).toBe(0)
     expect(result.stdout).toContain('$ pi remove ')
-    expect(result.stdout).toContain(`$ remove ${join(home, '.config/opencode/plugins/tokenwise.js')}`)
+    // OpenCode follows XDG_CONFIG_HOME when it is set.
+    expect(result.stdout).toContain(`$ remove ${join(home, 'config/opencode/plugins/tokenwise.js')}`)
     expect(result.stdout).toContain(`$ remove ${join(home, 'data')}`)
     expect(result.stdout).toContain('Dry run: nothing was changed.')
   })
