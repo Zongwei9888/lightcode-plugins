@@ -1,0 +1,37 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile.fail
+#1 transferring dockerfile: 170B done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/node:22-bookworm
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 2B done
+#3 DONE 0.0s
+
+#4 [1/3] FROM docker.io/library/node:22-bookworm
+#4 CACHED
+
+#5 [2/3] RUN echo before failure
+#5 0.117 before failure
+#5 DONE 0.1s
+
+#6 [3/3] RUN sh -c "echo something broke >&2; exit 3"
+#6 0.132 something broke
+#6 ERROR: process "/bin/sh -c sh -c \"echo something broke >&2; exit 3\"" did not complete successfully: exit code: 3
+------
+ > [3/3] RUN sh -c "echo something broke >&2; exit 3":
+0.132 something broke
+------
+Dockerfile.fail:3
+--------------------
+   1 |     FROM node:22-bookworm
+   2 |     RUN echo before failure
+   3 | >>> RUN sh -c "echo something broke >&2; exit 3"
+   4 |     
+--------------------
+ERROR: failed to solve: process "/bin/sh -c sh -c \"echo something broke >&2; exit 3\"" did not complete successfully: exit code: 3
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/qqluthngb9w1cbpjmcqyxf027

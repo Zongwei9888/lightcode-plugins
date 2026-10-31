@@ -25,6 +25,8 @@ const CONTRACTS = {
   'go-test-json': { format: 'explicit go test -json event stream', action: 'remove per-line JSON layout whitespace', preserves: 'all events in order and exact Output strings; compact input usually has no gain' },
   'git-show': { format: 'default-format `git show <commit>` and `git log -p` text: commit headers followed by validated unified patches', action: 'preview head/tail of oversized hunks, as git-diff', preserves: 'every commit header and message verbatim, file identities, hunk headers, change counts and patch-use warning; merge (--cc) diffs pass through' },
   'git-status': { format: 'English long git status text', action: 'remove four exact usage hints', preserves: 'all paths, statuses, branch information, conflicts and other text' },
+  'docker-build': { format: 'BuildKit plain progress of `docker build` / `docker buildx build` (non-TTY or --progress=plain)', action: 'remove step timing, transfer, resolution, layer download/extraction and export progress rows and the internal load steps, counted', preserves: 'every build step header, every line a step printed, CACHED and ERROR rows, the image ID and name, every line outside the progress format, and all lines of a step that reports a problem' },
+  'container-logs': { format: 'successful `docker logs`, `docker compose logs` and `kubectl logs` output', action: 'fold runs of three or more consecutive lines identical but for a leading RFC 3339 timestamp, counted', preserves: 'every distinct line in order, the first (and, with timestamps, the last) line of each run, and every line that may report a problem' },
 } as const satisfies Partial<Record<EconomyFilterName, { format: string; action: string; preserves: string }>>
 
 export function economyCoverage() {
