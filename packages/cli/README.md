@@ -28,5 +28,5 @@ tokenwise rules [list|show|path|off|rollback] [--json]
 
 Requires Node.js 22 or newer. The package is a single self-contained file
 with no dependencies. See the
-[TokenWise README](https://github.com/Zongwei9888/tokenwise#readme) for
-configuration and the [Codex plugin](https://github.com/Zongwei9888/tokenwise/tree/main/adapters/codex).
+[TokenWise README](https://github.com/HKUDS/TokenWise#readme) for
+configuration and the [Codex plugin](https://github.com/HKUDS/TokenWise/tree/main/adapters/codex).

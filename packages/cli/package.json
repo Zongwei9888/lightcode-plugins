@@ -11,10 +11,10 @@
     "tokens",
     "cli"
   ],
-  "homepage": "https://github.com/Zongwei9888/tokenwise#readme",
+  "homepage": "https://github.com/HKUDS/TokenWise#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Zongwei9888/tokenwise.git",
+    "url": "git+https://github.com/HKUDS/TokenWise.git",
     "directory": "packages/cli"
   },
   "engines": {

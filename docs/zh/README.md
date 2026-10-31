@@ -79,8 +79,8 @@
 也可以自己装（需要 Node.js 22 和 pnpm；TokenWise 还没发布到 npm）：
 
 ```sh
-git clone https://github.com/Zongwei9888/tokenwise.git
-cd tokenwise && pnpm install && pnpm build
+git clone https://github.com/HKUDS/TokenWise.git
+cd TokenWise && pnpm install && pnpm build
 npm install -g ./packages/cli
 tokenwise setup        # 自动找到本机的 agent，逐个装好
 ```

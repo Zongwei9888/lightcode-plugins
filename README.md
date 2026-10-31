@@ -104,8 +104,8 @@ Give your agent this repository and ask:
 Or do it yourself (Node.js 22 and pnpm; TokenWise is not on npm yet):
 
 ```sh
-git clone https://github.com/Zongwei9888/tokenwise.git
-cd tokenwise && pnpm install && pnpm build
+git clone https://github.com/HKUDS/TokenWise.git
+cd TokenWise && pnpm install && pnpm build
 npm install -g ./packages/cli
 tokenwise setup        # finds your agents and adds TokenWise to each
 ```

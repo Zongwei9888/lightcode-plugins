@@ -15,7 +15,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { onPath } from './context.ts'
 
-export const REPOSITORY = 'Zongwei9888/tokenwise'
+export const REPOSITORY = 'HKUDS/TokenWise'
 
 export interface Sources {
   /** Where Claude Code, Codex, CodeBuddy and Grok read the marketplace: a checkout or a GitHub repository. */

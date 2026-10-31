@@ -39,11 +39,11 @@ describe('tokenwise setup', () => {
     expect(steps).toEqual([
       'pi install npm:@tokenwise/pi',
       'dsh plugin --profile mine add -w @tokenwise/dsh',
-      'claude plugin marketplace add Zongwei9888/tokenwise', 'claude plugin install tokenwise@tokenwise',
-      'codex plugin marketplace add Zongwei9888/tokenwise', 'codex plugin add tokenwise@tokenwise',
+      'claude plugin marketplace add HKUDS/TokenWise', 'claude plugin install tokenwise@tokenwise',
+      'codex plugin marketplace add HKUDS/TokenWise', 'codex plugin add tokenwise@tokenwise',
       'codebuddy plugin uninstall tokenwise@tokenwise', 'remove /home/u/.codebuddy/plugins/cache/tokenwise',
-      'codebuddy plugin marketplace add Zongwei9888/tokenwise', 'codebuddy plugin install tokenwise@tokenwise',
-      'grok plugin marketplace add Zongwei9888/tokenwise', 'grok plugin install tokenwise@tokenwise --trust',
+      'codebuddy plugin marketplace add HKUDS/TokenWise', 'codebuddy plugin install tokenwise@tokenwise',
+      'grok plugin marketplace add HKUDS/TokenWise', 'grok plugin install tokenwise@tokenwise --trust',
       `copy ${published.opencode} -> /home/u/.config/opencode/plugins/tokenwise.js`,
       `copy ${published.hermes} -> /home/u/.hermes/plugins/tokenwise`, 'hermes plugins enable tokenwise', 'hermes config set context.engine tokenwise',
     ])
@@ -64,7 +64,7 @@ describe('tokenwise setup', () => {
   it('picks the agents found on PATH when none is named, and says so when there are none', () => {
     const bin = temp()
     for (const name of ['codex', 'hermes']) { writeFileSync(join(bin, name), '#!/bin/sh\n'); chmodSync(join(bin, name), 0o755) }
-    expect(plan({ action: 'setup', env: { PATH: bin, HOME: '/home/u' } }).steps[0]).toBe('codex plugin marketplace add Zongwei9888/tokenwise')
+    expect(plan({ action: 'setup', env: { PATH: bin, HOME: '/home/u' } }).steps[0]).toBe('codex plugin marketplace add HKUDS/TokenWise')
     expect(plan({ action: 'setup', env: { PATH: bin, HOME: '/home/u' } }).steps.at(-1)).toBe('hermes config set context.engine tokenwise')
     expect(plan({ action: 'setup' })).toEqual({ code: 1, steps: [] })
     expect(plan({ action: 'setup', agents: ['vim'] })).toEqual({ code: 2, steps: [] })
@@ -77,7 +77,7 @@ describe('tokenwise setup', () => {
     const code = setup({ action: 'setup', agents: ['claude', 'pi'], env: { PATH: '' }, sources: published,
       perform: step => { steps.push(describeStep(step)); return n++ !== 0 } })
     expect(code).toBe(1)
-    expect(steps).toEqual(['pi install npm:@tokenwise/pi', 'claude plugin marketplace add Zongwei9888/tokenwise', 'claude plugin install tokenwise@tokenwise'])
+    expect(steps).toEqual(['pi install npm:@tokenwise/pi', 'claude plugin marketplace add HKUDS/TokenWise', 'claude plugin install tokenwise@tokenwise'])
   })
 
   it('copies plugin files and removes them for real', () => {

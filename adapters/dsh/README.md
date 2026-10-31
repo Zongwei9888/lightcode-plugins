@@ -76,7 +76,7 @@ TokenWise's own configuration (`~/.tokenwise/config.json`, a project's
 `.tokenwise/config.json`, `TOKENWISE_OUTPUT`, `TOKENWISE_COMPACTION`,
 `TOKENWISE_DISABLE=1`) can lower
 this setting further but never raise it; see the
-[main README](https://github.com/Zongwei9888/tokenwise#configuration).
+[main README](https://github.com/HKUDS/TokenWise#for-agents-and-the-curious).
 
 ## What it changes, exactly
 
@@ -156,7 +156,7 @@ compactions, cut results and recalls.
 In a session, `/tokenwise learn | cancel | rules | rollback | off | on` do
 the same, and `tokenwise evolve --learner dsh` (from `@tokenwise/cli`) runs it from
 a terminal. Running sessions use adopted rules from their next output on. See
-the [main README](https://github.com/Zongwei9888/tokenwise#self-evolving-filters).
+the [main README](https://github.com/HKUDS/TokenWise#-self-evolving).
 
 ## Remove
 
