@@ -16,12 +16,14 @@ import { lsListingFilter } from './ls-listing.ts'
 import { testReportFilter } from './test-report.ts'
 import { cargoBuildFilter } from './cargo-build.ts'
 import { containerLogsFilter, dockerBuildFilter } from './docker.ts'
+import { makeFilter } from './make.ts'
+import { mavenFilter } from './maven.ts'
 import type { EconomyFilter, FilterCandidate, FilterInput } from '../types.ts'
 
 export const STATIC_FILTERS: readonly EconomyFilter[] = Object.freeze([
   pytestFilter, grepFilter, gitDiffFilter, tscFilter, eslintJsonFilter, viteBuildFilter, pnpmInstallFilter,
   ruffJsonFilter, goTestJsonFilter, gitStatusFilter, searchLayoutFilter, pathListFilter, testProgressFilter, lsListingFilter, testReportFilter, cargoBuildFilter, gitShowFilter,
-  gitLogFilter, gitBlameFilter, dockerBuildFilter, containerLogsFilter,
+  gitLogFilter, gitBlameFilter, dockerBuildFilter, containerLogsFilter, makeFilter, mavenFilter,
 ])
 
 export function projectStaticFilter(input: FilterInput): FilterCandidate | undefined {
