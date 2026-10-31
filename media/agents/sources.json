@@ -28,11 +28,7 @@
     "note": "Original product/brand artwork; SVG badge background added for light/dark readability"
   },
   "pi.svg": {
-    "source": "drawn for TokenWise",
-    "note": "Greek letter pi on the shared badge background; not the product's own logo"
-  },
-  "shell.svg": {
-    "source": "drawn for TokenWise",
-    "note": "Generic terminal glyph on the shared badge background"
+    "source": "https://pi.dev/logo.svg",
+    "note": "The pi logo (pi.dev, MIT) on the shared badge background"
   }
 }

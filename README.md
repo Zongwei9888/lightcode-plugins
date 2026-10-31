@@ -32,19 +32,19 @@ agent, and each of them starts from zero.
 
 **TokenWise sits between your agents and the model, and gives every one of them:**
 
-- 💾 **Context on demand.** The model reads only what it needs right now. Everything
+- <img src="media/images/icons/h-demand.png" width="20" height="20" align="absmiddle" alt=""> **Context on demand.** The model reads only what it needs right now. Everything
   else stays intact on your machine, one call away, even after the agent compacts
   its memory. You save tokens, not information.
-- 🧬 **Self-evolving.** TokenWise learns your project from your own sessions and
+- <img src="media/images/icons/h-evolve.png" width="20" height="20" align="absmiddle" alt=""> **Self-evolving.** TokenWise learns your project from your own sessions and
   saves more every round. A new rule is used only after it is checked against
   everything recorded, and it switches itself off if it ever gets in the way.
-- 🔗 **Cross-platform.** One install for Claude Code, Codex, Hermes, OpenCode,
+- <img src="media/images/icons/h-cross.png" width="20" height="20" align="absmiddle" alt=""> **Cross-platform.** One install for Claude Code, Codex, Hermes, OpenCode,
   CodeBuddy, Grok, DeepSeek Harness, pi and any shell, with more on the way.
   What one agent learns, all of them use.
 
 <p align="center"><img src="media/images/story-how.png" alt="Your agents send everything they read through TokenWise, one layer shared by every agent. Context on demand: what the model needs stays in context, everything else stays on your machine, one call back. Self-evolving: use, learn, verify, every agent; saves more each round. The model reads only what it needs." width="100%"></p>
 
-## 🧬 Self-evolving
+## <img src="media/images/icons/h-evolve.png" width="28" height="28" align="absmiddle" alt=""> Self-evolving
 
 Built-in rules know the common tools. Your project has its own. When you ask,
 the agent you already use studies what your sessions recorded and writes a rule
@@ -62,7 +62,7 @@ CodeBuddy and Grok, `$tokenwise learn` in Codex, the TokenWise panel in pi and
 DeepSeek Harness, or `tokenwise learn` in any terminal. Your agents also tell you
 when recorded output is worth learning from.
 
-## 💾 Context on demand
+## <img src="media/images/icons/h-demand.png" width="28" height="28" align="absmiddle" alt=""> Context on demand
 
 Think of it as virtual memory for your agent's context. What the model needs now
 stays in context; the rest is set aside on your machine and comes back with one
@@ -72,7 +72,7 @@ again to see one line.
 
 <p align="center"><img src="media/video/fold.gif" alt="A 260-line pytest run folds into the 17 lines the model reads; the failure stays" width="100%"></p>
 
-## 🤖 Supported agents
+## <img src="media/images/icons/h-agents.png" width="28" height="28" align="absmiddle" alt=""> Supported agents
 
 <table width="100%">
   <tr>
@@ -86,15 +86,15 @@ again to see one line.
     <td align="center" width="20%"><img src="media/agents/grok.svg" width="48" height="48" alt=""><br><strong>Grok Build</strong></td>
     <td align="center" width="20%"><img src="media/agents/dsh.svg" width="48" height="48" alt=""><br><strong>DeepSeek Harness</strong></td>
     <td align="center" width="20%"><img src="media/agents/pi.svg" width="48" height="48" alt=""><br><strong>pi</strong></td>
-    <td align="center" width="20%"><img src="media/agents/shell.svg" width="48" height="48" alt=""><br><strong>Any shell</strong></td>
-    <td align="center" width="20%"><a href="#whats-next"><img src="media/agents/more.svg" width="48" height="48" alt=""><br><strong>More coming</strong></a></td>
+    <td align="center" width="20%"><img src="media/images/icons/agent-shell.png" width="48" height="48" alt=""><br><strong>Any shell</strong></td>
+    <td align="center" width="20%"><a href="#whats-next"><img src="media/images/icons/agent-more.png" width="48" height="48" alt=""><br><strong>More coming</strong></a></td>
   </tr>
 </table>
 
 macOS and Linux. Each agent connects through what its own plugin interface
 allows, so the depth varies a little; the details are under [How each agent is connected](#how-each-agent-is-connected).
 
-## 🚀 Get started
+## <img src="media/images/icons/h-start.png" width="28" height="28" align="absmiddle" alt=""> Get started
 
 Give your agent this repository and ask:
 
@@ -113,7 +113,7 @@ There is nothing to configure: it works from the next command. When you want it
 to learn your project, run `/tokenwise:learn` (or the equivalent above).
 `tokenwise report` shows what was saved; `tokenwise uninstall` takes it out again.
 
-## ✨ Technical highlights
+## <img src="media/images/icons/h-highlights.png" width="28" height="28" align="absmiddle" alt=""> Technical highlights
 
 - **Nothing is invented.** Every character the model reads comes from the real
   output; every cut is counted, and the original is always one call away.
@@ -128,7 +128,7 @@ to learn your project, run `/tokenwise:learn` (or the equivalent above).
   real tool outputs, and rounds with real models on all eight agents.
 - **MIT, zero runtime dependencies.**
 
-## 📰 News
+## <img src="media/images/icons/h-news.png" width="28" height="28" align="absmiddle" alt=""> News
 
 - **2026-10** · TokenWise is open source: self-evolution reachable from every agent,
   one-command setup, and every filter rewritten as TokenWise code.
@@ -228,3 +228,5 @@ commands. Set `"evidence": false` to record nothing.
 </details>
 
 [Architecture](docs/architecture.md) · [Adding an agent](docs/adapters.md) · [Changelog](CHANGELOG.md) · [Media kit](media/README.md) · [MIT License](LICENSE)
+
+<sub>Icons made by <a href="https://www.magnific.com" title="Magnific">Magnific</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a>. Agent icons belong to their products; sources in <a href="media/agents/NOTICE.md">media/agents/NOTICE.md</a>.</sub>

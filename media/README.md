@@ -11,29 +11,45 @@ pytest log through the real filter (260 lines → 17, 19.0 KB → 852 bytes).
 | `images/social-preview.png` | 1280×640 | GitHub → Settings → Social preview; link cards on X, LinkedIn, Slack |
 | `images/social-preview-zh.png` | 1280×640 | the same, Chinese (WeChat, Zhihu, Juejin, V2EX) |
 | `images/banner.png`, `banner-zh.png` | 3200×1120 | top of a README, a blog post or a launch page |
-| `images/card-read-less.png` | 2400×1350 | one post per idea: compact tool output |
-| `images/card-lose-nothing.png` | 2400×1350 | compaction that keeps what it drops |
-| `images/card-get-better.png` | 2400×1350 | filters learned from your own tools |
-| `images/card-*-zh.png` | 2400×1350 | the three cards in Chinese |
-| `images/before-after.png`, `-zh` | 3200×1800 | the one-image explanation: same run, 17 lines instead of 260 |
-| `images/diagram-overview.png`, `-zh` | 2400 wide | the README's overview: three ideas, one product |
-| `images/diagram-compaction.png`, `-zh` | 2400 wide | compaction: a long session, the checkpoint, a recall |
-| `images/diagram-learning.png`, `-zh` | 2400 wide | one learning run, step by step |
-| `video/tokenwise-en.mp4`, `-zh.mp4` | 1920×1080, 53 s | the explainer: launch posts, the repository, talks |
-| `video/fold.gif` | 960 wide, 8 s | the fold, looping: README and chat where video does not play |
+| `images/story-how.png`, `-zh` | 2400 wide | the README's overview: one layer, context on demand, self-evolving |
+| `images/story-evolve.png`, `-zh` | 2400 wide | self-evolution in four steps |
+| `images/before-after.png`, `-zh` | 3200×1800 | the one-image demo: same run, 17 lines instead of 260 |
+| `images/icons/h-*.png`, `agent-*.png` | 112 / 128 px | the README's section and agent-wall badges |
+| `video/tokenwise-en.mp4`, `-zh.mp4` | 1920×1080, 53 s | the explainer, in three chapters: context on demand, self-evolving, cross-platform |
+| `video/fold.gif`, `fold-zh.gif` | 960 wide, 8 s | the fold, looping: README and chat where video does not play |
 
-The 16:9 cards and charts are rendered at 2× for sharp text on any screen.
+Images are rendered at 2× for sharp text on any screen.
+
+## Icons
+
+- **Flaticon.** Every pictogram is from Freepik's *Special Lineal* set on
+  [Flaticon](https://www.flaticon.com/) (author shown there as Magnific), free with attribution.
+  [`src/icons.json`](src/icons.json) lists each icon's page and the attribution line. The license does
+  not allow passing on the icon files themselves, so they are not in this repository:
+  `render.mjs` downloads them into `src/.icons/` (git-ignored) and they only appear inside the
+  rendered images. Anything that uses those images credits Flaticon, as both READMEs do in their footer.
+- **Agent logos** belong to their products. They come from [Lobe Icons](https://github.com/lobehub/lobe-icons)
+  (MIT) and pi's own site; [`agents/NOTICE.md`](agents/NOTICE.md) and
+  [`agents/sources.json`](agents/sources.json) list where each one is from.
 
 ## Rebuild
 
-Needs Node 22, ffmpeg, and the Chromium that `pnpm e2e` installs (Playwright's cache).
+Needs Node 22, ffmpeg, network access for the first run (the Flaticon icons), and the Chromium that
+`pnpm e2e` installs (Playwright's cache).
 
 ```sh
 cd media/src
 node --conditions=source gen-data.mts   # real filter output for the sample run
-node render.mjs stills                  # every image (or: node render.mjs stills card-)
+node render.mjs stills                  # every image (or: node render.mjs stills story-)
 node render.mjs video en                # and: node render.mjs video zh
 node render.mjs frames en 9,24,40       # preview single moments of the video
+```
+
+The GIFs are cut from the videos:
+
+```sh
+cd media/video
+ffmpeg -ss 6.9 -t 7.6 -i tokenwise-en.mp4 -vf "fps=15,scale=960:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=96:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" -loop 0 fold.gif
 ```
 
 ## Look
@@ -51,4 +67,4 @@ Type: [Archivo](https://fonts.google.com/specimen/Archivo) for headlines, set na
 type is compressed the way the output is. [JetBrains Mono](https://www.jetbrains.com/lp/mono/) for
 terminal text, with ligatures off so code reads as typed. Both are under the SIL Open Font License
 (`src/fonts/`). The one motif is the fold: rows of output squeezing into a seam, with only the
-evidence lit below it.
+evidence lit below it. Icons sit in teal or amber badges, never on their own.
