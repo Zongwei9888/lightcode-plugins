@@ -1,4 +1,5 @@
 import { gitDiffFilter, gitShowFilter } from './git-diff.ts'
+import { gitBlameFilter, gitLogFilter } from './git-log.ts'
 import { grepFilter } from './grep.ts'
 import { pytestFilter } from './pytest.ts'
 import { tscFilter } from './tsc.ts'
@@ -14,11 +15,18 @@ import { testProgressFilter } from './test-progress.ts'
 import { lsListingFilter } from './ls-listing.ts'
 import { testReportFilter } from './test-report.ts'
 import { cargoBuildFilter } from './cargo-build.ts'
+import { containerLogsFilter, dockerBuildFilter } from './docker.ts'
+import { makeFilter } from './make.ts'
+import { mavenFilter } from './maven.ts'
+import { searchContextFilter } from './search-context.ts'
+import { pipInstallFilter } from './pip-install.ts'
+import { yarnInstallFilter } from './yarn-install.ts'
 import type { EconomyFilter, FilterCandidate, FilterInput } from '../types.ts'
 
 export const STATIC_FILTERS: readonly EconomyFilter[] = Object.freeze([
-  pytestFilter, grepFilter, gitDiffFilter, tscFilter, eslintJsonFilter, viteBuildFilter, pnpmInstallFilter,
-  ruffJsonFilter, goTestJsonFilter, gitStatusFilter, searchLayoutFilter, pathListFilter, testProgressFilter, lsListingFilter, testReportFilter, cargoBuildFilter, gitShowFilter,
+  pytestFilter, grepFilter, gitDiffFilter, tscFilter, eslintJsonFilter, viteBuildFilter, pnpmInstallFilter, pipInstallFilter, yarnInstallFilter,
+  ruffJsonFilter, goTestJsonFilter, gitStatusFilter, searchContextFilter, searchLayoutFilter, pathListFilter, testProgressFilter, lsListingFilter, testReportFilter, cargoBuildFilter, gitShowFilter,
+  gitLogFilter, gitBlameFilter, dockerBuildFilter, containerLogsFilter, makeFilter, mavenFilter,
 ])
 
 export function projectStaticFilter(input: FilterInput): FilterCandidate | undefined {
@@ -29,5 +37,5 @@ export function projectStaticFilter(input: FilterInput): FilterCandidate | undef
   return undefined
 }
 
-export { gitDiffFilter, gitShowFilter, grepFilter, pytestFilter }
+export { gitBlameFilter, gitDiffFilter, gitLogFilter, gitShowFilter, grepFilter, pytestFilter }
 export { tscFilter, eslintJsonFilter, viteBuildFilter, pnpmInstallFilter }

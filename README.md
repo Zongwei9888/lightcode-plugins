@@ -34,8 +34,9 @@ another agent, it needs no configuration, and everything stays on your machine.
 
 ### Read less
 
-When the agent runs `pytest`, `cargo test`, `git diff`, `git show`, `grep -rn`,
-`tsc`, `ls`, a package install or another recognized command, the model reads a
+When the agent runs `pytest`, `cargo test`, `git diff`, `git show`, `git log`,
+`grep -rn`, `tsc`, `ls`, `make`, `mvn`, `docker build`, `pip install` or another
+recognized command, the model reads a
 shorter, deterministic version. Passing tests are counted instead of listed,
 progress bars and repeated rows are folded, and long searches and diffs are
 previewed with exact omission counts. Failures, warnings, totals and the exit

@@ -1,0 +1,52 @@
+server listening on :8080
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+GET /health 200
+worker started
+cache miss for key=user:42
+cache miss for key=user:42
+cache miss for key=user:42
+cache miss for key=user:42
+cache miss for key=user:42
+cache miss for key=user:42
+warning: slow query 1200ms
+warning: slow query 1200ms
+warning: slow query 1200ms
+shutting down

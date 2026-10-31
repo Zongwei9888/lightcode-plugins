@@ -28,7 +28,7 @@ TokenWise 接进你正在用的 agent，只改变一件事：**模型只读它�
 
 ### 少读
 
-agent 运行 `pytest`、`cargo test`、`git diff`、`git show`、`grep -rn`、`tsc`、`ls`、装依赖等能识别的命令时，模型读到的是一份更短、结果确定的版本：通过的测试只计数、不逐行列出，进度条和重复行被折叠，过长的搜索和 diff 只预览，并写明省略了多少。失败、警告、总数和退出码一律保留。完整输出存在本机，精简版末尾有一行，告诉模型需要时怎么读原文。
+agent 运行 `pytest`、`cargo test`、`git diff`、`git show`、`git log`、`grep -rn`、`tsc`、`ls`、`make`、`mvn`、`docker build`、`pip install` 等能识别的命令时，模型读到的是一份更短、结果确定的版本：通过的测试只计数、不逐行列出，进度条和重复行被折叠，过长的搜索和 diff 只预览，并写明省略了多少。失败、警告、总数和退出码一律保留。完整输出存在本机，精简版末尾有一行，告诉模型需要时怎么读原文。
 
 <p align="center"><img src="../../media/video/fold-zh.gif" alt="260 行的 pytest 输出折叠成模型实际读到的 17 行，失败信息保留" width="100%"></p>
 
