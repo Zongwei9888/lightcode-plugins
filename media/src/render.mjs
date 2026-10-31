@@ -17,17 +17,21 @@ const CHROME = process.env.CHROME ?? `${process.env.HOME}/Library/Caches/ms-play
 
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.ttf': 'font/ttf', '.svg': 'image/svg+xml', '.png': 'image/png' }
 const server = createServer((req, res) => {
-  const path = join(here, decodeURIComponent(new URL(req.url, 'http://x').pathname))
-  if (!path.startsWith(here) || !existsSync(path)) { res.writeHead(404); res.end(); return }
+  const url = decodeURIComponent(new URL(req.url, 'http://x').pathname)
+  // Agent icons live beside the media sources, in media/agents (the README uses them too).
+  const path = url.startsWith('/agents/') ? join(here, '..', url) : join(here, url)
+  if (!(path.startsWith(here) || path.startsWith(join(here, '..', 'agents'))) || !existsSync(path)) { res.writeHead(404); res.end(); return }
   res.writeHead(200, { 'content-type': TYPES[extname(path)] ?? 'application/octet-stream' }); res.end(readFileSync(path))
 }).listen(0)
 const base = `http://127.0.0.1:${server.address().port}/`
 
 const STILLS = [
-  { name: 'social-preview', page: 'hero.html?layout=social', w: 1280, h: 640, scale: 1 },
-  { name: 'social-preview-zh', page: 'hero.html?layout=social&lang=zh', w: 1280, h: 640, scale: 1 },
-  { name: 'banner', page: 'hero.html?layout=banner', w: 1600, h: 560, scale: 2 },
-  { name: 'banner-zh', page: 'hero.html?layout=banner&lang=zh', w: 1600, h: 560, scale: 2 },
+  { name: 'social-preview', page: 'story.html?v=social', w: 1280, h: 640, scale: 1 },
+  { name: 'social-preview-zh', page: 'story.html?v=social&lang=zh', w: 1280, h: 640, scale: 1 },
+  { name: 'banner', page: 'story.html?v=banner', w: 1600, h: 560, scale: 2 },
+  { name: 'banner-zh', page: 'story.html?v=banner&lang=zh', w: 1600, h: 560, scale: 2 },
+  ...['how', 'evolve'].flatMap(v => ['en', 'zh'].map(l =>
+    ({ name: `story-${v}${l === 'zh' ? '-zh' : ''}`, page: `story.html?v=${v}&lang=${l}`, w: 1200, h: 400, scale: 2, fit: '.d' }))),
   { name: 'card-read-less', page: 'card.html?topic=read', w: 1200, h: 675, scale: 2 },
   { name: 'card-lose-nothing', page: 'card.html?topic=keep', w: 1200, h: 675, scale: 2 },
   { name: 'card-get-better', page: 'card.html?topic=learn', w: 1200, h: 675, scale: 2 },
