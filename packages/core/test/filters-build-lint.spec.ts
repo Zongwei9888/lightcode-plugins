@@ -5,7 +5,7 @@ import { makeFilter } from '../src/filters/make.ts'
 import { mavenFilter } from '../src/filters/maven.ts'
 
 /** Real outputs captured on macOS (make 3.81, Maven 3.8.4, mypy, ruff, eslint 9); paths replaced by /repo and ~. */
-const captured = new Map((JSON.parse(readFileSync(new URL('../../../conformance/economy/new-cases/build-lint.json', import.meta.url), 'utf8')) as {
+const captured = new Map((JSON.parse(readFileSync(new URL('../../../conformance/economy/corpus.json', import.meta.url), 'utf8')) as {
   cases: { id: string; command: string; stdout: string; exitCode: number }[]
 }).cases.map(item => [item.id.replace('captured/', ''), item]))
 const real = (id: string) => captured.get(id)!

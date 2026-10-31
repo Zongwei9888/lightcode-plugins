@@ -6,6 +6,27 @@ First open-source release line: compact tool output on eight hosts and any shell
 recoverable compaction on every host whose plugin interface
 allows it (in full on five, assisted on three), and self-evolving filters. (0.1.0 and 0.2.0 were never published; their contents are part of this release.)
 
+- New filters, each with a written contract (`tokenwise filters`) and real
+  captured outputs in the conformance corpus (filter runtime `static-v13`;
+  every earlier case unchanged):
+  - `git-log` (long default and `--oneline` logs: first and last commits
+    kept, the middle counted; commits mentioning errors, conflicts or
+    reverts always kept) and `git-blame` (repeated hash, author and date
+    dropped within a run; every line number and code line kept).
+  - `search-context`: grep/rg/git grep `-A/-B/-C` output grouped by file,
+    losslessly.
+  - `pip-install` and `yarn-install`: dependency-resolution, download and
+    progress rows counted; named requirements, warnings and errors kept.
+    npm's non-TTY output has nothing safe to remove and is left alone.
+  - `docker-build` (BuildKit progress rows counted; every step header and
+    every line a step printed kept) and `container-logs` (`docker logs`,
+    `docker compose logs`, `kubectl logs`: runs of identical lines folded,
+    problem lines never).
+  - `make` (idle sub-make directory lines and up-to-date messages counted)
+    and `maven` (download and transfer progress counted; a first build went
+    from 142 KB to 2 KB).
+- `pytest` reads runs behind `| tee` (the summary decides the outcome) and
+  folds passing rows in `| tail` and `| head` slices.
 - `git-show`: `git show <commit>` and `git log -p` keep every commit header
   and message verbatim and preview oversized hunks exactly as `git diff`
   does; merge diffs and other layouts pass through.

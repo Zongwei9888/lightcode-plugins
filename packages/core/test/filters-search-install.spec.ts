@@ -5,8 +5,8 @@ import { omittedSourceRanges, sourceLines } from '../src/projection-map.ts'
 import type { MappedProjection } from '../src/projection-map.ts'
 
 /** Real outputs captured with pip 26, Yarn 1.22, npm 11 and GNU-compatible grep (paths replaced by /repo). */
-const cases = JSON.parse(readFileSync(new URL('../../../conformance/economy/new-cases/search-install.json', import.meta.url), 'utf8')) as
-  { id: string; command: string; stdout: string; exitCode: number }[]
+const cases = (JSON.parse(readFileSync(new URL('../../../conformance/economy/corpus.json', import.meta.url), 'utf8')) as
+  { cases: { id: string; command: string; stdout: string; exitCode: number }[] }).cases
 const real = (id: string) => cases.find(item => item.id === id)!
 const run = (command: string, stdout: string, exitCode = 0) => projectStaticFilter({ command, stdout, exitCode })
 
