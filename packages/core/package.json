@@ -4,10 +4,10 @@
   "description": "Host-independent TokenWise logic: deterministic tool-output filters, source maps, admission rules and the learned-rule sandbox.",
   "license": "MIT",
   "type": "module",
-  "homepage": "https://github.com/Zongwei9888/tokenwise#readme",
+  "homepage": "https://github.com/HKUDS/TokenWise#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Zongwei9888/tokenwise.git",
+    "url": "git+https://github.com/HKUDS/TokenWise.git",
     "directory": "packages/core"
   },
   "engines": {

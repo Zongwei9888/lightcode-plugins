@@ -238,7 +238,7 @@ const endEl = document.getElementById('sEnd')
 endEl.innerHTML = `<div class="abs end"><div class="big mark">${LOGO}<span>TokenWise</span></div>
   <div class="tag">${zh ? '让 agent 的每个 token 都物有所值' : 'Make every token count for your agent.'}</div>
   <div class="sub">${zh ? '给 AI agent 用的自进化省 token 层' : 'The self-evolving token layer for AI agents'}</div>
-  <div class="url">github.com/Zongwei9888/tokenwise</div><div class="lic">${zh ? '开源，MIT 许可' : 'Open source, MIT licensed'}</div></div>`
+  <div class="url">github.com/HKUDS/TokenWise</div><div class="lic">${zh ? '开源，MIT 许可' : 'Open source, MIT licensed'}</div></div>`
 
 window.render = t => {
   for (const [id, [a, b]] of Object.entries(SCENES)) document.getElementById(id).style.opacity = (a === 0 ? (t < b - .5 ? 1 : 1 - p(t, b - .5, b)) : window_(t, a, b)).toFixed(3)

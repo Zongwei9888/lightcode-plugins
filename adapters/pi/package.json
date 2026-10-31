@@ -11,10 +11,10 @@
     "context",
     "tokens"
   ],
-  "homepage": "https://github.com/Zongwei9888/tokenwise/tree/main/adapters/pi#readme",
+  "homepage": "https://github.com/HKUDS/TokenWise/tree/main/adapters/pi#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Zongwei9888/tokenwise.git",
+    "url": "git+https://github.com/HKUDS/TokenWise.git",
     "directory": "adapters/pi"
   },
   "engines": {

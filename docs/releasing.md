@@ -11,7 +11,7 @@ for people who build their own adapters; the plugins do not depend on them.
 - Create the `tokenwise` organization on npm (the `@tokenwise` scope belongs to someone else) and
   enable two-factor publishing.
 - Create the GitHub repository the manifests point at
-  (`github.com/Zongwei9888/tokenwise`), or update `repository`/`homepage` in
+  (`github.com/HKUDS/TokenWise`), or update `repository`/`homepage` in
   every `package.json`.
 
 ## Every release
