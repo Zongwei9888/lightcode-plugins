@@ -10,11 +10,11 @@ pytest log through the real filter (260 lines → 17, 19.0 KB → 852 bytes).
 |---|---|---|
 | `images/social-preview.png` | 1280×640 | GitHub → Settings → Social preview; link cards on X, LinkedIn, Slack |
 | `images/social-preview-zh.png` | 1280×640 | the same, Chinese (WeChat, Zhihu, Juejin, V2EX) |
-| `images/banner.png`, `banner-zh.png` | 3200×1120 | top of a README, a blog post or a launch page |
+| `images/banner.png`, `banner-zh.png` | 3200×1120 | top of a blog post or a launch page |
 | `images/story-how.png`, `-zh` | 2400 wide | the README's overview: one layer, context on demand, self-evolving |
-| `images/story-evolve.png`, `-zh` | 2400 wide | self-evolution in four steps |
+| `images/story-evolve.png`, `-zh` | 2400 wide | self-evolution in four steps (for posts and talks) |
 | `images/before-after.png`, `-zh` | 3200×1800 | the one-image demo: same run, 17 lines instead of 260 |
-| `images/icons/h-*.png`, `agent-*.png` | 112 / 128 px | the README's section and agent-wall badges |
+| `images/icons/agent-*.png` | 128 px | the README's agent-wall badges for any shell and more agents |
 | `video/tokenwise-en.mp4`, `-zh.mp4` | 1920×1080, 53 s | the explainer, in three chapters: context on demand, self-evolving, cross-platform |
 | `video/fold.gif`, `fold-zh.gif` | 960 wide, 8 s | the fold, looping: README and chat where video does not play |
 

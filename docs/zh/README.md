@@ -1,6 +1,9 @@
 <div align="center">
 
-<img src="../../media/images/banner-zh.png" alt="TokenWise：让 agent 的每个 token 都物有所值。给 AI agent 用的自进化省 token 层：按需读取、自进化、跨平台。" width="100%">
+<h1>
+  <img src="../../docs/assets/logo.svg" width="48" height="48" align="absmiddle" alt="">
+  TokenWise：让 agent 的每个 token 都物有所值
+</h1>
 
 <p>
   <a href="../../LICENSE"><img alt="许可证：MIT" src="https://img.shields.io/badge/license-MIT-0F766E?style=flat-square&labelColor=0E2A26"></a>
@@ -26,29 +29,27 @@
 
 **TokenWise 位于你的 agent 和模型之间，让每一个 agent 都拥有：**
 
-- <img src="../../media/images/icons/h-demand.png" width="20" height="20" align="absmiddle" alt=""> **按需读取**：模型只读它当下需要的部分。其余内容原样留在你的电脑上，一次调用就能取回，agent 压缩记忆之后也一样。省掉的是 token，不是信息。
-- <img src="../../media/images/icons/h-evolve.png" width="20" height="20" align="absmiddle" alt=""> **自进化**：TokenWise 从你自己的使用记录里学会你的项目，越用越省。新规则要在全部历史记录上验证通过才会启用，碍事了会自己关掉。
-- <img src="../../media/images/icons/h-cross.png" width="20" height="20" align="absmiddle" alt=""> **跨平台**：装一次，Claude Code、Codex、Hermes、OpenCode、CodeBuddy、Grok、DeepSeek Harness、pi 和任何 shell 都能用，更多 agent 陆续接入。一个 agent 学会的，所有 agent 共享。
+- **按需读取**：模型只读它当下需要的部分。其余内容原样留在你的电脑上，一次调用就能取回，agent 压缩记忆之后也一样。省掉的是 token，不是信息。
+- **自进化**：TokenWise 从你自己的使用记录里学会你的项目，越用越省。新规则要在全部历史记录上验证通过才会启用，碍事了会自己关掉。
+- **跨平台**：装一次，Claude Code、Codex、Hermes、OpenCode、CodeBuddy、Grok、DeepSeek Harness、pi 和任何 shell 都能用，更多 agent 陆续接入。一个 agent 学会的，所有 agent 共享。
 
 <p align="center"><img src="../../media/images/story-how-zh.png" alt="你的 agent 要读的一切都经过 TokenWise，一套机制所有 agent 共用。按需读取：模型现在需要的留在上下文里，其余原样留在你的电脑上，一次调用取回。自进化：使用、学习、验证、所有 agent 生效，每一轮都更省。模型只读它需要的部分。" width="100%"></p>
 
-## <img src="../../media/images/icons/h-evolve.png" width="28" height="28" align="absmiddle" alt=""> 自进化
+## 🧬 自进化
 
 内置规则认识常用工具，而你的项目有它自己的东西。你发起学习后，你正在用的 agent 会在后台研究会话里记录下的内容，为其中的噪音写出规则，不打断你手上的工作。
 
 一条规则必须在**每一次**历史记录上都更省、一条报错都不丢，在没见过的记录上也成立，TokenWise 才会采用。从下一条命令起，所有 agent 都用上它。如果某个 agent 总要绕开一条规则去看原文，这条规则会自己关掉；任何一次采用都可以撤回。
 
-<p align="center"><img src="../../media/images/story-evolve-zh.png" alt="一处学会，处处受益：照常使用；你的 agent 写出规则；全面验证；所有 agent 生效。" width="100%"></p>
-
 在哪儿工作就在哪儿发起学习：Claude Code、CodeBuddy 和 Grok 里用 `/tokenwise:learn`，Codex 里用 `$tokenwise learn`，pi 和 DeepSeek Harness 里用 TokenWise 面板，任何终端里都可以运行 `tokenwise learn`。有值得学的内容时，agent 也会主动提醒你。
 
-## <img src="../../media/images/icons/h-demand.png" width="28" height="28" align="absmiddle" alt=""> 按需读取
+## 💾 按需读取
 
 可以把它理解成 agent 上下文的"虚拟内存"：模型现在需要的留在上下文里，其余的暂放到你的电脑上，一次调用就原样取回。不管是一条输出很长的命令，还是 agent 刚压缩掉的整段历史，都是如此，所以 agent 不必为了看一行内容把测试再跑一遍。
 
 <p align="center"><img src="../../media/video/fold-zh.gif" alt="260 行的 pytest 输出折叠成模型实际读到的 17 行，失败信息完整保留" width="100%"></p>
 
-## <img src="../../media/images/icons/h-agents.png" width="28" height="28" align="absmiddle" alt=""> 支持的 agent
+## 🤖 支持的 agent
 
 <table width="100%">
   <tr>
@@ -69,7 +70,7 @@
 
 支持 macOS 和 Linux。每个 agent 按它的插件接口允许的方式接入，深度略有不同，详见下方的[各 agent 的接入方式](#各-agent-的接入方式)。
 
-## <img src="../../media/images/icons/h-start.png" width="28" height="28" align="absmiddle" alt=""> 开始使用
+## 🚀 开始使用
 
 把这个仓库交给你的 agent，说：
 
@@ -86,7 +87,7 @@ tokenwise setup        # 自动找到本机的 agent，逐个装好
 
 不用任何配置，下一条命令就生效。想让它学你的项目时，运行 `/tokenwise:learn`（或上面对应的方式）。`tokenwise report` 查看省了多少，`tokenwise uninstall` 可以卸载。
 
-## <img src="../../media/images/icons/h-highlights.png" width="28" height="28" align="absmiddle" alt=""> 技术要点
+## ✨ 技术要点
 
 - **不编造内容**：模型读到的每个字都来自真实输出；删减都有计数，原文随时一次调用取回。
 - **报错一行不丢**：失败、警告和总数一律保留；认不出的内容原样放过。
@@ -96,7 +97,7 @@ tokenwise setup        # 自动找到本机的 agent，逐个装好
 - **在真实 agent 上测试**：单元测试、由真实工具输出组成的逐字节一致性语料，以及在全部 8 个 agent 上用真实模型跑的测试。
 - **MIT 许可，零运行时依赖。**
 
-## <img src="../../media/images/icons/h-news.png" width="28" height="28" align="absmiddle" alt=""> 动态
+## 📰 动态
 
 - **2026-10** · TokenWise 开源：每个 agent 里都能发起自进化，一条命令完成安装，所有过滤规则都改为 TokenWise 自己的代码。
 

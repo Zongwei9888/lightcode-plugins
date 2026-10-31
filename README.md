@@ -1,6 +1,9 @@
 <div align="center">
 
-<img src="media/images/banner.png" alt="TokenWise: Make every token count for your agent. The self-evolving token layer for AI agents: context on demand, self-evolving, cross-platform." width="100%">
+<h1>
+  <img src="docs/assets/logo.svg" width="48" height="48" align="absmiddle" alt="">
+  TokenWise: Make every token count for your agent
+</h1>
 
 <p>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-0F766E?style=flat-square&labelColor=0E2A26"></a>
@@ -32,19 +35,19 @@ agent, and each of them starts from zero.
 
 **TokenWise sits between your agents and the model, and gives every one of them:**
 
-- <img src="media/images/icons/h-demand.png" width="20" height="20" align="absmiddle" alt=""> **Context on demand.** The model reads only what it needs right now. Everything
+- **Context on demand.** The model reads only what it needs right now. Everything
   else stays intact on your machine, one call away, even after the agent compacts
   its memory. You save tokens, not information.
-- <img src="media/images/icons/h-evolve.png" width="20" height="20" align="absmiddle" alt=""> **Self-evolving.** TokenWise learns your project from your own sessions and
+- **Self-evolving.** TokenWise learns your project from your own sessions and
   saves more every round. A new rule is used only after it is checked against
   everything recorded, and it switches itself off if it ever gets in the way.
-- <img src="media/images/icons/h-cross.png" width="20" height="20" align="absmiddle" alt=""> **Cross-platform.** One install for Claude Code, Codex, Hermes, OpenCode,
+- **Cross-platform.** One install for Claude Code, Codex, Hermes, OpenCode,
   CodeBuddy, Grok, DeepSeek Harness, pi and any shell, with more on the way.
   What one agent learns, all of them use.
 
 <p align="center"><img src="media/images/story-how.png" alt="Your agents send everything they read through TokenWise, one layer shared by every agent. Context on demand: what the model needs stays in context, everything else stays on your machine, one call back. Self-evolving: use, learn, verify, every agent; saves more each round. The model reads only what it needs." width="100%"></p>
 
-## <img src="media/images/icons/h-evolve.png" width="28" height="28" align="absmiddle" alt=""> Self-evolving
+## 🧬 Self-evolving
 
 Built-in rules know the common tools. Your project has its own. When you ask,
 the agent you already use studies what your sessions recorded and writes a rule
@@ -55,14 +58,12 @@ error and also works on runs it has not seen. From the next command on, every
 agent uses it. If an agent keeps having to look past a rule, the rule switches
 itself off, and any adoption can be undone.
 
-<p align="center"><img src="media/images/story-evolve.png" alt="Learned once, used everywhere: you work as usual; your agent writes a rule; it is checked on everything; every agent uses it." width="100%"></p>
-
 Start a round from wherever you work: `/tokenwise:learn` in Claude Code,
 CodeBuddy and Grok, `$tokenwise learn` in Codex, the TokenWise panel in pi and
 DeepSeek Harness, or `tokenwise learn` in any terminal. Your agents also tell you
 when recorded output is worth learning from.
 
-## <img src="media/images/icons/h-demand.png" width="28" height="28" align="absmiddle" alt=""> Context on demand
+## 💾 Context on demand
 
 Think of it as virtual memory for your agent's context. What the model needs now
 stays in context; the rest is set aside on your machine and comes back with one
@@ -72,7 +73,7 @@ again to see one line.
 
 <p align="center"><img src="media/video/fold.gif" alt="A 260-line pytest run folds into the 17 lines the model reads; the failure stays" width="100%"></p>
 
-## <img src="media/images/icons/h-agents.png" width="28" height="28" align="absmiddle" alt=""> Supported agents
+## 🤖 Supported agents
 
 <table width="100%">
   <tr>
@@ -94,7 +95,7 @@ again to see one line.
 macOS and Linux. Each agent connects through what its own plugin interface
 allows, so the depth varies a little; the details are under [How each agent is connected](#how-each-agent-is-connected).
 
-## <img src="media/images/icons/h-start.png" width="28" height="28" align="absmiddle" alt=""> Get started
+## 🚀 Get started
 
 Give your agent this repository and ask:
 
@@ -113,7 +114,7 @@ There is nothing to configure: it works from the next command. When you want it
 to learn your project, run `/tokenwise:learn` (or the equivalent above).
 `tokenwise report` shows what was saved; `tokenwise uninstall` takes it out again.
 
-## <img src="media/images/icons/h-highlights.png" width="28" height="28" align="absmiddle" alt=""> Technical highlights
+## ✨ Technical highlights
 
 - **Nothing is invented.** Every character the model reads comes from the real
   output; every cut is counted, and the original is always one call away.
@@ -128,7 +129,7 @@ to learn your project, run `/tokenwise:learn` (or the equivalent above).
   real tool outputs, and rounds with real models on all eight agents.
 - **MIT, zero runtime dependencies.**
 
-## <img src="media/images/icons/h-news.png" width="28" height="28" align="absmiddle" alt=""> News
+## 📰 News
 
 - **2026-10** · TokenWise is open source: self-evolution reachable from every agent,
   one-command setup, and every filter rewritten as TokenWise code.

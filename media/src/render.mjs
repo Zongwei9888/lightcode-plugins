@@ -30,9 +30,7 @@ const STILLS = [
   { name: 'social-preview-zh', page: 'story.html?v=social&lang=zh', w: 1280, h: 640, scale: 1 },
   { name: 'banner', page: 'story.html?v=banner', w: 1600, h: 560, scale: 2 },
   { name: 'banner-zh', page: 'story.html?v=banner&lang=zh', w: 1600, h: 560, scale: 2 },
-  // README section and agent-wall badges: Flaticon icons set in the brand's own badge shapes.
-  ...['demand', 'evolve', 'cross', 'start', 'highlights', 'news', 'agents'].map(icon =>
-    ({ name: `icons/h-${icon}`, page: `badge.html?kind=heading&icon=${icon}`, w: 56, h: 56, scale: 2, fit: '.b' })),
+  // The README's agent-wall badges for 'any shell' and 'more': Flaticon icons in the brand's badge shape.
   ...['shell', 'more'].map(icon => ({ name: `icons/agent-${icon}`, page: `badge.html?kind=agent&icon=${icon}`, w: 64, h: 64, scale: 2, fit: '.b' })),
   ...['how', 'evolve'].flatMap(v => ['en', 'zh'].map(l =>
     ({ name: `story-${v}${l === 'zh' ? '-zh' : ''}`, page: `story.html?v=${v}&lang=${l}`, w: 1200, h: 400, scale: 2, fit: '.d' }))),
