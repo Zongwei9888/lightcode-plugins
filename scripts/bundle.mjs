@@ -13,7 +13,7 @@ import { build } from 'esbuild'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const at = (...parts) => join(root, ...parts)
-const LICENSE_BANNER = name => `/*! ${name} — MIT License. Bundles the TokenWise packages; the RTK filter data inside is Apache-2.0 (see NOTICE.md). */`
+const LICENSE_BANNER = name => `/*! ${name} — MIT License. Bundles the TokenWise packages. */`
 
 const node = {
   bundle: true,
@@ -61,29 +61,10 @@ ${code}
   writeFileSync(at('adapters/dsh/lib/client.js'), wrapped)
 }
 
-const RTK_COMMIT = readFileSync(at('third-party/rtk/NOTICE.md'), 'utf8').match(/`([0-9a-f]{40})`/)[1]
-
-/** Each bundled package carries TokenWise's license, RTK's license and a notice naming both. */
-function writeLegal(dir, name) {
+/** Each bundled package carries the TokenWise license. */
+for (const dir of ['adapters/pi', 'adapters/dsh', 'adapters/opencode', 'packages/cli', 'packages/core', 'packages/protocol', 'packages/store', 'packages/mechanisms']) {
   copyFileSync(at('LICENSE'), at(dir, 'LICENSE'))
-  copyFileSync(at('third-party/rtk/LICENSE'), at(dir, 'LICENSE.rtk'))
-  writeFileSync(at(dir, 'NOTICE.md'), `# Notices
-
-\`${name}\` is part of TokenWise (https://github.com/Zongwei9888/tokenwise), MIT
-licensed (see \`LICENSE\`). Its JavaScript bundles include the TokenWise packages
-it uses.
-
-The bundles also contain filter definitions generated from the built-in TOML
-filters of RTK (https://github.com/rtk-ai/rtk) at commit \`${RTK_COMMIT}\`,
-redistributed under the Apache License 2.0 (see \`LICENSE.rtk\`). The
-TypeScript code that executes them is TokenWise code under the MIT license.
-`)
 }
-
-for (const [dir, name] of [['adapters/pi', '@tokenwise/pi'], ['adapters/dsh', '@tokenwise/dsh'], ['adapters/opencode', '@tokenwise/opencode'], ['packages/cli', '@tokenwise/cli']]) writeLegal(dir, name)
-// The library packages are published as they are; they carry the project license (and core the RTK one).
-for (const dir of ['packages/core', 'packages/protocol', 'packages/store', 'packages/mechanisms']) copyFileSync(at('LICENSE'), at(dir, 'LICENSE'))
-copyFileSync(at('third-party/rtk/LICENSE'), at('packages/core', 'LICENSE.rtk'))
 
 await Promise.all([
   bundleNode({ entry: 'adapters/pi/src/extension.ts', outfile: 'adapters/pi/dist/extension.js', name: '@tokenwise/pi',

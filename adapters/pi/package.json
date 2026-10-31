@@ -33,9 +33,7 @@
     "dist/extension.js",
     "dist/evolve.js",
     "README.md",
-    "NOTICE.md",
-    "LICENSE",
-    "LICENSE.rtk"
+    "LICENSE"
   ],
   "scripts": {
     "test": "vitest run"

@@ -23,8 +23,6 @@
   "files": [
     "lib",
     "src",
-    "NOTICE.md",
-    "LICENSE.rtk",
     "!lib/.tsbuildinfo"
   ],
   "scripts": {

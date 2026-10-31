@@ -7,8 +7,6 @@ export type { MappedProjection, OmittedSourceRange, SourceLine, SourceMap, Sourc
 export { DEFAULT_FILTER_OPTIONS, FILTER_OPTION_LIMITS, resolveFilterOptions } from './filter-options.ts'
 export type { FilterOptions } from './filter-options.ts'
 export { STATIC_FILTERS, projectStaticFilter } from './filters/index.ts'
-export { RTK_FILTERS, matchesRtkCommand } from './rtk/filters.ts'
-export { RTK_REVISION } from './rtk/catalog.ts'
 export { developerCommand, lastEffectiveCommand, literalCommand, readsFileContent, toolArgv } from './command.ts'
 export { hasBuiltinCommand, inspectShell } from './shell-inspection.ts'
 export type { ShellInspection } from './shell-inspection.ts'

@@ -13,11 +13,6 @@ export const codingOutputCases = [
     required: 'expected u32, found String',
   },
   {
-    filter: 'rtk/make', command: 'make build', exitCode: 0,
-    stdout: 'make[1]: Entering directory /project\n'.repeat(100) + 'gcc -O2 main.c\nwarning: preserve this warning\n',
-    required: 'preserve this warning',
-  },
-  {
     filter: 'search-layout', command: 'echo matches && grep -rn value src | head -100', exitCode: 0,
     stdout: '=== matches ===\n' + Array.from({ length: 80 }, (_, i) => `src/long-directory/important-file.ts:${i + 1}: value ${i}\n`).join('') + 'unrelated output remains\n',
     required: '80: value 79',

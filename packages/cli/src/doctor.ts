@@ -1,4 +1,4 @@
-import { economyCoverage, ECONOMY_RUNTIME_VERSION, RTK_REVISION } from '@tokenwise/core'
+import { economyCoverage, ECONOMY_RUNTIME_VERSION } from '@tokenwise/core'
 import { HOST_PROFILES, V0_2_SPECS, negotiate } from '@tokenwise/protocol'
 import { cliContext, onPath } from './context.ts'
 
@@ -17,11 +17,11 @@ export function doctor(options: { json?: boolean } = {}): number {
   const result = {
     version: VERSION, runtimeVersion: ECONOMY_RUNTIME_VERSION, node: process.version, dataDir: context.dataDir,
     dataDirs: context.dataDirs, writableDataDir: writable?.dataDir ?? null, lcOnPath: onPath('tokenwise') ?? null,
-    config: { ...config, sources, problems }, filters: economyCoverage().filters.length, rtkRevision: RTK_REVISION, hosts,
+    config: { ...config, sources, problems }, filters: economyCoverage().filters.length, hosts,
   }
   if (options.json) { process.stdout.write(JSON.stringify(result, null, 2) + '\n'); return problems.length ? 1 : 0 }
   const lines = [
-    `TokenWise ${VERSION} (filters ${ECONOMY_RUNTIME_VERSION}, ${result.filters} filters, RTK ${RTK_REVISION.slice(0, 7)})`,
+    `TokenWise ${VERSION} (filters ${ECONOMY_RUNTIME_VERSION}, ${result.filters} filters)`,
     `  node        ${process.version}`,
     `  data        ${context.dataDir}${writable?.dataDir === context.dataDir ? '' : writable ? ` (not writable here; using ${writable.dataDir})` : ' (not writable: nothing will be filtered)'}`,
     `  tokenwise on PATH  ${result.lcOnPath ?? 'no — Codex hooks need `tokenwise` on PATH'}`,

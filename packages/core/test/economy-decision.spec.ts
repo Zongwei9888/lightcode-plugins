@@ -111,7 +111,7 @@ describe('rewriteCommand', () => {
 describe('mayProject', async () => {
   const { mayProject } = await import('../src/economy.ts')
   it('selects commands some filter recognizes', () => {
-    for (const command of ['pytest -x', 'cd ./app && cargo test', 'git status', 'grep -rn x src | head', 'find . -name "*.ts"', 'make build', 'npm test']) {
+    for (const command of ['pytest -x', 'cd ./app && cargo test', 'git status', 'grep -rn x src | head', 'find . -name "*.ts"', 'npm test', 'git show HEAD', 'uv run pytest -q']) {
       expect(mayProject(command), command).toBe(true)
     }
     for (const command of ['echo hi', 'cat README.md', 'python script.py', 'vim file', 'sed -n 1,5p a.txt']) {

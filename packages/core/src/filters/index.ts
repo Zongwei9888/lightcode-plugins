@@ -1,4 +1,4 @@
-import { gitDiffFilter } from './git-diff.ts'
+import { gitDiffFilter, gitShowFilter } from './git-diff.ts'
 import { grepFilter } from './grep.ts'
 import { pytestFilter } from './pytest.ts'
 import { tscFilter } from './tsc.ts'
@@ -9,7 +9,6 @@ import { ruffJsonFilter } from './ruff-json.ts'
 import { goTestJsonFilter } from './go-test-json.ts'
 import { gitStatusFilter } from './git-status.ts'
 import { searchLayoutFilter } from './search-layout.ts'
-import { RTK_FILTERS } from '../rtk/filters.ts'
 import { pathListFilter } from './path-list.ts'
 import { testProgressFilter } from './test-progress.ts'
 import { lsListingFilter } from './ls-listing.ts'
@@ -19,7 +18,7 @@ import type { EconomyFilter, FilterCandidate, FilterInput } from '../types.ts'
 
 export const STATIC_FILTERS: readonly EconomyFilter[] = Object.freeze([
   pytestFilter, grepFilter, gitDiffFilter, tscFilter, eslintJsonFilter, viteBuildFilter, pnpmInstallFilter,
-  ruffJsonFilter, goTestJsonFilter, gitStatusFilter, searchLayoutFilter, pathListFilter, testProgressFilter, lsListingFilter, testReportFilter, cargoBuildFilter, ...RTK_FILTERS,
+  ruffJsonFilter, goTestJsonFilter, gitStatusFilter, searchLayoutFilter, pathListFilter, testProgressFilter, lsListingFilter, testReportFilter, cargoBuildFilter, gitShowFilter,
 ])
 
 export function projectStaticFilter(input: FilterInput): FilterCandidate | undefined {
@@ -30,5 +29,5 @@ export function projectStaticFilter(input: FilterInput): FilterCandidate | undef
   return undefined
 }
 
-export { gitDiffFilter, grepFilter, pytestFilter }
+export { gitDiffFilter, gitShowFilter, grepFilter, pytestFilter }
 export { tscFilter, eslintJsonFilter, viteBuildFilter, pnpmInstallFilter }
