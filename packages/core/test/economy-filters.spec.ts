@@ -85,4 +85,32 @@ ${additions}
     expect(gitShowFilter.project({ command: 'git show HEAD:ledger/money.py', stdout: 'def to_cents(x):\n    return x\n', exitCode: 0 })).toBeUndefined()
     expect(gitShowFilter.project({ command: 'git show 5cac6a1', stdout: show.replace('diff --git a/ledger/money.py b/ledger/money.py', 'diff --cc ledger/money.py'), exitCode: 0 })).toBeUndefined()
   })
+
+  it('reads a pytest run behind | tee, and folds passing rows in a | tail or | head slice', () => {
+    const passed = Array.from({ length: 40 }, (_, i) => `tests/test_money.py::test_case[${i}] PASSED${' '.repeat(20)}[ ${String(i + 1).padStart(2)}%]`)
+    const failure = ['=================================== FAILURES ===================================', '_____ test_rate _____', '>       assert rate_for(50) == Decimal("0.05")',
+      "E       AssertionError: assert Decimal('0') == Decimal('0.05')", 'tests/test_discount.py:9: AssertionError',
+      '=========================== short test summary info ============================', 'FAILED tests/test_discount.py::test_rate - AssertionError', '========================= 1 failed, 40 passed in 0.12s =========================']
+    const full = ['============================= test session starts ==============================', 'collected 41 items', '', ...passed, 'tests/test_discount.py::test_rate FAILED [100%]', '', ...failure].join('\n') + '\n'
+    // | tee: the exit status is tee's 0, the summary says 1 failed.
+    const teed = pytestFilter.project({ command: 'python3 -m pytest -v 2>&1 | tee /tmp/run.txt', stdout: full, exitCode: 0 })!
+    expect(teed).not.toContain('test_case[7] PASSED')
+    for (const kept of ["E       AssertionError: assert Decimal('0') == Decimal('0.05')", 'FAILED tests/test_discount.py::test_rate', '1 failed, 40 passed in 0.12s']) expect(teed).toContain(kept)
+    // Without tee, a contradicting exit status still makes the filter stand aside.
+    expect(pytestFilter.project({ command: 'python3 -m pytest -v', stdout: full, exitCode: 0 })).toBeUndefined()
+    // A tail slice: the header is gone; passing rows go, diagnostics stay verbatim.
+    const tail = [...passed.slice(10), 'tests/test_discount.py::test_rate FAILED [100%]', '', ...failure].join('\n') + '\n'
+    for (const command of ['python3 -m pytest -v 2>&1 | tail -n 400', 'pytest -v | tail -60', 'uv run pytest -v 2>&1 | head -200']) {
+      const slice = pytestFilter.project({ command, stdout: tail, exitCode: 0 })!
+      expect(slice, command).toContain('[30 passing test rows omitted]')
+      expect(slice).toContain('tests/test_discount.py::test_rate FAILED [100%]')
+      expect(slice).toContain(failure.join('\n'))
+    }
+    // A slice with fewer than five passing rows, or of output pytest does not own (-s), is left alone.
+    expect(pytestFilter.project({ command: 'pytest -v | tail -8', stdout: [...passed.slice(0, 3), ...failure].join('\n') + '\n', exitCode: 0 })).toBeUndefined()
+    expect(pytestFilter.project({ command: 'pytest -v -s | tail -60', stdout: tail, exitCode: 0 })).toBeUndefined()
+    // Rows that look like passes after a section rule (a PASSES section, captured output) are kept.
+    const passes = [...failure.slice(0, 1), ...passed.slice(0, 6)].join('\n') + '\n'
+    expect(pytestFilter.project({ command: 'pytest -v -rP | tail -20', stdout: passes, exitCode: 0 })).toBeUndefined()
+  })
 })
