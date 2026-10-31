@@ -23,6 +23,13 @@ FAILED tests/test_foo.py::test_bad - assert 1 == 2
     for (const command of ['.venv/bin/python -m pytest -q', '/opt/homebrew/bin/python3 -m pytest -q', 'cd /repo && .venv/bin/pytest -q 2>&1']) {
       expect(pytestFilter.project({ command, stdout, exitCode: 1 })).toBe(projected)
     }
+    // So does a program a runner starts (as RTK and snip do), and one behind `time` or variable assignments.
+    for (const command of ['uv run pytest -q', 'poetry run pytest -q', 'pipenv run pytest -q', 'pdm run pytest -q', 'time pytest -q', 'CI=1 pytest -q',
+      'CI=1 uv run python -m pytest -q', 'cd /repo && uv run .venv/bin/pytest -q 2>&1']) {
+      expect(pytestFilter.project({ command, stdout, exitCode: 1 }), command).toBe(projected)
+    }
+    // A runner option means another program shape: left alone.
+    expect(pytestFilter.project({ command: 'uv run --with pytest-xdist pytest -q', stdout, exitCode: 1 })).toBeUndefined()
     expect(projected).toContain('test_bad')
     expect(projected).toContain('assert 1 == 2')
     expect(projected?.length).toBeLessThan(stdout.length)

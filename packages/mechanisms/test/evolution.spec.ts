@@ -96,5 +96,8 @@ describe('evolution', () => {
       'cat file.txt | grep x',
       'cd src',
     ].map(commandHead)).toEqual(['python3 -m pytest', 'grep', 'cargo test', 'jest', 'python', 'cat', 'cd src'])
+    // Loops and conditions name the command inside them (a startup notice once named `for t`).
+    expect(['for t in a b; do python3 -m pytest $t; done', 'while true; do ./poll.sh; done', 'if [ -f x ]; then make build; fi']
+      .map(commandHead)).toEqual(['python3 -m pytest', './poll.sh', 'make build'])
   })
 })

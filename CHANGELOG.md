@@ -6,6 +6,19 @@ First open-source release line: compact tool output on eight hosts and any shell
 recoverable compaction on every host whose plugin interface
 allows it (in full on five, assisted on three), and self-evolving filters. (0.1.0 and 0.2.0 were never published; their contents are part of this release.)
 
+- Claude Code filters failed commands outside bypassPermissions mode too:
+  PostToolUse sees only successful calls, so a command is wrapped in
+  `tokenwise run` (and allowed) when it is one simple command the user's own
+  permission rules allow and no deny or ask rule could match. Anything else
+  runs as written. (RTK solves the same problem by reimplementing each agent's
+  permission checks; this is the conservative part of that.) A trailing
+  `2>&1` counts as one simple command (seen in a live session, where the
+  failing run otherwise went to Claude Code's own 10,000-character cut).
+- Commands worth learning from are named by the command inside a loop or a
+  condition (`for t in …; do pytest …; done` reads as `pytest`, not `for t`).
+- Commands are recognized behind runner prefixes, as RTK and snip do:
+  `uv run`, `poetry run`, `pipenv run`, `pdm run`, `rye run`, `hatch run`,
+  `bundle exec`, `time` and leading `VAR=value` assignments.
 - Learning from every agent: `tokenwise learn --learner L` starts a run in
   the background (`learn status`, `learn cancel` follow and stop it). Claude
   Code, CodeBuddy and Grok get `/tokenwise:learn` and `/tokenwise:rules`;

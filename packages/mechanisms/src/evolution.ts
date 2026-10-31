@@ -39,6 +39,9 @@ function shellWords(command: string): string[] {
 }
 
 const SETUP = new Set(['cd', 'pushd', 'popd', 'export', 'source', '.', 'set', 'unset', 'env', 'true', 'clear', 'echo'])
+/** Shell syntax, not programs: a stage that opens or closes a loop or a condition names none, and these lead into one that does. */
+const SYNTAX = new Set(['for', 'while', 'until', 'if', 'elif', 'case', 'select', 'function', 'done', 'fi', 'esac', '}', ')'])
+const LEADERS = new Set(['do', 'then', 'else', '{', '(', '!'])
 
 /**
  * The tool a command runs, for grouping observations: the program that
@@ -59,8 +62,8 @@ export function commandHead(command: string): string {
     const pipe = segment.indexOf('|')
     const first = pipe < 0 ? segment : segment.slice(0, pipe)
     let at = 0
-    while (at < first.length && /^[A-Za-z_][A-Za-z0-9_]*=/u.test(first[at]!)) at++
-    return first.slice(at)
+    while (at < first.length && (LEADERS.has(first[at]!) || /^[A-Za-z_][A-Za-z0-9_]*=/u.test(first[at]!))) at++
+    return SYNTAX.has(first[at] ?? '') ? [] : first.slice(at)
   }).filter(stage => stage.length > 0)
   const stage = stages.find(item => !SETUP.has(item[0]!)) ?? stages.at(-1) ?? []
   let [program = '', next, third] = stage
