@@ -59,6 +59,9 @@ export const LEARNERS: Readonly<Record<string, (instruction: string, options: { 
   // Shell access limited to the checker and the try tool.
   claude: instruction => ['claude', '-p', instruction, '--permission-mode', 'acceptEdits', '--allowedTools', 'Bash(./check*) Bash(./try*) Read Edit Write Glob Grep'],
   codex: instruction => ['codex', 'exec', '--full-auto', '--skip-git-repo-check', instruction],
+  // CodeBuddy matches each rule only as its own argument; Grok takes one rule per --allow. Both checked against the real CLIs.
+  codebuddy: instruction => ['codebuddy', '-p', instruction, '--permission-mode', 'acceptEdits', '--allowedTools', 'Bash(./check:*)', 'Bash(./try:*)', 'Read', 'Edit', 'Write', 'Glob', 'Grep'],
+  grok: instruction => ['grok', '-p', instruction, '--permission-mode', 'acceptEdits', '--allow', 'Bash(./check:*)', '--allow', 'Bash(./try:*)', '--allow', 'Edit', '--allow', 'Write'],
 }
 
 const LEARNER_CASES = 40
@@ -442,6 +445,8 @@ Check your work as often as you like:
                        and the preservation requirements, and reports regressions to fix
   ./try cases/0001.json   shows what your rules deliver for one case
 Passing ./check is required for adoption, but it does not prove a rule is useful.
+You are already in the workspace: run these two exactly as shown, with no cd before them and no pipe or
+redirection after them. They are the only shell commands you may run; anything else is refused.
 
 Work only inside ${workspace}. Do not install packages or use the network.
 `

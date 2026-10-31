@@ -42,6 +42,14 @@ compaction, so (verified on 1.0.70):
   always-approve mode, allow it once or add a `MCPTool(tokenwise__*)` allow
   rule.
 
+## Learning
+
+`/tokenwise:learn` starts a learning run in the background with this agent as
+the learner (`tokenwise learn --learner grok`); `/tokenwise:learn status`
+and `/tokenwise:learn cancel` follow and stop it, and `/tokenwise:rules` lists
+the learned filters (`off`, `on`, `rollback`). At startup the plugin says when
+recorded output is worth learning from and when a run has finished.
+
 ## Install
 
 From a checkout of this repository (it doubles as a Grok marketplace):

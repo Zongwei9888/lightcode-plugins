@@ -8,7 +8,7 @@ const root = new URL('../../../', import.meta.url)
 const json = (path: string) => JSON.parse(readFileSync(new URL(path, root), 'utf8'))
 const version = json('packages/cli/package.json').version as string
 const hook = (host: string) => [{ type: 'command', command: `tokenwise hook ${host}`, timeout: 10 }]
-const check = [{ type: 'command', command: expect.stringContaining('command -v tokenwise'), timeout: 5 }]
+const check = (host: string) => [{ type: 'command', command: expect.stringContaining(`then tokenwise hook ${host}; else`), timeout: 10 }]
 const PLUGINS = ['adapters/claude-code', 'adapters/codex', 'adapters/codebuddy', 'adapters/grok']
 
 describe('Claude Code, CodeBuddy and Grok plugin layouts', () => {
@@ -27,20 +27,34 @@ describe('Claude Code, CodeBuddy and Grok plugin layouts', () => {
       PreToolUse: [{ matcher: 'Bash', hooks: hook('claude') }, { matcher: 'mcp__plugin_tokenwise_tokenwise__tokenwise_recall', hooks: hook('claude') }],
       PostToolUse: [{ matcher: 'Bash', hooks: hook('claude') }],
       PreCompact: [{ hooks: hook('claude') }],
-      SessionStart: [{ matcher: 'startup', hooks: check }, { matcher: 'compact', hooks: [{ type: 'command', command: 'tokenwise hook claude', timeout: 60 }] }],
+      SessionStart: [{ matcher: 'startup', hooks: check('claude') }, { matcher: 'compact', hooks: [{ type: 'command', command: 'tokenwise hook claude', timeout: 60 }] }],
     })
     // The recall tool's name is mcp__plugin_<plugin>_<server>__<tool>; the PreToolUse matcher above must follow it.
     expect(json('adapters/claude-code/.mcp.json').mcpServers).toEqual({ tokenwise: { command: 'tokenwise', args: ['mcp', '--host', 'claude'], alwaysLoad: true } })
     expect(json('adapters/codebuddy/hooks/hooks.json').hooks).toEqual({ PreToolUse: [{ matcher: 'Bash', hooks: hook('codebuddy') }],
-      SessionStart: [{ matcher: 'startup', hooks: check }] })
+      SessionStart: [{ matcher: 'startup', hooks: check('codebuddy') }] })
     // LightShadow on CodeBuddy is a mod: an ES module the plugin's hooks.json lists.
     expect(json('adapters/codebuddy/hooks/hooks.json').modules).toEqual(['./compaction.js'])
     expect(json('adapters/codebuddy/package.json')).toMatchObject({ type: 'module' })
     // Grok: every PostToolUse (the catalog rides the first tool result after a compaction), PostCompact and Stop.
-    expect(json('adapters/grok/hooks/hooks.json').hooks).toEqual({ SessionStart: [{ hooks: check }], PostToolUse: [{ hooks: hook('grok') }],
+    expect(json('adapters/grok/hooks/hooks.json').hooks).toEqual({ SessionStart: [{ hooks: check('grok') }], PostToolUse: [{ hooks: hook('grok') }],
       PostCompact: [{ hooks: [{ type: 'command', command: 'tokenwise hook grok', timeout: 60 }] }], Stop: [{ hooks: hook('grok') }] })
     // Grok names MCP tools <server key>__<tool>: tokenwise__tokenwise_recall.
     expect(json('adapters/grok/.mcp.json').mcpServers).toEqual({ tokenwise: { command: 'tokenwise', args: ['mcp', '--host', 'grok'] } })
+  })
+
+  it('has /tokenwise:learn and /tokenwise:rules commands that learn with the host itself', () => {
+    for (const [plugin, learner] of [['adapters/claude-code', 'claude'], ['adapters/codebuddy', 'codebuddy'], ['adapters/grok', 'grok']]) {
+      const learn = readFileSync(new URL(`${plugin}/commands/learn.md`, root), 'utf8')
+      expect(learn).toMatch(/^---\ndescription: .+\nargument-hint: .+\nallowed-tools: Bash\(tokenwise learn:\*\)\n---\n/u)
+      // The arguments are never pasted into the command: CodeBuddy fills an empty $ARGUMENTS with the command's own name.
+      for (const command of ['tokenwise learn status', 'tokenwise learn cancel', `tokenwise learn --learner ${learner}`]) expect(learn).toContain(`\`${command}\``)
+      expect(learn).not.toMatch(/tokenwise learn \$ARGUMENTS/u)
+      const rules = readFileSync(new URL(`${plugin}/commands/rules.md`, root), 'utf8')
+      expect(rules).toContain('allowed-tools: Bash(tokenwise rules:*)')
+      for (const command of ['tokenwise rules off', 'tokenwise rules rollback', 'tokenwise rules']) expect(rules).toContain(`\`${command}\``)
+      expect(rules).not.toMatch(/tokenwise rules \$ARGUMENTS/u)
+    }
   })
 
   it('tells the user at startup when the tokenwise command is missing, and stays quiet when it is there', () => {

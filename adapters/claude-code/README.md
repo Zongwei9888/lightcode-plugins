@@ -54,6 +54,14 @@ it, so TokenWise works around it (verified on 2.1.312):
 In a real run (Haiku, compaction forced at ~35k tokens) the model answered a
 question about a file it no longer had in context by calling the recall tool.
 
+## Learning
+
+`/tokenwise:learn` starts a learning run in the background with this agent as
+the learner (`tokenwise learn --learner claude`); `/tokenwise:learn status`
+and `/tokenwise:learn cancel` follow and stop it, and `/tokenwise:rules` lists
+the learned filters (`off`, `on`, `rollback`). At startup the plugin says when
+recorded output is worth learning from and when a run has finished.
+
 ## Install
 
 From a checkout of this repository (it doubles as a Claude Code marketplace):

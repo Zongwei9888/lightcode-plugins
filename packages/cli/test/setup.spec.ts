@@ -38,9 +38,10 @@ describe('tokenwise setup', () => {
     expect(code).toBe(0)
     expect(steps).toEqual([
       'pi install npm:@tokenwise/pi',
-      'dsh plugin --profile mine add @tokenwise/dsh',
+      'dsh plugin --profile mine add -w @tokenwise/dsh',
       'claude plugin marketplace add Zongwei9888/tokenwise', 'claude plugin install tokenwise@tokenwise',
       'codex plugin marketplace add Zongwei9888/tokenwise', 'codex plugin add tokenwise@tokenwise',
+      'codebuddy plugin uninstall tokenwise@tokenwise', 'remove /home/u/.codebuddy/plugins/cache/tokenwise',
       'codebuddy plugin marketplace add Zongwei9888/tokenwise', 'codebuddy plugin install tokenwise@tokenwise',
       'grok plugin marketplace add Zongwei9888/tokenwise', 'grok plugin install tokenwise@tokenwise --trust',
       `copy ${published.opencode} -> /home/u/.config/opencode/plugins/tokenwise.js`,
@@ -55,6 +56,8 @@ describe('tokenwise setup', () => {
       'remove /home/u/.config/opencode/plugins/tokenwise.js',
       'hermes config set context.engine compressor', 'hermes plugins disable tokenwise', 'remove /home/u/.hermes/plugins/tokenwise',
     ])
+    expect(plan({ action: 'uninstall', agents: ['codebuddy'] }).steps).toEqual(['codebuddy plugin uninstall tokenwise@tokenwise',
+      'codebuddy plugin marketplace remove tokenwise', 'remove /home/u/.codebuddy/plugins/cache/tokenwise'])
     expect(plan({ action: 'uninstall', agents: ['pi'], purge: '/home/u/.tokenwise' }).steps).toEqual(['pi remove npm:@tokenwise/pi', 'remove /home/u/.tokenwise'])
   })
 

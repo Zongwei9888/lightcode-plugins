@@ -1,6 +1,6 @@
 import { MessageChannel, receiveMessageOnPort, Worker } from 'node:worker_threads'
 import type { MessagePort } from 'node:worker_threads'
-import { literalCommand } from './command.ts'
+import { literalCommand, readsFileContent } from './command.ts'
 import { sha256 } from './hash.ts'
 import { sourceLines } from './projection-map.ts'
 import type { MappedProjection, SourceMap } from './projection-map.ts'
@@ -360,7 +360,9 @@ export function compileLearnedRules(files: readonly RuleFile[], options: { timeo
   const hash = ruleDirectoryHash(files)
   const worker = new RuleWorker({ prelude: PRELUDE, timeout,
     rules: rules.map(rule => ({ id: rule.id, file: rule.file, source: files.find(file => file.path === rule.file)!.text })) })
-  const loaded = worker.call({ type: 'load' }, timeout * (rules.length * 3 + 2) + 500)
+  // Each script inside the worker is limited to `timeout`; this wait mostly covers starting the worker thread,
+  // which on a busy machine took over a second and failed a whole learning run (seen in a real run).
+  const loaded = worker.call({ type: 'load' }, Math.max(5000, timeout * (rules.length * 3 + 2) + 500))
   if (!loaded?.ok) {
     worker.stop()
     throw new RuleDirectoryError(`loading rules failed: ${loaded?.error ?? 'timed out'}`)
@@ -373,6 +375,8 @@ export function compileLearnedRules(files: readonly RuleFile[], options: { timeo
   const project = (input: FilterInput): LearnedCandidate | undefined => {
     const raw = input.stdout
     if (stops >= 3 || raw.length === 0 || raw.length > MAX_INPUT_CHARS || /\0/u.test(raw)) return undefined
+    // File contents are what the agent asked to see: no learned rule shortens them.
+    if (readsFileContent(input.command)) return undefined
     const payload: LearnedRuleInput = { kind: 'shell', command: input.command, argv: literalCommand(input.command) ?? null, raw, exitCode: input.exitCode, stream: 'stdout' }
     let json: string
     try { json = JSON.stringify(payload) } catch { return undefined }

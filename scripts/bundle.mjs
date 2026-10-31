@@ -94,6 +94,7 @@ await Promise.all([
   // The learning runner each plugin starts as its own process.
   bundleNode({ entry: 'adapters/pi/src/evolve.ts', outfile: 'adapters/pi/dist/evolve.js', name: '@tokenwise/pi (learning runner)', external: [] }),
   bundleNode({ entry: 'adapters/dsh/src/evolve.ts', outfile: 'adapters/dsh/lib/evolve.js', name: '@tokenwise/dsh (learning runner)', external: [] }),
+  bundleNode({ entry: 'packages/cli/src/evolve-runner.ts', outfile: 'packages/cli/dist/evolve.js', name: '@tokenwise/cli (learning runner)', external: [] }),
   bundleNode({ entry: 'packages/cli/src/main.ts', outfile: 'packages/cli/dist/tokenwise.js', name: '@tokenwise/cli',
     external: [], executable: true }),
   bundleDshClient(),

@@ -40,7 +40,9 @@ agent 运行 `pytest`、`cargo test`、`git diff`、`grep -rn`、`tsc`、装依�
 
 ### 越用越好
 
-内置过滤规则认识常见命令，而你的项目有自己的构建脚本、测试工具和部署日志。你发起学习后，由你自己的 agent 研究会话里记录下的输出，为它们写小的过滤规则。TokenWise 会用所有记录过的输出重放验证；只有在学习时没见过的输出上也能省 token，才会采用这条规则。如果 agent 总要绕开某条规则去看原文，这条规则会自动关闭；任何一次采用都可以回滚。
+内置过滤规则认识常见命令，而你的项目有自己的构建脚本、测试工具和部署日志。你发起学习后，由你自己的 agent 研究会话里记录下的输出，为它们写小的过滤规则。TokenWise 会用所有记录过的输出重放验证；只有在学习时没见过的输出上也能省 token，才会采用这条规则。如果 agent 总要绕开某条规则去看原文，这条规则会自动关闭；任何一次采用都可以回滚。学到的规则从不缩短文件内容（`cat`、`head`、`sed -n` 这类命令的输出）。
+
+发起学习：Claude Code、CodeBuddy 和 Grok 里用 `/tokenwise:learn`，Codex 里用 `$tokenwise learn`，pi 和 DeepSeek Harness 里用 TokenWise 面板，任何地方都可以用 `tokenwise learn`。学习在后台进行；有值得学的输出、或一轮学习结束时，agent 启动时会告诉你。
 
 <p align="center"><img src="../../media/images/diagram-learning-zh.png" alt="一次学习：记录、提议、验证、采用、观察" width="100%"></p>
 
@@ -75,7 +77,7 @@ tokenwise setup                   # 也可以指定 agent：tokenwise setup clau
 
 ```sh
 pi install "$PWD/adapters/pi"                                   # pi
-dsh plugin --profile web add "$PWD/adapters/dsh"                # DeepSeek Harness（换成你的 profile）
+dsh plugin --profile web add -w "$PWD/adapters/dsh"             # DeepSeek Harness（换成你的 profile）
 claude plugin marketplace add "$PWD" && claude plugin install tokenwise@tokenwise
 codex plugin marketplace add "$PWD" && codex plugin add tokenwise@tokenwise
 codebuddy plugin marketplace add "$PWD" && codebuddy plugin install tokenwise@tokenwise
@@ -139,8 +141,9 @@ TokenWise 能做到多深，取决于每个 agent 允许插件做什么。
 | `tokenwise run -c '<命令>'` | 运行命令，输出精简后的结果 |
 | `tokenwise recall <id> [--query Q \| --line N] [--original]` | 读回一个保存的结果 |
 | `tokenwise mcp` | 提供取回工具的 MCP 服务，任何 agent 都能用 |
-| `tokenwise evolve --learner pi\|dsh\|claude\|codex\|"<命令>"` | 从记录的输出里学习过滤规则 |
-| `tokenwise rules [list\|show\|off\|rollback]` | 管理学到的过滤规则 |
+| `tokenwise evolve --learner pi\|dsh\|claude\|codex\|codebuddy\|grok\|"<命令>"` | 从记录的输出里学习过滤规则 |
+| `tokenwise learn --learner L`, `learn status\|cancel` | 在后台开始学习、查看进度、停止 |
+| `tokenwise rules [list\|show\|off\|on\|rollback]` | 管理学到的过滤规则 |
 | `tokenwise filters`、`show <sha256>`、`gc` | 内置规则、查看一份原文、清理 |
 
 所有命令里的 `tokenwise` 都可以写成 `tw`。

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compileLearnedRules, createPolicy, decideShellProjection, parseRuleIndex, ruleDirectoryHash, RuleDirectoryError } from '../src/index.ts'
+import { compileLearnedRules, createPolicy, decideShellProjection, parseRuleIndex, readsFileContent, ruleDirectoryHash, RuleDirectoryError } from '../src/index.ts'
 import type { RuleFile } from '../src/index.ts'
 
 const index = (rules: { id: string; file?: string; transformation?: string }[]) =>
@@ -117,5 +117,27 @@ describe('learned rules', () => {
     const a = [index([{ id: 'make-progress' }]), rule('make-progress', MAKE_PROGRESS)]
     expect(ruleDirectoryHash(a)).toBe(ruleDirectoryHash([...a].reverse()))
     expect(ruleDirectoryHash(a)).not.toBe(ruleDirectoryHash([a[0]!, rule('make-progress', `${MAKE_PROGRESS}\n`)]))
+  })
+})
+
+describe('file contents', () => {
+  it('recognizes commands that print the files they read, but not a pipe trimming other output', () => {
+    for (const command of ['cat data.txt', 'head -50 src/a.ts', 'sed -n 10,40p f.py', 'LC_ALL=C tail -n 20 log.txt', '/bin/cat x', 'cd app && cat README.md',
+      'find . -name "*.md" -exec cat {} \;', 'xargs cat < list', 'echo $(cat VERSION)', 'cat a | grep b', 'jq . package.json', 'bat src/main.rs']) {
+      expect(readsFileContent(command), command).toBe(true)
+    }
+    for (const command of ['pytest -q', 'git log | head -20', 'pytest 2>&1 | tail -50', 'grep -rn cat src', 'npm run build | sed s/a/b/', 'concat.sh', 'ls -la', 'echo cat']) {
+      expect(readsFileContent(command), command).toBe(false)
+    }
+  })
+
+  it('never lets a learned rule shorten file contents; the same output from a build still is', () => {
+    const learned = compileLearnedRules([index([{ id: 'make-progress', transformation: 'noise-removal' }]), rule('make-progress', MAKE_PROGRESS)])
+    try {
+      const policy = createPolicy(undefined, learned)
+      expect(decideShellProjection(shell('./build.sh -j8', makeOutput), { policy })).toMatchObject({ kind: 'project', rule: 'make-progress' })
+      const read = decideShellProjection(shell('cat build.log', makeOutput), { policy })
+      expect((read as { rule?: string }).rule).toBeUndefined()
+    } finally { learned.dispose() }
   })
 })

@@ -29,6 +29,7 @@
   },
   "files": [
     "dist/tokenwise.js",
+    "dist/evolve.js",
     "assets/",
     "README.md",
     "NOTICE.md",

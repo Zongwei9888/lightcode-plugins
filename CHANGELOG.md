@@ -6,6 +6,34 @@ First open-source release line: compact tool output on eight hosts and any shell
 recoverable compaction on every host whose plugin interface
 allows it (in full on five, assisted on three), and self-evolving filters. (0.1.0 and 0.2.0 were never published; their contents are part of this release.)
 
+- Learning from every agent: `tokenwise learn --learner L` starts a run in
+  the background (`learn status`, `learn cancel` follow and stop it). Claude
+  Code, CodeBuddy and Grok get `/tokenwise:learn` and `/tokenwise:rules`;
+  Codex gets a `tokenwise` skill. At startup these plugins say once when
+  recorded output is worth learning from and when a run finished. New
+  learners: `codebuddy` and `grok`, with the shell limited to `./check` and
+  `./try`.
+- Found in real sessions and fixed:
+  - Claude Code, Grok and Hermes now pass every shell output they report
+    after the fact through the full decision, not only commands a built-in
+    filter recognizes: a learned rule for a project's own script, or for
+    output piped through `tail`, never reached those agents, and they
+    recorded no evidence for it.
+  - Claude Code cuts Bash output over 30,000 characters, saves the whole of
+    it and shows the model a preview. TokenWise filtered the cut text as if it
+    were complete; it now filters the saved whole output, and replaces the
+    preview only when the result is shorter than the cut.
+  - Grok names a new session's start `new`; the startup notice now fires there.
+  - The `/tokenwise:learn` and `/tokenwise:rules` commands no longer paste
+    their arguments into the shell command: CodeBuddy fills empty arguments
+    with the command's own name.
+  - `tokenwise setup`: DeepSeek Harness installs with `-w` (pnpm before 11
+    refuses to add to a profile's workspace root without it), and CodeBuddy
+    drops TokenWise's cached copy first, which it otherwise reinstalls
+    unchanged when the version is the same.
+- Learned rules never shorten file contents: output of `cat`, `head`, `tail`,
+  `sed`, `bat`, `jq` and similar readers (not when they read a pipe) is left
+  to the built-in filters, and is not shown to learners.
 - `tokenwise setup [agent...]` adds TokenWise to every supported agent found
   on PATH (or the ones named) with each agent's own plugin commands, printing
   each one first (`--dry-run` only prints); `tokenwise uninstall [--purge]`

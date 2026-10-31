@@ -1,4 +1,4 @@
-import { createPolicy, decideShellProjection, estimateTokens as defaultEstimate, sha256 } from '@tokenwise/core'
+import { createPolicy, decideShellProjection, estimateTokens as defaultEstimate, readsFileContent, sha256 } from '@tokenwise/core'
 import type { EconomyPolicy, LearnedRuleSet, ShellResult, TokenEstimator } from '@tokenwise/core'
 import type { ArtifactPort, EconomyRecord, JournalRecord } from '@tokenwise/protocol'
 
@@ -95,6 +95,8 @@ export function collectEvidence(records: Iterable<JournalRecord>, artifacts: Art
     const record = item as EconomyRecord
     if (!record.raw?.stored || !record.layout || record.layout.truncated || record.layout.interrupted || record.exitCode === null) continue
     if (since && record.time < since) continue
+    // Learned rules never touch file contents, so there is nothing to learn from them.
+    if (readsFileContent(record.command)) continue
     const id = `${record.raw.sha256.slice(0, 16)}-${sha256(record.command).slice(0, 8)}`
     const known = byId.get(id)
     if (known) { known.occurrences++; continue }
