@@ -76,7 +76,7 @@ export async function runDsh({ cache, root, registry, log }) {
       PATH: `${pnpmBin}:${bin}:${process.env.PATH}`, npm_config_cache: join(cache, 'npm-cache'), npm_config_store_dir: join(cache, 'pnpm-store') })
     try {
       // 1. Install like a user: the package name, resolved from the registry.
-      const install = run(dsh, ['plugin', '--profile', 'headless', 'add', '@tokenwise/dsh'], { cwd: base, env: envFor(join(base, 'tokenwise-install')) })
+      const install = run(dsh, ['plugin', '--profile', 'headless', 'add', '-w', '@tokenwise/dsh'], { cwd: base, env: envFor(join(base, 'tokenwise-install')) })
       const profileDir = join(dshHome, 'profiles', 'headless')
       const manifest = JSON.parse(readFileSync(join(profileDir, 'package.json'), 'utf8'))
       assert.ok(manifest.dsh.profile.bundles.includes('@tokenwise/dsh'), `bundle not selected:\n${install.stdout}${install.stderr}`)

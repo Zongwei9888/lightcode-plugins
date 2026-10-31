@@ -6,6 +6,7 @@ import { cliContext } from './context.ts'
 import { doctor, VERSION } from './doctor.ts'
 import { evolve, evolveCheck, evolveTry, rules } from './evolve.ts'
 import { hook } from './hook.ts'
+import { learnCancel, learnStart, learnStatus } from './learn.ts'
 import { mcp } from './mcp.ts'
 import { report } from './report.ts'
 import { run } from './run.ts'
@@ -29,8 +30,11 @@ Usage:
   tokenwise show <sha256>                 print a saved original output
   tokenwise gc [--days N]                 delete saved originals older than N days
   tokenwise doctor [--json]               configuration and per-host capability negotiation
-  tokenwise evolve --learner pi|dsh|claude|codex|"<command>" [--since 7d] [--max-cases N] [--timeout 30m] [--dry-run] [--json]
+  tokenwise evolve --learner pi|dsh|claude|codex|codebuddy|grok|"<command>" [--since 7d] [--max-cases N] [--timeout 30m] [--dry-run] [--json]
                                    learn output rules from recorded evidence; adopt them only if verified
+  tokenwise learn --learner pi|dsh|claude|codex|codebuddy|grok
+                                   the same, in the background; agents' /tokenwise:learn runs this
+  tokenwise learn status|cancel           follow or stop a learning run
   tokenwise rules [list|show|path|off|on|rollback] [--json]
                                    learned rules: what is adopted, switch off, go back
   tokenwise recall <observation_id> [--query Q | --line N] [--original] [--session S]
@@ -133,6 +137,13 @@ async function dispatch(command: string | undefined, rest: string[]): Promise<nu
       return evolve({ ...values.learner === undefined ? {} : { learner: values.learner }, ...values.profile === undefined ? {} : { profile: values.profile },
         ...values.since === undefined ? {} : { since: values.since }, ...maxCases === undefined ? {} : { maxCases },
         ...values.timeout === undefined ? {} : { timeout: values.timeout }, dryRun: values['dry-run'] === true, json: values.json === true })
+    }
+    case 'learn': {
+      const { values, positionals } = parseArgs({ args: rest, allowPositionals: true, options: { learner: { type: 'string' } } })
+      if (positionals[0] === 'status') return learnStatus()
+      if (positionals[0] === 'cancel') return learnCancel()
+      if (positionals.length) { process.stderr.write(`tokenwise learn: unknown ${positionals[0]} (use status or cancel)\n`); return 2 }
+      return learnStart(values.learner)
     }
     case 'rules': return rules(rest.find(arg => !arg.startsWith('-')), rest.includes('--json'))
     case 'recall': {

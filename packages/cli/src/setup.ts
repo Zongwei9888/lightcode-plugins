@@ -58,23 +58,29 @@ interface Agent {
 
 const opencodeFile = (env: NodeJS.ProcessEnv) => join(env.XDG_CONFIG_HOME || join(env.HOME || homedir(), '.config'), 'opencode', 'plugins', 'tokenwise.js')
 const hermesDir = (env: NodeJS.ProcessEnv) => join(env.HERMES_HOME || join(env.HOME || homedir(), '.hermes'), 'plugins', 'tokenwise')
+const codebuddyCache = (env: NodeJS.ProcessEnv) => join(env.HOME || homedir(), '.codebuddy', 'plugins', 'cache', 'tokenwise')
 
 /** Claude Code, Codex, CodeBuddy and Grok: a marketplace named tokenwise, then the plugin from it. Adding it again fails harmlessly. */
-const marketplace = (bin: string, add: string[], remove: string[]): Pick<Agent, 'install' | 'uninstall'> => ({
-  install: s => [{ run: [bin, 'plugin', 'marketplace', 'add', s.marketplace], mayFail: true }, { run: [bin, 'plugin', ...add] }],
-  uninstall: () => [{ run: [bin, 'plugin', ...remove] }, { run: [bin, 'plugin', 'marketplace', 'remove', 'tokenwise'], mayFail: true }],
+const marketplace = (bin: string, add: string[], remove: string[],
+  extra: { before?: (o: Options) => Step[]; after?: (o: Options) => Step[] } = {}): Pick<Agent, 'install' | 'uninstall'> => ({
+  install: (s, o) => [...extra.before?.(o) ?? [], { run: [bin, 'plugin', 'marketplace', 'add', s.marketplace], mayFail: true }, { run: [bin, 'plugin', ...add] }],
+  uninstall: (_, o) => [{ run: [bin, 'plugin', ...remove] }, { run: [bin, 'plugin', 'marketplace', 'remove', 'tokenwise'], mayFail: true }, ...extra.after?.(o) ?? []],
 })
 
 export const AGENTS: readonly Agent[] = [
   { id: 'pi', name: 'pi', bin: 'pi',
     install: s => [{ run: ['pi', 'install', s.pi] }], uninstall: s => [{ run: ['pi', 'remove', s.pi] }] },
   { id: 'dsh', name: 'DeepSeek Harness', bin: 'dsh',
-    install: (s, o) => [{ run: ['dsh', 'plugin', '--profile', o.dshProfile, 'add', s.dsh] }],
+    // -w: every profile is a pnpm workspace, and pnpm before 11 refuses to add to its root without it.
+    install: (s, o) => [{ run: ['dsh', 'plugin', '--profile', o.dshProfile, 'add', '-w', s.dsh] }],
     uninstall: (_, o) => [{ run: ['dsh', 'plugin', '--profile', o.dshProfile, 'remove', '@tokenwise/dsh'] }] },
   { id: 'claude', name: 'Claude Code', bin: 'claude', ...marketplace('claude', ['install', 'tokenwise@tokenwise'], ['uninstall', 'tokenwise@tokenwise']) },
   { id: 'codex', name: 'Codex', bin: 'codex', ...marketplace('codex', ['add', 'tokenwise@tokenwise'], ['remove', 'tokenwise@tokenwise']),
     next: 'Open Codex and trust the TokenWise hooks in /hooks.' },
-  { id: 'codebuddy', name: 'CodeBuddy', bin: 'codebuddy', ...marketplace('codebuddy', ['install', 'tokenwise@tokenwise'], ['uninstall', 'tokenwise@tokenwise']) },
+  // CodeBuddy reinstalls a plugin of the same version from its cache, which uninstalling keeps: drop TokenWise's cache first.
+  { id: 'codebuddy', name: 'CodeBuddy', bin: 'codebuddy', ...marketplace('codebuddy', ['install', 'tokenwise@tokenwise'], ['uninstall', 'tokenwise@tokenwise'], {
+    before: o => [{ run: ['codebuddy', 'plugin', 'uninstall', 'tokenwise@tokenwise'], mayFail: true }, { remove: codebuddyCache(o.env) }],
+    after: o => [{ remove: codebuddyCache(o.env) }] }) },
   { id: 'grok', name: 'Grok Build', bin: 'grok', ...marketplace('grok', ['install', 'tokenwise@tokenwise', '--trust'], ['uninstall', 'tokenwise']) },
   { id: 'opencode', name: 'OpenCode', bin: 'opencode',
     install: (s, o) => [{ copy: s.opencode, to: opencodeFile(o.env) }], uninstall: (_, o) => [{ remove: opencodeFile(o.env) }] },

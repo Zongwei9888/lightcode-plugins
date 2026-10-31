@@ -96,3 +96,28 @@ export function isPackageTestCommand(argv: readonly string[]): boolean {
   return argv.slice(offset).every(arg => arg === '--silent'
     || argv[0] === 'npm' && /^--logs-max=\d+$/.test(arg))
 }
+
+/** Programs whose output is the content of the files they read. */
+const FILE_READERS = new Set(['cat', 'tac', 'nl', 'head', 'tail', 'less', 'more', 'bat', 'batcat', 'sed', 'xxd', 'od', 'hexdump', 'strings', 'jq', 'yq'])
+/** Words that run the program after them. */
+const WRAPPERS = new Set(['sudo', 'env', 'command', 'time', 'nice', 'nohup', 'xargs', 'exec', '-exec', '-execdir'])
+
+/**
+ * Whether any program in the command prints file contents (`cat`, `head`,
+ * `sed -n`, ...), not counting one that reads a pipe. The agent reads a file to see what is in it, so learned
+ * rules leave such output alone; built-in filters are unaffected.
+ */
+export function readsFileContent(command: string): boolean {
+  const program = (word: string) => word.replace(/^["']|["']$/gu, '').replace(/^.*\//u, '')
+  const parts = command.split(/(\|\|?|&&|;|\$\(|`|\n)/u)
+  for (let p = 0; p < parts.length; p += 2) {
+    // After a pipe, head, tail or sed trim another command's output; they read no file.
+    if (parts[p - 1] === '|') continue
+    const words = parts[p]!.trim().split(/\s+/u)
+    // Skip VAR=value assignments; the first other word runs, and so does any word after a wrapper.
+    let first = 0
+    while (first < words.length - 1 && /^[A-Za-z_]\w*=/u.test(words[first]!)) first++
+    if (words.some((word, i) => (i === first || i > 0 && WRAPPERS.has(words[i - 1]!)) && FILE_READERS.has(program(word)))) return true
+  }
+  return false
+}

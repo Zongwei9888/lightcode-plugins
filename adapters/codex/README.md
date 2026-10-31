@@ -62,6 +62,15 @@ item), but after every compaction it runs SessionStart hooks with source
 Subagent threads get no SessionStart(compact), so no catalog. After you
 install or update the plugin, trust its hooks again in `/hooks`.
 
+## Learning
+
+The plugin's `tokenwise` skill learns with Codex as the learner: type
+`$tokenwise learn` (or ask Codex to have TokenWise learn), `$tokenwise status`
+or `$tokenwise rules`. The command writes to `~/.tokenwise` and the learner
+needs the network, so Codex asks to run it outside the sandbox. At startup the
+plugin says when recorded output is worth learning from and when a run has
+finished.
+
 ## Install
 
 From a checkout of this repository (it doubles as a Codex marketplace):

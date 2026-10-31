@@ -25,12 +25,14 @@ describe('evolution', () => {
     expect(result.results.filter(item => !item.passed)).toEqual([])
   })
 
-  it('rebuilds evidence from the journal: stored, complete shell output only, identical observations once', () => {
+  it('rebuilds evidence from the journal: stored, complete shell output only, no file contents, identical observations once', () => {
     const records = [
       record('./steps', progress), record('./steps', progress),
       record('./steps', progress, { layout: { stdout: { start: 0, length: progress.length }, truncated: true } }),
       record('./other', 'gone\n'.repeat(50)),
       record('./unstored', progress, { raw: { sha256: sha256(progress), bytes: 1, tokens: 1, stored: false } }),
+      // File contents are never learned from.
+      record('cat steps.log', progress), record('tail -n 200 steps.log', progress),
       (({ layout: _layout, ...rest }) => ({ ...rest, exitCode: null }))(record('grep {}', 'x')),
     ]
     const cases = collectEvidence(records, artifacts([progress]))
@@ -46,7 +48,8 @@ describe('evolution', () => {
     expect(verifyRules({ parent: good, candidate: good, cases })).toMatchObject({ accepted: false, reasons: ['unchanged', 'no-incremental-token-gain'] })
     const regression = verifyRules({ parent: good, candidate: undefined, cases })
     expect(regression).toMatchObject({ accepted: false, reasons: ['no-incremental-token-gain', 'replay-token-regression'] })
-    const lossy = rule("return input.argv && input.argv[0] === 'cat' ? tw.keepLines(input.raw, line => line.text !== '') : null")
+    // Lines of dots can be the program's own output when pytest does not capture it.
+    const lossy = rule("return /^(python -m )?pytest /.test(input.command) ? tw.keepLines(input.raw, line => !/^\\.+$/.test(line.text)) : null")
     expect(verifyRules({ parent: undefined, candidate: lossy, cases })).toMatchObject({ accepted: false,
       reasons: expect.arrayContaining(['preservation-requirement-failed']) })
     // Removing a rule that broke a requirement is a repair, even without a gain.

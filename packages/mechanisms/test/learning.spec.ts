@@ -7,7 +7,7 @@ import { sha256 } from '@tokenwise/core'
 import type { EconomyRecord, JournalRecord, ShadowRecallRecord } from '@tokenwise/protocol'
 import { FileArtifactStore, FileJournal, RuleStore, removeTree } from '@tokenwise/store'
 import {
-  acquireRunLock, cancelEvolution, checkpointRecord, disabledRules, evolveContext, outcomeSentence, readEvolveStatus, readRunStatus, releaseRunLock, reviewActiveRules,
+  acquireRunLock, cancelEvolution, LEARNERS, checkpointRecord, disabledRules, evolveContext, outcomeSentence, readEvolveStatus, readRunStatus, releaseRunLock, reviewActiveRules,
   pruneRuns, refreshScan, ruleChanges, ruleUse, runEvolution, scanEvidence, startEvolution, takeAnnouncement, takeReadyNotice, writeRunStatus,
 } from '../src/index.ts'
 
@@ -110,6 +110,16 @@ describe('learned rules in use', () => {
     // Nothing more to switch off; and rollback brings it back.
     expect(reviewActiveRules(home, uses)).toEqual([])
     expect(store.rollback()).toBe(first)
+  })
+})
+
+describe('learners', () => {
+  it('limit the shell to ./check and ./try where the agent allows it, in the form each CLI accepts', () => {
+    expect(Object.keys(LEARNERS)).toEqual(['pi', 'dsh', 'claude', 'codex', 'codebuddy', 'grok'])
+    expect(LEARNERS.codebuddy!('go', {})).toEqual(['codebuddy', '-p', 'go', '--permission-mode', 'acceptEdits', '--allowedTools',
+      'Bash(./check:*)', 'Bash(./try:*)', 'Read', 'Edit', 'Write', 'Glob', 'Grep'])
+    expect(LEARNERS.grok!('go', {})).toEqual(['grok', '-p', 'go', '--permission-mode', 'acceptEdits',
+      '--allow', 'Bash(./check:*)', '--allow', 'Bash(./try:*)', '--allow', 'Edit', '--allow', 'Write'])
   })
 })
 

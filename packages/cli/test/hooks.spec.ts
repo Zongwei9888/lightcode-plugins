@@ -3,7 +3,7 @@ import { chmodSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, w
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { FileArtifactStore } from '@tokenwise/store'
+import { FileArtifactStore, RuleStore } from '@tokenwise/store'
 import { claudeHook, codebuddyHook, eventHost, grokHook, hermesHook } from '../src/hook.ts'
 
 const dirs: string[] = []
@@ -202,6 +202,55 @@ describe('Hermes hook', () => {
     expect(hermesHook(event('python3 -m pytest -v', failingPytest, null, { cwd }), env)).toBeUndefined()
     expect(hermesHook(event('echo hi', 'hi\n'.repeat(200), 0, { cwd }), env)).toBeUndefined()
     expect(hermesHook({ ...event('grep -rn value src', output, 0, { cwd }), hook_event_name: 'transform_tool_result' }, env)).toBeUndefined()
-    expect(records(home, 'hermes').map(record => record.reason)).toEqual(['already-truncated', 'interrupted-result', 'interrupted-result'])
+    // Output no filter recognizes passes through unchanged, recorded as evidence for learning.
+    expect(records(home, 'hermes').map(record => record.reason)).toEqual(['already-truncated', 'interrupted-result', 'interrupted-result', 'no-filter-match'])
+  })
+})
+
+describe('Claude Code output over its limit', () => {
+  // Shape from Claude Code 2.1.x: stdout cut at 30,000 characters, the whole output in persistedOutputPath.
+  it('filters the whole saved output instead of the cut, and replaces Claude\'s preview only when the result is shorter', () => {
+    const { cwd, output, home } = grepCase()
+    const saved = join(home, 'persisted.txt')
+    writeFileSync(saved, output)
+    const cut = output.slice(0, Math.floor(output.length * 0.9))
+    const response = { stdout: cut, stderr: '', interrupted: false, isImage: false, noOutputExpected: false, persistedOutputPath: saved, persistedOutputSize: Buffer.byteLength(output) }
+    const reply = JSON.parse(claudeHook(claudeEvent('PostToolUse', 'grep -rn value src', { cwd, tool_response: response }), { TOKENWISE_HOME: home })!)
+    const replaced = reply.hookSpecificOutput.updatedToolOutput
+    expect(replaced.persistedOutputPath).toBeUndefined()
+    expect(replaced.stdout.length).toBeLessThan(cut.length)
+    // Built from the whole output: its last match is there, though the cut ended long before it.
+    const last = output.trimEnd().split('\n').at(-1)!
+    expect(cut).not.toContain(last)
+    expect(replaced.stdout).toContain(last.split(':')[0])
+    expect(records(home, 'claude').at(-1)).toMatchObject({ outcome: 'projected', raw: { bytes: Buffer.byteLength(output) } })
+    // A saved file that is gone or of another size: Claude's own preview stays.
+    for (const broken of [{ ...response, persistedOutputPath: join(home, 'gone.txt') }, { ...response, persistedOutputSize: 1 }]) {
+      expect(claudeHook(claudeEvent('PostToolUse', 'grep -rn value src', { cwd, tool_response: broken }), { TOKENWISE_HOME: home })).toBeUndefined()
+    }
+  })
+})
+
+describe('learned rules on hook-based agents', () => {
+  // Seen in a real Claude Code session: `pytest -v 2>&1 | tail -n 400` and project scripts never reached a learned rule.
+  it('apply to a project\'s own command and to piped output, after the fact', () => {
+    const home = temp()
+    const store = new RuleStore(home)
+    store.activate(store.installFiles([
+      { path: 'index.json', text: JSON.stringify({ schemaVersion: 1, rules: [{ id: 'deploy-steps', file: 'rules/deploy-steps.js', transformation: 'noise-removal' }] }) },
+      { path: 'rules/deploy-steps.js', text: "defineRule({ project(input, tw) { return /deploy\\.sh/.test(input.command) ? tw.keepLines(input.raw, line => !/^step \\d+ ok$/.test(line.text), n => '[' + n + ' step lines omitted]\\n') : null } })" },
+    ]))
+    const output = Array.from({ length: 200 }, (_, i) => `step ${i} ok`).join('\n') + '\ndeployed release 42\n'
+    for (const command of ['./deploy.sh staging', './deploy.sh staging 2>&1 | tail -n 400']) {
+      const response = { stdout: output, stderr: '', interrupted: false, isImage: false, noOutputExpected: false }
+      const reply = JSON.parse(claudeHook(claudeEvent('PostToolUse', command, { cwd: home, tool_response: response }), { TOKENWISE_HOME: home })!)
+      const shown = reply.hookSpecificOutput.updatedToolOutput.stdout as string
+      expect(shown).toMatch(/^deployed release 42\n\[200 step lines omitted\]\n/u)
+      expect(shown).not.toContain('step 7 ok')
+    }
+    const hermes = JSON.parse(hermesHook({ hook_event_name: 'transform_terminal_output', command: './deploy.sh staging', output, returncode: 0, task_id: 't', cwd: home },
+      { TOKENWISE_HOME: home })!)
+    expect(hermes.output).toContain('[200 step lines omitted]')
+    expect(records(home, 'claude').map(record => record.rule)).toEqual(['deploy-steps', 'deploy-steps'])
   })
 })

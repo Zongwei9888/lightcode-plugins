@@ -98,17 +98,17 @@ describe('tokenwise evolve', () => {
     expect(tokenwise(['run', '-c', './build.sh'], { cwd, home }).out).toContain('[ 80/80] Compiling module_79.rs')
   }, 60_000)
 
-  it('rejects a rule that loses literal data, or that does worse than the built-in filters', () => {
+  it('keeps file contents out of learning, and rejects a rule that does worse than the built-in filters', () => {
     const home = temp(), cwd = project(), work = temp()
     tokenwise(['run', '-c', './build.sh'], { cwd, home })
     tokenwise(['run', '-c', 'cat module.py'], { cwd, home })
     expect(tokenwise(['run', '-c', 'grep -rn value src'], { cwd, home }).out).toContain('omitted')
 
-    // Squeezing blank lines also hits the preservation requirement on a Python string literal.
+    // Squeezing blank lines would hit literal data in a source dump, but learned rules never see file contents:
+    // the cat output is not evidence, and the source-dump requirements hold.
     const blanks = tokenwise(['evolve', '--learner', learner(work, 'squeeze-blanks', "return tw.keepLines(input.raw, (line, i, all) => !(line.text === '' && i > 0 && all[i - 1].text === ''))",
       "input.argv !== null"), '--json'], { cwd, home })
-    expect(JSON.parse(blanks.out)).toMatchObject({ accepted: false, adopted: null, reasons: expect.arrayContaining(['preservation-requirement-failed']) })
-    expect(JSON.parse(blanks.out).requirementFailures.map((item: { id: string }) => item.id)).toContain('cat-python-string-blanks')
+    expect(JSON.parse(blanks.out)).toMatchObject({ accepted: false, adopted: null, cases: 2, requirementFailures: [], reasons: ['no-incremental-token-gain'] })
 
     // A rule that keeps nearly all of a grep the built-in filter shortens far more saves less there.
     const greedy = tokenwise(['evolve', '--learner', learner(work, 'grep-lite', 'return tw.keepLines(input.raw, (line, i) => i >= 8)', "input.argv && input.argv[0] === 'grep'"), '--json'], { cwd, home })

@@ -39,15 +39,15 @@ itself supports (22.19+ or 24+). `dsh plugin` needs pnpm 11 or later.
 **From a terminal**:
 
 ```sh
-dsh plugin --profile web add @tokenwise/dsh
+dsh plugin --profile web add -w @tokenwise/dsh
 ```
 
 Use the profile you run (`web` for `dsh web`, `headless` for
 `dsh headless`, …). The Desktop app manages its own profile: install from its
 **Plugins** page (it brings its own pnpm), or quit it and run its bundled
-`dsh plugin --profile desktop add @tokenwise/dsh`. A downloaded tarball or a checkout works the same way:
-`dsh plugin --profile web add ./tokenwise-dsh-0.3.0.tgz` or
-`dsh plugin --profile web add /absolute/path/to/tokenwise/adapters/dsh`
+`dsh plugin --profile desktop add -w @tokenwise/dsh`. A downloaded tarball or a checkout works the same way:
+`dsh plugin --profile web add -w ./tokenwise-dsh-0.3.0.tgz` or
+`dsh plugin --profile web add -w /absolute/path/to/tokenwise/adapters/dsh`
 (after `pnpm install && pnpm build` in the checkout).
 
 ## Use
@@ -176,7 +176,7 @@ TokenWise 是 DeepSeek Harness（DSH）的插件，在模型读取之前精简�
 需要 DSH **0.2.x**（已在 0.2.0-rc.2 和 0.2.1-alpha.2 上测试：Web 界面和命令行覆盖 macOS 与 Linux，桌面版覆盖 macOS，包括官方签名的 0.2.0-rc.2 安装包和 0.2.1-alpha.2 源码构建；Windows 尚未测试）；`dsh plugin` 需要 pnpm 11 及以上。
 
 **安装**：侧边栏 **插件** → **添加插件** → 输入 `@tokenwise/dsh` → **安装** →
-**立即启用**；或在终端执行 `dsh plugin --profile web add @tokenwise/dsh`。
+**立即启用**；或在终端执行 `dsh plugin --profile web add -w @tokenwise/dsh`。
 
 **使用**：装好即生效。在会话里输入 `/tokenwise` 查看本会话省下的 token、压缩和找回情况，以及正在用的学到的规则。
 

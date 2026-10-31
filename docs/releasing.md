@@ -51,7 +51,7 @@ for people who build their own adapters; the plugins do not depend on them.
 
    ```sh
    pi install npm:@tokenwise/pi
-   dsh plugin --profile web add @tokenwise/dsh       # or Plugins → Add plugin
+   dsh plugin --profile web add -w @tokenwise/dsh    # or Plugins → Add plugin
    npm install -g @tokenwise/cli && tokenwise doctor
    ```
 

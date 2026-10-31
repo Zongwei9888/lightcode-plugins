@@ -63,7 +63,13 @@ test runners and deploy logs. When you ask, your own agent studies the output
 your sessions recorded and writes small filters for it. TokenWise adopts a
 filter only after replaying every recorded output with it, and only if it also
 saves tokens on output the learner never saw. A filter the agent keeps working
-around switches itself off, and any adoption can be rolled back.
+around switches itself off, and any adoption can be rolled back. Learned filters
+never shorten file contents (`cat`, `head`, `sed -n` and the like).
+
+Start learning with `/tokenwise:learn` in Claude Code, CodeBuddy and Grok,
+`$tokenwise learn` in Codex, the TokenWise panel in pi and DeepSeek Harness, or
+`tokenwise learn` anywhere. It runs in the background, and the agent tells you
+at startup when recorded output is worth learning from and when a run is done.
 
 <p align="center"><img src="media/images/diagram-learning.png" alt="One learning run: record, propose, verify, adopt, watch" width="100%"></p>
 
@@ -109,7 +115,7 @@ From the checkout:
 
 ```sh
 pi install "$PWD/adapters/pi"                                   # pi
-dsh plugin --profile web add "$PWD/adapters/dsh"                # DeepSeek Harness (your profile)
+dsh plugin --profile web add -w "$PWD/adapters/dsh"             # DeepSeek Harness (your profile)
 claude plugin marketplace add "$PWD" && claude plugin install tokenwise@tokenwise
 codex plugin marketplace add "$PWD" && codex plugin add tokenwise@tokenwise
 codebuddy plugin marketplace add "$PWD" && codebuddy plugin install tokenwise@tokenwise
@@ -182,8 +188,9 @@ scripted model.
 | `tokenwise run -c '<command>'` | run a command and print the compact output |
 | `tokenwise recall <id> [--query Q \| --line N] [--original]` | read a saved result back |
 | `tokenwise mcp` | an MCP server with the recall tool, for any agent |
-| `tokenwise evolve --learner pi\|dsh\|claude\|codex\|"<command>"` | learn filters from your recorded output |
-| `tokenwise rules [list\|show\|off\|rollback]` | manage learned filters |
+| `tokenwise evolve --learner pi\|dsh\|claude\|codex\|codebuddy\|grok\|"<command>"` | learn filters from your recorded output |
+| `tokenwise learn --learner L`, `learn status\|cancel` | start learning in the background, follow it, stop it |
+| `tokenwise rules [list\|show\|off\|on\|rollback]` | manage learned filters |
 | `tokenwise filters`, `show <sha256>`, `gc` | built-in filters, a saved original, cleanup |
 
 `tw` works in place of `tokenwise` everywhere.

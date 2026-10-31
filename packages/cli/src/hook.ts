@@ -1,9 +1,11 @@
+import { readFileSync } from 'node:fs'
 import { mayProject } from '@tokenwise/core'
 import { normalizeShellCommand } from '@tokenwise/mechanisms'
 import { claudeAfterCompact, claudeAllowRecall, claudePreCompact } from './claude-shadow.ts'
 import { codexAfterCompact } from './codex-shadow.ts'
 import { grokAfterCompact, grokPendingCatalog } from './grok-shadow.ts'
 import { cliContext, onPath, shellQuote } from './context.ts'
+import { startupNotice } from './learn.ts'
 import { projectOutput } from './project.ts'
 
 /**
@@ -133,14 +135,26 @@ export function claudeHook(input: HookInput, env: NodeJS.ProcessEnv = process.en
   if (input.hook_event_name !== 'PostToolUse') return undefined
   const command = input.tool_input?.command
   if (typeof command !== 'string' || command.trimStart().startsWith(`${WRAPPER} `) || input.tool_input?.run_in_background === true) return undefined
-  const response = input.tool_response as { stdout?: unknown; stderr?: unknown; interrupted?: unknown; isImage?: unknown } | null | undefined
+  const response = input.tool_response as { stdout?: unknown; stderr?: unknown; interrupted?: unknown; isImage?: unknown
+    persistedOutputPath?: unknown; persistedOutputSize?: unknown } | null | undefined
   if (!response || typeof response.stdout !== 'string' || typeof response.stderr !== 'string' || response.isImage === true) return undefined
-  if (!mayProject(command)) return undefined
+  // Over its output limit (30,000 characters by default), Claude Code cuts `stdout`, saves the whole output to a file and
+  // shows the model a preview of it. Filter the whole output, and hand it over only if it fits where the cut text was.
+  let stdout = response.stdout
+  const persisted = response.persistedOutputPath
+  if (persisted !== undefined) {
+    if (typeof persisted !== 'string') return undefined
+    try { stdout = readFileSync(persisted, 'utf8') } catch { return undefined }
+    if (typeof response.persistedOutputSize === 'number' && Buffer.byteLength(stdout) !== response.persistedOutputSize) return undefined
+  }
+  // No mayProject gate after the fact: the output is here, and a learned rule or the evidence for one may need any command.
   const projected = projectOutput({ host: 'claude', delivery: 'result-hook', tool: 'Bash', sessionId: text(input.session_id), callId: text(input.tool_use_id),
-    command, exitCode: 0, interrupted: response.interrupted === true, stdout: response.stdout, stderr: response.stderr,
+    command, exitCode: 0, interrupted: response.interrupted === true, stdout, stderr: response.stderr,
     ...typeof input.cwd === 'string' ? { cwd: input.cwd } : {}, env })
   if (!projected) return undefined
-  return JSON.stringify({ hookSpecificOutput: { hookEventName: 'PostToolUse', updatedToolOutput: { ...response, ...projected } } })
+  const { persistedOutputPath: _path, persistedOutputSize: _size, ...rest } = response
+  if (persisted !== undefined && projected.stdout.length >= response.stdout.length) return undefined
+  return JSON.stringify({ hookSpecificOutput: { hookEventName: 'PostToolUse', updatedToolOutput: { ...rest, ...projected } } })
 }
 
 /** Grok's shell result (`toolResult` of a `run_terminal_command` PostToolUse event). */
@@ -176,7 +190,7 @@ export function grokHook(input: HookInput, env: NodeJS.ProcessEnv = process.env)
   try { output = utf8.decode(Uint8Array.from(result.output as number[])) } catch { return undefined }
   const status = `exit: ${exitCode}\n`
   if (result.output_for_prompt !== status + output) return undefined
-  if (!mayProject(command)) return undefined
+  // No mayProject gate after the fact: the output is here, and a learned rule or the evidence for one may need any command.
   const projected = projectOutput({ host: 'grok', delivery: 'result-hook', tool: 'run_terminal_command', sessionId: text(input.session_id),
     callId: text(input.tool_use_id), command, exitCode, interrupted: result.timed_out === true || (result.signal !== null && result.signal !== undefined),
     truncated: result.truncated === true, stdout: output, ...typeof input.cwd === 'string' ? { cwd: input.cwd } : {}, env })
@@ -202,7 +216,7 @@ export function hermesHook(input: HookInput, env: NodeJS.ProcessEnv = process.en
   const { command, output, returncode } = input as { command?: unknown; output?: unknown; returncode?: unknown }
   if (typeof command !== 'string' || typeof output !== 'string' || output === '') return undefined
   if (typeof returncode !== 'number' || !Number.isSafeInteger(returncode)) return undefined
-  if (!mayProject(command)) return undefined
+  // No mayProject gate after the fact: the output is here, and a learned rule or the evidence for one may need any command.
   const projected = projectOutput({ host: 'hermes', delivery: 'result-hook', tool: 'terminal', sessionId: text(input.session_id) ?? text(input.task_id),
     callId: text(input.tool_call_id), command, exitCode: returncode, interrupted: returncode < 0 || HERMES_STOPPED.test(output),
     truncated: output.includes(HERMES_CUT), stdout: output, ...typeof input.cwd === 'string' ? { cwd: input.cwd } : {}, env })
@@ -246,11 +260,16 @@ const HANDLERS: Record<HookHost, (input: HookInput) => string | undefined> = {
   codex: input => codexAfterCompact(input) ?? codexPreToolUse(input), claude: claudeHook, codebuddy: codebuddyHook, grok: grokEntry, hermes: hermesHook,
 }
 
+/** A new session, not one resumed or continued after a compaction: `startup` (Claude Code, Codex, CodeBuddy), `new` (Grok). */
+const isStartup = (input: HookInput) => input.hook_event_name === 'SessionStart' && (input.source === 'startup' || input.source === 'new')
+const notice = (text: string | undefined) => text === undefined ? undefined : JSON.stringify({ systemMessage: text })
+
 /** `tokenwise hook <host>`: never blocks a tool call, never exits non-zero. */
 export async function hook(host: string | undefined): Promise<number> {
   try {
     if (host === undefined || !Object.hasOwn(HANDLERS, host)) return 0
-    const output = HANDLERS[host as HookHost](JSON.parse(await readStdin()) as HookInput)
+    const input = JSON.parse(await readStdin()) as HookInput
+    const output = isStartup(input) ? notice(startupNotice(host)) : HANDLERS[host as HookHost](input)
     if (output) process.stdout.write(output + '\n')
   } catch { /* Passthrough. */ }
   return 0
