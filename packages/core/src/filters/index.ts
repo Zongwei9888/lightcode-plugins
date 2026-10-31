@@ -14,11 +14,14 @@ import { testProgressFilter } from './test-progress.ts'
 import { lsListingFilter } from './ls-listing.ts'
 import { testReportFilter } from './test-report.ts'
 import { cargoBuildFilter } from './cargo-build.ts'
+import { searchContextFilter } from './search-context.ts'
+import { pipInstallFilter } from './pip-install.ts'
+import { yarnInstallFilter } from './yarn-install.ts'
 import type { EconomyFilter, FilterCandidate, FilterInput } from '../types.ts'
 
 export const STATIC_FILTERS: readonly EconomyFilter[] = Object.freeze([
-  pytestFilter, grepFilter, gitDiffFilter, tscFilter, eslintJsonFilter, viteBuildFilter, pnpmInstallFilter,
-  ruffJsonFilter, goTestJsonFilter, gitStatusFilter, searchLayoutFilter, pathListFilter, testProgressFilter, lsListingFilter, testReportFilter, cargoBuildFilter, gitShowFilter,
+  pytestFilter, grepFilter, gitDiffFilter, tscFilter, eslintJsonFilter, viteBuildFilter, pnpmInstallFilter, pipInstallFilter, yarnInstallFilter,
+  ruffJsonFilter, goTestJsonFilter, gitStatusFilter, searchContextFilter, searchLayoutFilter, pathListFilter, testProgressFilter, lsListingFilter, testReportFilter, cargoBuildFilter, gitShowFilter,
 ])
 
 export function projectStaticFilter(input: FilterInput): FilterCandidate | undefined {
