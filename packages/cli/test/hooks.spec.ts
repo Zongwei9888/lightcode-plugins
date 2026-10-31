@@ -24,7 +24,8 @@ function withLc(home: string) {
   const bin = temp()
   writeFileSync(join(bin, 'tokenwise'), '#!/bin/sh\n')
   chmodSync(join(bin, 'tokenwise'), 0o755)
-  return { TOKENWISE_HOME: home, PATH: bin }
+  // Claude Code's settings come from a temporary folder, never the machine's own ~/.claude.
+  return { TOKENWISE_HOME: home, PATH: bin, HOME: temp(), CLAUDE_CONFIG_DIR: temp() } as NodeJS.ProcessEnv
 }
 
 /** `pytest -v` with 150 passing tests and one failure, as the e2e fixture project prints it. */
@@ -79,6 +80,40 @@ describe('Claude Code hook', () => {
     expect(claudeHook(claudeEvent('PreToolUse', 'grep -rn value src', { permission_mode: 'bypassPermissions', tool_input: { command: 'grep -rn value src', run_in_background: true } }), env)).toBeUndefined()
     const after = claudeEvent('PostToolUse', wrapped.hookSpecificOutput.updatedInput.command, { tool_response: { stdout: 'x', stderr: '', interrupted: false, isImage: false } })
     expect(claudeHook(after, env)).toBeUndefined()
+  })
+
+  it('outside bypassPermissions, wraps only one simple command the user\'s rules allow, and allows the wrapped form', () => {
+    const { home } = grepCase()
+    const env = withLc(home)
+    const project = temp()
+    const settings = (permissions: unknown) => { mkdirSync(join(project, '.claude'), { recursive: true }); writeFileSync(join(project, '.claude', 'settings.json'), JSON.stringify({ permissions })) }
+    const pre = (command: string, extra: Record<string, unknown> = {}) => claudeHook(claudeEvent('PreToolUse', command, { cwd: project, ...extra }), { ...env, CLAUDE_PROJECT_DIR: project })
+    expect(pre('grep -rn value src')).toBeUndefined()
+    settings({ allow: ['Bash(grep:*)', 'Bash(python3 -m pytest:*)'] })
+    expect(JSON.parse(pre('grep -rn value src')!)).toEqual({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'allow',
+      updatedInput: { command: "tokenwise run --host claude --session cc-session --call toolu_01 -c 'grep -rn value src'", description: 'Search' } } })
+    // A trailing 2>&1 only merges stderr in (seen in a live session: the failing run went unfiltered without this).
+    expect(JSON.parse(pre('grep -rn value src 2>&1')!).hookSpecificOutput.permissionDecision).toBe('allow')
+    // Not allowed by a rule, compound, or in plan mode: as written.
+    expect(pre('git diff')).toBeUndefined()
+    expect(pre('grep -rn value src | head -5')).toBeUndefined()
+    expect(pre('grep -rn value src', { permission_mode: 'plan' })).toBeUndefined()
+    // Any deny or ask rule that could match wins, and so does a settings file that cannot be read.
+    for (const permissions of [{ allow: ['Bash(grep:*)'], deny: ['Bash(grep -rn:*)'] }, { allow: ['Bash'], ask: ['Bash(gre:*)'] },
+      { allow: ['Bash(grep:*)'], deny: ['Bash(grep -r*)'] }, { allow: ['Bash(grep:*)'], ask: ['Bash(something odd:*:*)'] }]) {
+      settings(permissions)
+      expect(pre('grep -rn value src'), JSON.stringify(permissions)).toBeUndefined()
+    }
+    // An exact allow rule covers the command as written, not one with 2>&1 added.
+    settings({ allow: ['Bash(grep -rn value src)'] })
+    expect(pre('grep -rn value src')).toBeDefined()
+    expect(pre('grep -rn value src 2>&1')).toBeUndefined()
+    writeFileSync(join(project, '.claude', 'settings.json'), '{ not json')
+    expect(pre('grep -rn value src')).toBeUndefined()
+    // The user's own settings count too; a deny there blocks a project allow.
+    settings({ allow: ['Bash(grep:*)'] })
+    writeFileSync(join(env.CLAUDE_CONFIG_DIR!, 'settings.json'), JSON.stringify({ permissions: { deny: ['Bash(grep:*)'] } }))
+    expect(pre('grep -rn value src')).toBeUndefined()
   })
 
   it('leaves other tools, unrecognized output and images alone', () => {

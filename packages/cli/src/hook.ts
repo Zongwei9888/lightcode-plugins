@@ -5,6 +5,7 @@ import { claudeAfterCompact, claudeAllowRecall, claudePreCompact } from './claud
 import { codexAfterCompact } from './codex-shadow.ts'
 import { grokAfterCompact, grokPendingCatalog } from './grok-shadow.ts'
 import { cliContext, onPath, shellQuote } from './context.ts'
+import { allowedByRules } from './claude-permissions.ts'
 import { startupNotice } from './learn.ts'
 import { projectOutput } from './project.ts'
 
@@ -114,10 +115,11 @@ export function codebuddyHook(input: HookInput, env: NodeJS.ProcessEnv = process
 /**
  * Claude Code. PostToolUse replaces a successful Bash call's output with its
  * projection; Claude Code sends failed calls to PostToolUseFailure, which
- * cannot replace output. In `bypassPermissions` mode, where no permission rule
- * is consulted, PreToolUse wraps the command in `tokenwise run` instead, which also
- * filters failed calls. Elsewhere a wrapped command would no longer match the
- * user's permission rules, so commands are never rewritten there.
+ * cannot replace output. PreToolUse wraps the command in `tokenwise run`
+ * instead, which also filters failed calls, where that changes no permission:
+ * in `bypassPermissions` mode, and elsewhere for one simple command the user's
+ * own rules allow and no deny or ask rule could match (claude-permissions.ts),
+ * answered with `allow`. Every other command runs as written.
  */
 export function claudeHook(input: HookInput, env: NodeJS.ProcessEnv = process.env): string | undefined {
   if (eventHost(input, env) !== undefined) return undefined
@@ -127,10 +129,17 @@ export function claudeHook(input: HookInput, env: NodeJS.ProcessEnv = process.en
   if (input.hook_event_name === 'PreToolUse' && input.tool_name !== 'Bash') return claudeAllowRecall(input.tool_name)
   if (input.tool_name !== 'Bash') return undefined
   if (input.hook_event_name === 'PreToolUse') {
-    if (input.permission_mode !== 'bypassPermissions') return undefined
+    // Wrapped, a command is filtered even when it fails (PostToolUse sees only successful calls). Outside
+    // bypassPermissions mode, only a command the user's own rules already allow is wrapped, and allowed as such.
+    const original = input.tool_input?.command
+    const bypass = input.permission_mode === 'bypassPermissions'
+    const allowed = !bypass && typeof original === 'string' && input.permission_mode !== 'plan'
+      && allowedByRules(original, env.CLAUDE_PROJECT_DIR || (typeof input.cwd === 'string' ? input.cwd : undefined), env)
+    if (!bypass && !allowed) return undefined
     const command = wrapScript('claude', input, env, { normalize: false, tool: 'Bash' })
     if (command === undefined) return undefined
-    return JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', updatedInput: { ...input.tool_input, command } } })
+    return JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', ...allowed ? { permissionDecision: 'allow' } : {},
+      updatedInput: { ...input.tool_input, command } } })
   }
   if (input.hook_event_name !== 'PostToolUse') return undefined
   const command = input.tool_input?.command

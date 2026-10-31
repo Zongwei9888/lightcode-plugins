@@ -55,11 +55,36 @@ export function literalCommand(command: string): readonly string[] | undefined {
  * shape; learned rules see the command as written.
  */
 export function toolArgv(command: string): readonly string[] | undefined {
-  const argv = literalCommand(command)
-  const head = argv?.[0]
-  if (!argv || !head?.includes('/')) return argv
+  const literal = literalCommand(command)
+  if (!literal) return undefined
+  const argv = withoutRunners(literal)
+  const head = argv[0]
+  if (!head?.includes('/')) return argv
   const name = head.slice(head.lastIndexOf('/') + 1)
   return name ? [name, ...argv.slice(1)] : undefined
+}
+
+/** Runners that start the program after them in the project's environment, and the word that says so. */
+const RUNNERS: Readonly<Record<string, string>> = { uv: 'run', poetry: 'run', pipenv: 'run', pdm: 'run', rye: 'run', hatch: 'run', bundle: 'exec' }
+
+/**
+ * The program a runner prefix starts: `uv run pytest`, `poetry run pytest`,
+ * `bundle exec rspec`, `time pytest`, `CI=1 pytest`. Only a runner directly
+ * followed by the program; a runner option (`uv run --with x pytest`) leaves
+ * the command as it is.
+ */
+function withoutRunners(argv: readonly string[]): readonly string[] {
+  let rest = argv
+  for (let peeled = 0; peeled < 4; peeled++) {
+    let start = 0
+    while (start < rest.length - 1 && /^[A-Za-z_][A-Za-z0-9_]*=/u.test(rest[start]!)) start++
+    const next = start > 0 ? rest.slice(start) : rest
+    const word = RUNNERS[next[0] ?? '']
+    if (word !== undefined && next[1] === word && next.length > 2 && !next[2]!.startsWith('-')) rest = next.slice(2)
+    else if (next[0] === 'time' && next.length > 1 && !next[1]!.startsWith('-')) rest = next.slice(1)
+    else return next
+  }
+  return rest
 }
 
 /** Unsupported compounds are never reduced to their final segment. */
