@@ -3,8 +3,8 @@
 //   node render.mjs stills social     just the ones whose name contains "social"
 //   node render.mjs video en|zh       the explainer video (frames piped to ffmpeg)
 import { createServer } from 'node:http'
-import { readFileSync, existsSync, mkdirSync } from 'node:fs'
-import { extname, join } from 'node:path'
+import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { dirname, extname, join } from 'node:path'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
@@ -17,29 +17,37 @@ const CHROME = process.env.CHROME ?? `${process.env.HOME}/Library/Caches/ms-play
 
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.ttf': 'font/ttf', '.svg': 'image/svg+xml', '.png': 'image/png' }
 const server = createServer((req, res) => {
-  const path = join(here, decodeURIComponent(new URL(req.url, 'http://x').pathname))
-  if (!path.startsWith(here) || !existsSync(path)) { res.writeHead(404); res.end(); return }
+  const url = decodeURIComponent(new URL(req.url, 'http://x').pathname)
+  // Agent icons live beside the media sources, in media/agents (the README uses them too).
+  const path = url.startsWith('/agents/') ? join(here, '..', url) : join(here, url)
+  if (!(path.startsWith(here) || path.startsWith(join(here, '..', 'agents'))) || !existsSync(path)) { res.writeHead(404); res.end(); return }
   res.writeHead(200, { 'content-type': TYPES[extname(path)] ?? 'application/octet-stream' }); res.end(readFileSync(path))
 }).listen(0)
 const base = `http://127.0.0.1:${server.address().port}/`
 
 const STILLS = [
-  { name: 'social-preview', page: 'hero.html?layout=social', w: 1280, h: 640, scale: 1 },
-  { name: 'social-preview-zh', page: 'hero.html?layout=social&lang=zh', w: 1280, h: 640, scale: 1 },
-  { name: 'banner', page: 'hero.html?layout=banner', w: 1600, h: 560, scale: 2 },
-  { name: 'banner-zh', page: 'hero.html?layout=banner&lang=zh', w: 1600, h: 560, scale: 2 },
-  { name: 'card-read-less', page: 'card.html?topic=read', w: 1200, h: 675, scale: 2 },
-  { name: 'card-lose-nothing', page: 'card.html?topic=keep', w: 1200, h: 675, scale: 2 },
-  { name: 'card-get-better', page: 'card.html?topic=learn', w: 1200, h: 675, scale: 2 },
-  { name: 'card-read-less-zh', page: 'card.html?topic=read&lang=zh', w: 1200, h: 675, scale: 2 },
-  { name: 'card-lose-nothing-zh', page: 'card.html?topic=keep&lang=zh', w: 1200, h: 675, scale: 2 },
-  { name: 'card-get-better-zh', page: 'card.html?topic=learn&lang=zh', w: 1200, h: 675, scale: 2 },
+  { name: 'social-preview', page: 'story.html?v=social', w: 1280, h: 640, scale: 1 },
+  { name: 'social-preview-zh', page: 'story.html?v=social&lang=zh', w: 1280, h: 640, scale: 1 },
+  { name: 'banner', page: 'story.html?v=banner', w: 1600, h: 560, scale: 2 },
+  { name: 'banner-zh', page: 'story.html?v=banner&lang=zh', w: 1600, h: 560, scale: 2 },
+  // The README's agent-wall badges for 'any shell' and 'more': Flaticon icons in the brand's badge shape.
+  ...['shell', 'more'].map(icon => ({ name: `icons/agent-${icon}`, page: `badge.html?kind=agent&icon=${icon}`, w: 64, h: 64, scale: 2, fit: '.b' })),
+  ...['how', 'evolve'].flatMap(v => ['en', 'zh'].map(l =>
+    ({ name: `story-${v}${l === 'zh' ? '-zh' : ''}`, page: `story.html?v=${v}&lang=${l}`, w: 1200, h: 400, scale: 2, fit: '.d' }))),
   { name: 'before-after', page: 'before-after.html', w: 1600, h: 900, scale: 2 },
   { name: 'before-after-zh', page: 'before-after.html?lang=zh', w: 1600, h: 900, scale: 2 },
-  // README diagrams: sized to their content, transparent around the rounded panel.
-  ...['overview', 'compaction', 'learning'].flatMap(d => ['en', 'zh'].map(l => (
-    { name: `diagram-${d}${l === 'zh' ? '-zh' : ''}`, page: `diagram.html?d=${d}&lang=${l}`, w: 1200, h: 400, scale: 2, fit: '.d' }))),
 ]
+
+// Flaticon icons (see icons.json) are fetched into .icons/ rather than kept in the repository.
+const ICONS = JSON.parse(readFileSync(join(here, 'icons.json'), 'utf8')).icons
+mkdirSync(join(here, '.icons'), { recursive: true })
+for (const [name, icon] of Object.entries(ICONS)) {
+  const file = join(here, '.icons', `${name}.png`)
+  if (existsSync(file)) continue
+  const res = await fetch(icon.png)
+  if (!res.ok) throw new Error(`icon ${name}: HTTP ${res.status} from ${icon.png}`)
+  writeFileSync(file, Buffer.from(await res.arrayBuffer()))
+}
 
 const browser = await chromium.launch({ executablePath: CHROME })
 try {
@@ -55,6 +63,7 @@ try {
         const box = await page.evaluate(sel => { const r = document.querySelector(sel).getBoundingClientRect(); return { w: Math.ceil(r.width), h: Math.ceil(r.height) } }, still.fit)
         await page.setViewportSize({ width: box.w, height: box.h })
       }
+      mkdirSync(dirname(join(out, 'images', `${still.name}.png`)), { recursive: true })
       await page.screenshot({ path: join(out, 'images', `${still.name}.png`), omitBackground: !!still.fit })
       await page.close()
       console.log('wrote images/' + still.name + '.png')

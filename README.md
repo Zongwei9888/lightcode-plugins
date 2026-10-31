@@ -1,124 +1,158 @@
 <div align="center">
 
-<img src="media/images/banner.png" alt="TokenWise: Make every token count for your agent. TokenWise shows your coding agent less tool output, loses nothing when the agent compacts, and learns your own tools." width="100%">
+<h1>
+  <img src="docs/assets/logo.svg" width="48" height="48" align="absmiddle" alt="">
+  TokenWise: Make every token count for your agent
+</h1>
 
 <p>
-  <img alt="Version 0.3.0, unreleased" src="https://img.shields.io/badge/version-0.3.0_unreleased-0F766E?style=flat-square&labelColor=0E2A26">
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-0F766E?style=flat-square&labelColor=0E2A26"></a>
-  <img alt="Node.js 22+" src="https://img.shields.io/badge/node-22%2B-0F766E?style=flat-square&labelColor=0E2A26">
-  <img alt="Runtime dependencies: 0" src="https://img.shields.io/badge/runtime_deps-0-0F766E?style=flat-square&labelColor=0E2A26">
   <img alt="Agents: 8 and any shell" src="https://img.shields.io/badge/agents-8_%2B_any_shell-0F766E?style=flat-square&labelColor=0E2A26">
+  <img alt="Runtime dependencies: 0" src="https://img.shields.io/badge/runtime_deps-0-0F766E?style=flat-square&labelColor=0E2A26">
 </p>
 
 **English** · [简体中文](docs/zh/README.md)
 
-[Watch the 1-minute video](media/video/tokenwise-en.mp4) · [中文视频](media/video/tokenwise-zh.mp4)
+### The self-evolving token layer for AI agents
+
+**Context on demand. Savings that grow with use. One install for every agent.**
 
 </div>
 
----
+## Why TokenWise
 
-A coding agent spends most of its context window reading tool output: test
-runs, builds, diffs, searches, whole files. Most of it is noise the model reads
-once. Some of it is evidence the agent needs again an hour later, after it has
-compacted its history and the summary left it out. The noise costs money, time
-and attention; every lost detail costs a re-run or a wrong answer.
+Coding agents spend most of their context reading what they never needed:
+passing tests, progress bars, download logs, the same build banner for the
+hundredth time. You pay for every one of those tokens, and the context fills up
+before the work is done.
 
-TokenWise plugs into the agent you already use and changes one thing: **the
-model reads only what it needs, and can get back anything else.** It is not
-another agent, it needs no configuration, and everything stays on your machine.
+Then the agent compacts its history to make room, and the one line that
+mattered is gone. Saving tokens by throwing things away just moves the cost.
 
-<p align="center"><img src="media/images/diagram-overview.png" alt="TokenWise sits between your agent and its tool output. Read less: compact tool output. Lose nothing: compaction you can undo. Get better: filters for your own tools. Originals stay on your machine." width="100%"></p>
+And every project is different. Its own scripts, its own logs, its own noise —
+a fixed list of rules never learns any of it. Meanwhile you use more than one
+agent, and each of them starts from zero.
 
-## How it works
+**TokenWise sits between your agents and the model, and gives every one of them:**
 
-### Read less
+- **Context on demand.** The model reads only what it needs right now. Everything
+  else stays intact on your machine, one call away, even after the agent compacts
+  its memory. You save tokens, not information.
+- **Self-evolving.** TokenWise learns your project from your own sessions and
+  saves more every round. A new rule is used only after it is checked against
+  everything recorded, and it switches itself off if it ever gets in the way.
+- **Cross-platform.** One install for Claude Code, Codex, Hermes, OpenCode,
+  CodeBuddy, Grok, DeepSeek Harness, pi and any shell, with more on the way.
+  What one agent learns, all of them use.
 
-When the agent runs `pytest`, `cargo test`, `git diff`, `git show`, `git log`,
-`grep -rn`, `tsc`, `ls`, `make`, `mvn`, `docker build`, `pip install` or another
-recognized command, the model reads a
-shorter, deterministic version. Passing tests are counted instead of listed,
-progress bars and repeated rows are folded, and long searches and diffs are
-previewed with exact omission counts. Failures, warnings, totals and the exit
-status always stay. The complete output is saved locally, and the short version
-ends with one line telling the model how to read it.
+<p align="center"><img src="media/images/story-how.png" alt="Your agents send everything they read through TokenWise, one layer shared by every agent. Context on demand: what the model needs stays in context, everything else stays on your machine, one call back. Self-evolving: use, learn, verify, every agent; saves more each round. The model reads only what it needs." width="100%"></p>
+
+## 🧬 Self-evolving
+
+Built-in rules know the common tools. Your project has its own. When you ask,
+the agent you already use studies what your sessions recorded and writes a rule
+for the noise it finds — in the background, without interrupting your work.
+
+TokenWise adopts a rule only if it saves more on **every** recorded run, drops no
+error and also works on runs it has not seen. From the next command on, every
+agent uses it. If an agent keeps having to look past a rule, the rule switches
+itself off, and any adoption can be undone.
+
+Start a round from wherever you work: `/tokenwise:learn` in Claude Code,
+CodeBuddy and Grok, `$tokenwise learn` in Codex, the TokenWise panel in pi and
+DeepSeek Harness, or `tokenwise learn` in any terminal. Your agents also tell you
+when recorded output is worth learning from.
+
+## 💾 Context on demand
+
+Think of it as virtual memory for your agent's context. What the model needs now
+stays in context; the rest is set aside on your machine and comes back with one
+call, exactly as it was. That holds for a single noisy command and for a whole
+history the agent has just compacted, so the agent never has to run the tests
+again to see one line.
 
 <p align="center"><img src="media/video/fold.gif" alt="A 260-line pytest run folds into the 17 lines the model reads; the failure stays" width="100%"></p>
 
-### Lose nothing
+## 🤖 Supported agents
 
-Long sessions get compacted: the agent summarizes older history and throws it
-away. With TokenWise, every tool result in that history is saved and replaced
-by a reference naming the call that produced it. The new context carries the
-summary, your own messages word for word, and a catalog of those references.
-When the agent needs an exact line again, one `tokenwise_recall` call brings it
-back: the text it saw, a window around a line or a string, or the complete
-output before it was shortened.
+<table width="100%">
+  <tr>
+    <td align="center" width="20%"><img src="media/agents/claude-code.svg" width="48" height="48" alt=""><br><strong>Claude Code</strong></td>
+    <td align="center" width="20%"><img src="media/agents/codex.svg" width="48" height="48" alt=""><br><strong>Codex</strong></td>
+    <td align="center" width="20%"><img src="media/agents/hermes.svg" width="48" height="48" alt=""><br><strong>Hermes Agent</strong></td>
+    <td align="center" width="20%"><img src="media/agents/opencode.svg" width="48" height="48" alt=""><br><strong>OpenCode</strong></td>
+    <td align="center" width="20%"><img src="media/agents/codebuddy.svg" width="48" height="48" alt=""><br><strong>CodeBuddy</strong></td>
+  </tr>
+  <tr>
+    <td align="center" width="20%"><img src="media/agents/grok.svg" width="48" height="48" alt=""><br><strong>Grok Build</strong></td>
+    <td align="center" width="20%"><img src="media/agents/dsh.svg" width="48" height="48" alt=""><br><strong>DeepSeek Harness</strong></td>
+    <td align="center" width="20%"><img src="media/agents/pi.svg" width="48" height="48" alt=""><br><strong>pi</strong></td>
+    <td align="center" width="20%"><img src="media/images/icons/agent-shell.png" width="48" height="48" alt=""><br><strong>Any shell</strong></td>
+    <td align="center" width="20%"><a href="#whats-next"><img src="media/images/icons/agent-more.png" width="48" height="48" alt=""><br><strong>More coming</strong></a></td>
+  </tr>
+</table>
 
-<p align="center"><img src="media/images/diagram-compaction.png" alt="A long session is compacted into a checkpoint with a summary, your messages and a catalog of every tool result; later the agent recalls line 230 of one of them" width="100%"></p>
+macOS and Linux. Each agent connects through what its own plugin interface
+allows, so the depth varies a little; the details are under [How each agent is connected](#how-each-agent-is-connected).
 
-### Get better
+## 🚀 Get started
 
-Built-in filters know common commands; your project has its own build scripts,
-test runners and deploy logs. When you ask, your own agent studies the output
-your sessions recorded and writes small filters for it. TokenWise adopts a
-filter only after replaying every recorded output with it, and only if it also
-saves tokens on output the learner never saw. A filter the agent keeps working
-around switches itself off, and any adoption can be rolled back. Learned filters
-never shorten file contents (`cat`, `head`, `sed -n` and the like).
+Give your agent this repository and ask:
 
-Start learning with `/tokenwise:learn` in Claude Code, CodeBuddy and Grok,
-`$tokenwise learn` in Codex, the TokenWise panel in pi and DeepSeek Harness, or
-`tokenwise learn` anywhere. It runs in the background, and the agent tells you
-at startup when recorded output is worth learning from and when a run is done.
+> Install TokenWise for every agent on this machine.
 
-<p align="center"><img src="media/images/diagram-learning.png" alt="One learning run: record, propose, verify, adopt, watch" width="100%"></p>
-
-### What never changes
-
-- **Strictly smaller, or the original.** A short version is used only if it is
-  smaller and saves tokens.
-- **Evidence stays.** Failure bodies, diagnostics, warnings and totals are kept;
-  output a filter cannot fully recognize passes through unchanged.
-- **Deterministic.** The same output always reads the same and is never
-  re-rendered later, so prompt caches stay valid.
-- **Fails open.** Any error delivers the original output, and a compaction
-  TokenWise cannot improve is left to the agent.
-- **Local.** Originals live under `~/.tokenwise`, readable only by you, for 14
-  days. TokenWise makes no network requests of its own.
-
-## Install
-
-TokenWise is not on npm yet. Build it once from a checkout (Node.js 22 and
-pnpm), then let it add itself to every agent it finds:
+Or do it yourself (Node.js 22 and pnpm; TokenWise is not on npm yet):
 
 ```sh
 git clone https://github.com/Zongwei9888/tokenwise.git
 cd tokenwise && pnpm install && pnpm build
-npm install -g ./packages/cli     # the tokenwise command, tw for short
-tokenwise setup                   # or name agents: tokenwise setup claude codex
+npm install -g ./packages/cli
+tokenwise setup        # finds your agents and adds TokenWise to each
 ```
 
-`tokenwise setup` prints each command before it runs it; `--dry-run` only
-prints them. In Codex, trust the TokenWise hooks in `/hooks` afterwards. For
-any other agent or a plain shell, wrap the command: `tokenwise run -c 'cargo test'`.
+There is nothing to configure: it works from the next command. When you want it
+to learn your project, run `/tokenwise:learn` (or the equivalent above).
+`tokenwise report` shows what was saved; `tokenwise uninstall` takes it out again.
 
-There is nothing to configure; it works from the next tool call.
-`tokenwise report` shows what was saved and `tokenwise doctor` what your agent
-supports. `tokenwise uninstall` takes it out again (`--purge` also deletes the
-saved data).
+## ✨ Technical highlights
+
+- **Nothing is invented.** Every character the model reads comes from the real
+  output; every cut is counted, and the original is always one call away.
+- **Errors are never cut.** Failures, warnings and totals always stay; anything
+  TokenWise does not recognize passes through untouched.
+- **Deterministic.** The same output always reads the same, so prompt caches keep
+  hitting.
+- **Fails open.** Any error delivers the original.
+- **Local.** Originals stay on your machine, readable only by you. TokenWise makes
+  no network requests of its own.
+- **Tested on real agents.** Unit tests, a byte-for-byte conformance corpus of
+  real tool outputs, and rounds with real models on all eight agents.
+- **MIT, zero runtime dependencies.**
+
+## 📰 News
+
+- **2026-10** · TokenWise is open source: self-evolution reachable from every agent,
+  one-command setup, and every filter rewritten as TokenWise code.
+
+## What's next
+
+- More agents: GitHub Copilot CLI, Gemini CLI, Cursor and others.
+- More built-in rules for common tools, each one checked on real output.
+- The paper behind TokenWise, with a full evaluation.
+
+## For agents and the curious
 
 <details>
-<summary>The same, by hand</summary>
+<summary><strong>Install by hand, agent by agent</strong></summary>
 <br>
 
-From the checkout:
+From the checkout, after `npm install -g ./packages/cli`:
 
 ```sh
 pi install "$PWD/adapters/pi"                                   # pi
 dsh plugin --profile web add -w "$PWD/adapters/dsh"             # DeepSeek Harness (your profile)
 claude plugin marketplace add "$PWD" && claude plugin install tokenwise@tokenwise
-codex plugin marketplace add "$PWD" && codex plugin add tokenwise@tokenwise
+codex plugin marketplace add "$PWD" && codex plugin add tokenwise@tokenwise    # then trust its hooks in /hooks
 codebuddy plugin marketplace add "$PWD" && codebuddy plugin install tokenwise@tokenwise
 grok plugin marketplace add "$PWD" && grok plugin install tokenwise@tokenwise --trust
 
@@ -130,130 +164,70 @@ cp adapters/opencode/dist/index.js ~/.config/opencode/plugins/tokenwise.js
 mkdir -p ~/.hermes/plugins
 cp -R adapters/hermes/tokenwise ~/.hermes/plugins/tokenwise
 hermes plugins enable tokenwise && hermes config set context.engine tokenwise
+
+# Anything else: wrap the command
+tokenwise run -c 'cargo test'
 ```
 
-Each agent's folder under [`adapters/`](adapters) has the details.
+`tokenwise setup` runs these for you; `tokenwise setup --dry-run` only prints them.
 
 </details>
-
-## Supported agents
-
-How deep TokenWise goes depends on what each agent lets a plugin do.
-
-| Agent | Compact output | Compaction | Learned filters |
-|---|---|---|---|
-| **pi** 1.1+ | in-process | writes the checkpoint | yes |
-| **DeepSeek Harness** 0.2.x | in-process | writes the checkpoint | yes |
-| **OpenCode** 1.19+ | in-process | writes the checkpoint | yes |
-| **Hermes Agent** 0.22+ | Python plugin | writes the checkpoint | yes |
-| **CodeBuddy** 2.175+ | hook, via `tokenwise run` | rewrites the stored summary | wrapped commands |
-| **Claude Code** 2.1+ | hook | adds the catalog | yes |
-| **Codex** 0.162+ | hook, via `tokenwise run` | adds the catalog | wrapped commands |
-| **Grok Build** 1.0+ | hook | adds the catalog | yes |
-| **Any agent or shell** | `tokenwise run` | recall over MCP | yes |
-
-*Writes the checkpoint*: TokenWise builds the compacted context itself.
-*Adds the catalog*: the agent writes its own summary, which no plugin may
-replace, and TokenWise adds the catalog right after it.
-
-Tests run on macOS and Linux; Windows is not tested yet. Connecting another
-agent takes a thin adapter over the same core; [docs/adapters.md](docs/adapters.md)
-shows how.
 
 <details>
-<summary>Inside pi and DeepSeek Harness: the panel, learning, rolling back</summary>
+<summary><strong id="how-each-agent-is-connected">How each agent is connected</strong></summary>
 <br>
 
-In **pi**, `/tokenwise` opens a panel with the session's savings, the learned
-filters and the commands worth learning from. Press `l` to learn and `r` to
-roll an adoption back.
+| Agent | Context on demand | Learning from inside the agent |
+|---|---|---|
+| pi 1.1+ | in-process; TokenWise writes the compacted context | `/tokenwise` panel |
+| DeepSeek Harness 0.2.x | in-process; TokenWise writes the compacted context | Plugins page, **Learn now** |
+| OpenCode 1.19+ | in-process; TokenWise writes the compacted context | `tokenwise learn` |
+| Hermes Agent 0.22+ | Python plugin and context engine | `tokenwise learn` |
+| Claude Code 2.1+ | hooks; the catalog follows Claude's own summary | `/tokenwise:learn` |
+| Codex 0.162+ | hooks; the catalog follows Codex's own summary | `$tokenwise learn` |
+| CodeBuddy 2.175+ | hooks and a mod that rewrites the stored summary | `/tokenwise:learn` |
+| Grok Build 1.0+ | hooks; the catalog follows Grok's own summary | `/tokenwise:learn` |
+| Any agent or shell | `tokenwise run`, recall over MCP | `tokenwise learn` |
 
-In **DeepSeek Harness** (Web and Desktop), the plugin's page has **Learn now**,
-live progress, the learned filters with a switch and **Roll back**, and a toast
-when there is new output worth learning from.
-
-<p align="center"><img src="docs/assets/screenshots/dsh-self-evolution.png" alt="DeepSeek Harness plugin page: a learned filter adopted" width="900"></p>
-
-The screenshot comes from the end-to-end suite, which drives the real app with a
-scripted model.
+Each agent's folder under [`adapters/`](adapters) has the details;
+[docs/adapters.md](docs/adapters.md) shows how to connect another agent.
 
 </details>
 
-## Commands
+<details>
+<summary><strong>Commands</strong></summary>
+<br>
 
 | Command | What it does |
 |---|---|
 | `tokenwise setup [agent...]`, `uninstall [--purge]` | add TokenWise to your agents, or take it out |
-| `tokenwise report [--host H] [--session S] [--json]` | what was saved, per session or agent |
-| `tokenwise doctor [--json]` | configuration, and what each agent supports |
-| `tokenwise run -c '<command>'` | run a command and print the compact output |
-| `tokenwise recall <id> [--query Q \| --line N] [--original]` | read a saved result back |
-| `tokenwise mcp` | an MCP server with the recall tool, for any agent |
-| `tokenwise evolve --learner pi\|dsh\|claude\|codex\|codebuddy\|grok\|"<command>"` | learn filters from your recorded output |
+| `tokenwise report [--host H] [--session S]` | what was saved, per session or agent |
 | `tokenwise learn --learner L`, `learn status\|cancel` | start learning in the background, follow it, stop it |
-| `tokenwise rules [list\|show\|off\|on\|rollback]` | manage learned filters |
-| `tokenwise filters`, `show <sha256>`, `gc` | built-in filters, a saved original, cleanup |
+| `tokenwise rules [list\|off\|on\|rollback]` | the learned rules |
+| `tokenwise filters` | every built-in rule and what it guarantees to keep |
+| `tokenwise recall <id>` | read a set-aside original back |
+| `tokenwise run -c '<command>'` | run any command through TokenWise |
+| `tokenwise doctor` | configuration, and what each agent supports |
 
 `tw` works in place of `tokenwise` everywhere.
 
-## Configuration
+</details>
 
-None is needed. To change something, write `~/.tokenwise/config.json`:
+<details>
+<summary><strong>Configuration and privacy</strong></summary>
+<br>
 
-```json
-{
-  "output": { "mode": "apply", "minimumSavedTokens": 16, "evidence": true, "learnedRules": true },
-  "compaction": { "mode": "apply" },
-  "artifacts": { "retentionDays": 14 }
-}
-```
+Nothing needs configuring. To change something, write `~/.tokenwise/config.json`;
+`TOKENWISE_DISABLE=1` switches everything off for one run.
 
-`output` covers compact output and learning, and `compaction` covers compaction.
-Each can be `apply`, `observe` (record what would change, change nothing) or
-`off`. A project's `.tokenwise/config.json` can only turn things down, and
-`TOKENWISE_DISABLE=1` switches everything off.
+Everything stays on your machine: originals are readable only by you and deleted
+after 14 days. The one thing that leaves your machine is a learning round you
+start yourself: the learner is your own agent, so the recorded output it reads
+goes to that agent's model provider, as it did when the agent first ran the
+commands. Set `"evidence": false` to record nothing.
 
-## Privacy
+</details>
 
-Everything stays on your machine. Saved originals can contain whatever your
-commands printed, including secrets, so they are readable only by you and
-deleted after the retention period. The one thing that leaves your machine is a
-learning run you start yourself: the learner is your own coding agent, so the
-recorded output it reads goes to that agent's model provider, just as it did
-when the agent first ran the commands. Set `"evidence": false` to record nothing.
+[Architecture](docs/architecture.md) · [Adding an agent](docs/adapters.md) · [Changelog](CHANGELOG.md) · [Media kit](media/README.md) · [MIT License](LICENSE)
 
-## How it is tested
-
-| Layer | What runs |
-|---|---|
-| Unit | 1,095 tests across the core and every adapter, with agent payloads and transcripts captured from the real agents |
-| Conformance | every implementation must reproduce the expected compact outputs byte for byte |
-| End to end | the packed plugins installed into published pi and DeepSeek Harness releases and driven through their own UI, on Linux and macOS in CI |
-| Real models | long sessions on all eight agents, at default and lowered compaction thresholds, with exact-quote questions afterwards |
-
-## Development
-
-```sh
-pnpm install
-pnpm check        # typecheck, build, all unit tests
-pnpm e2e          # install into published agent releases and run real sessions
-```
-
-| Path | Contents |
-|---|---|
-| `packages/core` | filters, the learned-filter sandbox, source maps; no agent dependency |
-| `packages/protocol` | capabilities, agent profiles, negotiation, journal schema |
-| `packages/store` | journal, saved originals, learned filters, configuration |
-| `packages/mechanisms` | compact output, compaction, learning |
-| `packages/cli` | the `tokenwise` command |
-| `adapters/<agent>` | one thin adapter per agent |
-| `conformance/` | the byte-for-byte corpus |
-| `e2e/` | the end-to-end suite against published agent releases |
-
-Further reading: [architecture](docs/architecture.md),
-[adding an agent](docs/adapters.md), [releasing](docs/releasing.md),
-[media kit](media/README.md), [changelog](CHANGELOG.md).
-
-## License
-
-MIT.
+<sub>Icons made by <a href="https://www.magnific.com" title="Magnific">Magnific</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a>. Agent icons belong to their products; sources in <a href="media/agents/NOTICE.md">media/agents/NOTICE.md</a>.</sub>

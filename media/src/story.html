@@ -1,0 +1,212 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="brand.css">
+<style>
+  /* The README story: one loop (Distill → Keep → Evolve) shared by every agent. */
+  body { display: block; }
+  .loop { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  .step { position: relative; background: #fff; border: 1px solid var(--rule); border-radius: 20px; padding: 22px 24px 24px; }
+  .step .k { display: flex; align-items: center; gap: 10px; }
+  .step .n { width: 30px; height: 30px; border-radius: 50%; background: var(--mint); color: var(--teal); font-weight: 760; display: grid; place-items: center; font-size: 15px; flex: none; }
+  .step h3 { font-weight: 780; font-stretch: 78%; font-size: 30px; letter-spacing: -.01em; }
+  .zh .step h3 { font-stretch: 100%; font-size: 27px; }
+  .step p { margin-top: 10px; color: #3D5A55; font-size: 17px; line-height: 1.45; font-stretch: 96%; }
+  .zh .step p { line-height: 1.62; }
+  .step.evolve { background: var(--teal); border-color: var(--teal); }
+  .step.evolve h3 { color: #fff; } .step.evolve p { color: #D7F5EE; } .step.evolve .n { background: #FDE68A; color: #5A4300; }
+  /* arrows between steps and the return arc under them */
+  .loop .step:nth-child(-n+2)::after, .row4 .step:not(:last-child)::after { content: ''; position: absolute; right: -19px; top: 34px; width: 16px; height: 16px; border-top: 3px solid var(--teal); border-right: 3px solid var(--teal); transform: rotate(45deg); }
+  .back { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; color: var(--teal); font-weight: 650; font-stretch: 90%; font-size: 17px; margin-top: 2px; }
+  .back::before, .back::after { content: ''; flex: 1; height: 0; border-top: 2px dashed #8CC9BC; }
+  .back span { display: flex; align-items: center; gap: 8px; }
+  .back svg { width: 20px; height: 20px; }
+
+  .agents { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+  .agent { display: flex; flex-direction: column; align-items: center; gap: 7px; width: 92px; }
+  .agent img { width: 52px; height: 52px; border-radius: 14px; box-shadow: 0 6px 16px -10px rgba(14,42,38,.45); }
+  .agent span { font-size: 13.5px; color: #3D5A55; text-align: center; line-height: 1.2; font-stretch: 92%; }
+  .label { font-size: 15px; letter-spacing: .02em; color: #4F6B66; font-weight: 600; font-stretch: 92%; }
+
+  /* ---- main figure: agents → TokenWise loop → model ---- */
+  .fig { width: 1200px; padding: 34px 36px 34px; background: var(--paper); border-radius: 26px; }
+  .fig .agents { justify-content: center; margin-top: 14px; gap: 10px; }
+  .fig .flow { display: flex; justify-content: center; gap: 120px; margin: 18px 0 14px; color: #4F6B66; font-size: 15px; font-weight: 550; }
+  .fig .flow b { color: var(--teal); font-size: 20px; margin-right: 6px; }
+  .fig .core { background: #E2ECE8; border-radius: 24px; padding: 22px 24px 18px; }
+  .fig .core .mark { font-size: 26px; color: var(--ink); margin-bottom: 18px; }
+  .fig .core .mark small { font-size: 16px; font-weight: 500; font-stretch: 96%; color: #4F6B66; margin-left: 10px; }
+  .fig .model { margin-top: 18px; text-align: center; font-weight: 700; font-stretch: 86%; font-size: 21px; color: var(--ink); }
+  .fig .model::before { content: '↓'; display: block; color: var(--teal); font-size: 22px; margin-bottom: 8px; }
+
+  /* ---- evolve story: learned once, used everywhere ---- */
+  .ev { width: 1200px; padding: 34px 36px 36px; background: var(--paper); border-radius: 26px; }
+  .ev h2 { font-weight: 800; font-stretch: 74%; font-size: 40px; letter-spacing: -.01em; }
+  .zh .ev h2 { font-stretch: 100%; font-size: 34px; }
+  .ev .sub { color: #3D5A55; font-size: 18px; margin-top: 8px; font-stretch: 96%; }
+  .ev .row4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-top: 26px; }
+  .ev .step { padding: 20px 20px 22px; }
+  .ev .step h3 { font-size: 23px; } .zh .ev .step h3 { font-size: 22px; }
+  .ev .step p { font-size: 15.5px; }
+  .ev .icons { display: flex; gap: 6px; height: 40px; margin-bottom: 14px; }
+  .ev .icons img { width: 40px; height: 40px; border-radius: 11px; }
+  .ev .icons .tw { width: 40px; height: 40px; }
+  .ev .row4 .step:not(:last-child)::after { top: 36px; right: -15px; width: 12px; height: 12px; }
+
+  /* ---- banner 1600x560 and social 1280x640 ---- */
+  .hero { width: 100vw; height: 100vh; display: grid; }
+  .hero .copy { display: flex; flex-direction: column; }
+  .hero .mark { color: var(--ink); }
+  .hero .lede b { color: var(--ink); font-weight: 650; }
+  .hero .side { display: flex; flex-direction: column; justify-content: center; }
+  .hero .loop { grid-template-columns: 1fr; gap: 12px; }
+  .hero .step { padding: 14px 20px 15px; display: grid; grid-template-columns: auto 1fr; column-gap: 16px; align-items: center; border-radius: 16px; }
+  .hero .step .k { grid-row: span 2; }
+  .hero .step h3 { font-size: 25px; } .zh .hero .step h3, .zh.banner .step h3, .zh.social .step h3 { font-size: 22px; }
+  .hero .step p { margin-top: 2px; font-size: 15.5px; grid-column: 2; }
+  .hero .loop .step:nth-child(-n+2)::after { right: auto; left: 34px; top: auto; bottom: -11px; width: 10px; height: 10px; transform: rotate(135deg); border-width: 2.5px; }
+  .hero .step .k h3 { display: none; }
+  .hero .back { font-size: 15px; margin-top: 0; }
+  .hero .agents { gap: 8px; margin-top: auto; }
+  .hero .agent { width: auto; }
+  .hero .agent img { width: 40px; height: 40px; border-radius: 11px; }
+  .hero .agent span { display: none; }
+  .hero .more { font-size: 15px; color: #4F6B66; align-self: center; margin-left: 6px; font-stretch: 94%; }
+
+  .banner .hero { grid-template-columns: 820px 1fr; padding: 56px 72px 52px 84px; gap: 56px; }
+  .banner .mark { font-size: 32px; }
+  .banner .display { font-size: 84px; margin-top: 30px; }
+  .zh.banner .display { font-size: 64px; }
+  .banner .lede { font-size: 21px; margin-top: 22px; max-width: 700px; }
+
+  .social .hero { grid-template-columns: 640px 1fr; padding: 54px 56px 46px 64px; gap: 40px; }
+  .social .mark { font-size: 30px; }
+  .social .display { font-size: 78px; margin-top: 30px; }
+  .zh.social .display { font-size: 58px; }
+  .social .lede { font-size: 19px; margin-top: 20px; }
+  .social .step p { font-size: 14.5px; }
+
+  /* ---- pillars (banner, social) ---- */
+  .pillars { display: grid; gap: 12px; }
+  .pillar { display: grid; grid-template-columns: 44px 1fr; column-gap: 16px; align-items: center; background: #fff; border: 1px solid var(--rule); border-radius: 16px; padding: 14px 20px 15px; }
+  .pillar .ic { grid-row: span 2; width: 44px; height: 44px; border-radius: 12px; background: var(--mint); color: var(--teal); display: grid; place-items: center; }
+  .pillar .ic svg { width: 24px; height: 24px; }
+  .pillar h3 { font-weight: 780; font-stretch: 80%; font-size: 24px; letter-spacing: -.01em; }
+  .zh .pillar h3 { font-stretch: 100%; font-size: 22px; }
+  .pillar p { color: #3D5A55; font-size: 15.5px; line-height: 1.4; margin-top: 2px; font-stretch: 96%; }
+  .zh .pillar p { line-height: 1.55; }
+  .pillar.hi { background: var(--teal); border-color: var(--teal); }
+  .pillar.hi h3 { color: #fff; } .pillar.hi p { color: #D7F5EE; } .pillar.hi .ic { background: #FDE68A; color: #5A4300; }
+  .social .pillar p { font-size: 14.5px; }
+
+  /* ---- how it works: agents → two cards → model ---- */
+  .hw { width: 1200px; padding: 34px 36px 34px; background: var(--paper); border-radius: 26px; }
+  .hw .agents { justify-content: center; margin-top: 14px; gap: 10px; }
+  .hw .core { background: #E2ECE8; border-radius: 24px; padding: 22px 24px 24px; margin-top: 22px; position: relative; }
+  .hw .core::before { content: '↓'; position: absolute; top: -26px; left: 50%; color: var(--teal); font-size: 22px; font-weight: 700; }
+  .hw .core .mark { font-size: 26px; color: var(--ink); margin-bottom: 18px; }
+  .hw .core .mark small { font-size: 16px; font-weight: 500; font-stretch: 96%; color: #4F6B66; margin-left: 10px; }
+  .hw .two { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  .hw .card { background: #fff; border: 1px solid var(--rule); border-radius: 20px; padding: 22px 24px 24px; }
+  .hw .card.hi { background: var(--teal); border-color: var(--teal); }
+  .hw .card h3 { font-weight: 780; font-stretch: 78%; font-size: 30px; display: flex; align-items: center; gap: 12px; }
+  .zh .hw .card h3 { font-stretch: 100%; font-size: 27px; }
+  .hw .card h3 .ic { width: 38px; height: 38px; border-radius: 11px; background: var(--mint); color: var(--teal); display: grid; place-items: center; }
+  .hw .card h3 .ic svg { width: 21px; height: 21px; }
+  .hw .card.hi h3 { color: #fff; } .hw .card.hi h3 .ic { background: #FDE68A; color: #5A4300; }
+  .hw .card p { margin-top: 10px; color: #3D5A55; font-size: 17px; line-height: 1.45; font-stretch: 96%; }
+  .zh .hw .card p { line-height: 1.62; }
+  .hw .card.hi p { color: #D7F5EE; }
+  .hw .mini { margin-top: 18px; display: flex; align-items: center; gap: 10px; }
+  .hw .box { flex: 1; border-radius: 14px; padding: 12px 14px; font-size: 14.5px; font-weight: 600; font-stretch: 92%; }
+  .hw .box small { display: block; font-weight: 450; color: #4F6B66; margin-top: 4px; font-size: 13px; }
+  .hw .box.ctx { background: var(--mint); color: var(--teal); }
+  .hw .box.local { background: #F3F6F5; color: var(--ink); border: 1px dashed #A9C3BC; }
+  .hw .swap { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: #4F6B66; font-weight: 600; text-align: center; white-space: nowrap; }
+  .hw .swap b { color: var(--teal); }
+  .hw .chips { margin-top: 18px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .hw .chip { background: rgba(255,255,255,.14); color: #fff; border: 1px solid rgba(204,251,241,.4); border-radius: 99px; padding: 7px 13px; font-size: 14.5px; font-weight: 600; font-stretch: 94%; }
+  .hw .chips i { color: #FDE68A; font-style: normal; font-weight: 700; }
+  .hw .chips .end { color: #FDE68A; font-weight: 650; font-size: 14.5px; margin-left: 4px; }
+  .hw .model { margin-top: 18px; text-align: center; font-weight: 700; font-stretch: 86%; font-size: 21px; color: var(--ink); }
+  .hw .model::before { content: '↓'; display: block; color: var(--teal); font-size: 22px; margin-bottom: 8px; }
+
+  /* Flaticon icons (icons.json), recoloured through a mask so they take the brand colours */
+  .mi { display: block; background: currentColor; -webkit-mask: var(--i) center / contain no-repeat; mask: var(--i) center / contain no-repeat; }
+  .pillar .ic .mi { width: 27px; height: 27px; }
+  .hw .card h3 .ic .mi { width: 23px; height: 23px; }
+  .fi { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 14px; background: #F3F4F6; color: #111827; box-shadow: 0 6px 16px -10px rgba(14,42,38,.45); }
+  .fi .mi { width: 60%; height: 60%; }
+  .fi.more { color: #9CA3AF; }
+</style></head>
+<body><div id="root"></div>
+<script type="module">
+import { LOGO } from './shared.js'
+const q = new URLSearchParams(location.search), lang = q.get('lang') ?? 'en', v = q.get('v') ?? 'how'
+document.body.classList.add(lang, v)
+const A = [['claude-code', 'Claude Code'], ['codex', 'Codex'], ['hermes', 'Hermes Agent'], ['opencode', 'OpenCode'], ['codebuddy', 'CodeBuddy'],
+  ['grok', 'Grok Build'], ['dsh', 'DeepSeek Harness'], ['pi', 'pi'], ['shell', lang === 'zh' ? '任何 shell' : 'Any shell'], ['more', lang === 'zh' ? '更多接入中' : 'More coming']]
+const ic = name => `<i class="mi" style="--i:url(.icons/${name}.png)"></i>`
+// The product logos come from media/agents; "any shell" and "more" are Flaticon icons in the same badge.
+const icon = id => id === 'shell' || id === 'more' ? `<div class="fi ${id}">${ic(id)}</div>` : `<img src="agents/${id}.svg" alt="">`
+const agents = (list = A) => `<div class="agents">${list.map(([id, name]) => `<div class="agent">${icon(id)}<span>${name}</span></div>`).join('')}</div>`
+const IC = { demand: ic('demand'), evolve: ic('evolve'), cross: ic('cross') }
+const T = {
+  en: {
+    head: 'Make every token count<br>for your agent.',
+    lede: 'The <b>self-evolving token layer</b> for AI agents: context on demand, savings that grow with use, one install for every agent.',
+    pillars: [['demand', 'Context on demand', 'The model reads only what it needs; the rest waits on your machine, one call away. You save tokens, not information.'],
+      ['evolve', 'Self-evolving', 'It learns your project from your own sessions and saves more every round. Verified before use.'],
+      ['cross', 'Cross-platform', 'One install for Claude Code, Codex, Hermes and more. What one agent learns, all of them use.']],
+    yours: 'YOUR AGENTS — MORE ON THE WAY', core: 'one layer, shared by every agent',
+    ctx: 'In context', ctxS: 'what the model needs now', local: 'On your machine', localS: 'everything else, intact', out: 'set aside →', back: '← one call back',
+    flow: ['Use', 'Learn', 'Verify', 'Every agent'], flowEnd: 'saves more each round',
+    model: 'The model reads only what it needs',
+    evH: 'Learned once, used everywhere.', evS: 'Your own agent teaches TokenWise your project. What it learns works in all of them.',
+    ev: [['You work as usual', 'TokenWise notices content that keeps coming back in your project and that the model does not need.'],
+         ['Your agent writes a rule', 'In the background, the agent you already use proposes a way to shorten it.'],
+         ['Checked on everything', 'Kept only if it saves more on every recorded run and drops no error.'],
+         ['Every agent uses it', 'From the next command on, in every agent. Wrong rules switch themselves off.']],
+    more: 'and more on the way',
+  },
+  zh: {
+    head: '让 agent 的每个 token<br>都物有所值',
+    lede: '给 AI agent 用的<b>自进化省 token 层</b>：上下文按需读取，越用越省，所有 agent 共用。',
+    pillars: [['demand', '按需读取', '模型只读需要的部分，其余原样留在本机，一次调用就能取回。省的是 token，不是信息。'],
+      ['evolve', '自进化', '从你自己的使用中学会你的项目，越用越省；验证通过才生效。'],
+      ['cross', '跨平台', '一次安装，Claude Code、Codex、Hermes 等都能用；一个 agent 学会的，所有 agent 共享。']],
+    yours: '已支持的 agent，更多陆续接入', core: '一套机制，所有 agent 共用',
+    ctx: '上下文里', ctxS: '模型现在需要的', local: '你的电脑上', localS: '其余全部，原样保留', out: '暂放 →', back: '← 一次调用取回',
+    flow: ['使用', '学习', '验证', '所有 agent 生效'], flowEnd: '每一轮都更省',
+    model: '模型只读它需要的部分',
+    evH: '一处学会，处处受益', evS: '你自己的 agent 教会 TokenWise 你的项目，学到的东西所有 agent 都能用。',
+    ev: [['照常使用', 'TokenWise 发现你的项目里反复出现、模型又不需要读的内容。'],
+         ['你的 agent 写出规则', '在后台，由你正在用的 agent 提出一种精简方式。'],
+         ['全面验证', '在全部历史记录上重放：每一次都更省、一条报错都不丢，才会采用。'],
+         ['所有 agent 生效', '从下一条命令起，所有 agent 都用上。用错了会自己关掉。']],
+    more: '更多陆续接入',
+  },
+}[lang]
+const root = document.getElementById('root')
+if (v === 'how') {
+  const [demand, evolve] = T.pillars
+  root.innerHTML = `<div class="hw d"><div class="label">${T.yours}</div>${agents()}
+    <div class="core"><div class="mark">${LOGO}<span>TokenWise</span><small>${T.core}</small></div><div class="two">
+      <div class="card"><h3><span class="ic">${IC.demand}</span>${demand[1]}</h3><p>${demand[2]}</p>
+        <div class="mini"><div class="box ctx">${T.ctx}<small>${T.ctxS}</small></div><div class="swap"><span>${T.out}</span><b>${T.back}</b></div><div class="box local">${T.local}<small>${T.localS}</small></div></div></div>
+      <div class="card hi"><h3><span class="ic">${IC.evolve}</span>${evolve[1]}</h3><p>${evolve[2]}</p>
+        <div class="chips">${T.flow.map(f => `<span class="chip">${f}</span>`).join('<i>→</i>')}<span class="end">↻ ${T.flowEnd}</span></div></div>
+    </div></div><div class="model">${T.model}</div></div>`
+} else if (v === 'evolve') {
+  const tw = `<div class="tw">${LOGO}</div>`
+  const icons = [[icon('codebuddy')], [icon('codebuddy'), tw], [tw], [icon('claude-code'), icon('codex'), icon('hermes'), icon('opencode')]]
+  root.innerHTML = `<div class="ev d"><h2>${T.evH}</h2><p class="sub">${T.evS}</p><div class="row4">${T.ev.map(([h, p], i) =>
+    `<div class="step ${i === 3 ? 'evolve' : ''}"><div class="icons">${icons[i].join('')}</div><h3>${h}</h3><p>${p}</p></div>`).join('')}</div></div>`
+} else {
+  root.innerHTML = `<div class="hero"><div class="copy"><div class="mark">${LOGO}<span>TokenWise</span></div><h1 class="display">${T.head}</h1><p class="lede">${T.lede}</p>
+    <div class="agents">${A.slice(0, 8).map(([id]) => `<div class="agent">${icon(id)}</div>`).join('')}<span class="more">${T.more}</span></div></div>
+    <div class="side"><div class="pillars">${T.pillars.map(([k, h, p], i) => `<div class="pillar ${i === 1 ? 'hi' : ''}"><div class="ic">${IC[k]}</div><h3>${h}</h3><p>${p}</p></div>`).join('')}</div></div></div>`
+}
+// Masked icons are CSS images: load them like the <img> ones before the page counts as ready.
+const masks = ['demand', 'evolve', 'cross', 'shell', 'more'].map(n => Object.assign(new Image(), { src: `.icons/${n}.png` }))
+await Promise.all([...document.images, ...masks].map(img => img.complete ? null : new Promise(r => { img.onload = img.onerror = r })))
+window.ready = true
+</script></body></html>

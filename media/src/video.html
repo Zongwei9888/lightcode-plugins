@@ -51,20 +51,31 @@
   .checks div { opacity: 0; }
   .checks b { color: var(--teal); }
 
+  /* chapter label: the README's three points, in turn */
+  #kick { left: 120px; top: 156px; }
+  #kick .k { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 12px; padding: 10px 22px 10px 12px; border-radius: 999px; background: var(--teal); color: #fff; font-size: 27px; font-weight: 700; font-stretch: 86%; white-space: nowrap; opacity: 0; }
+  #kick .k .ic { width: 40px; height: 40px; border-radius: 50%; background: #FDE68A; color: #5A4300; display: grid; place-items: center; }
+  .mi { display: block; background: currentColor; -webkit-mask: var(--i) center / contain no-repeat; mask: var(--i) center / contain no-repeat; }
+  #kick .k .mi { width: 24px; height: 24px; }
   /* agents + end card */
-  .chips { left: 760px; top: 250px; width: 1060px; display: flex; flex-wrap: wrap; gap: 22px; }
-  .chip { padding: 22px 34px; border-radius: 999px; background: #fff; border: 2px solid var(--rule); font-size: 32px; font-weight: 650; font-stretch: 90%; opacity: 0; }
-  .chip.any { background: var(--term); color: var(--mint); border-color: var(--term); font-family: 'JetBrains Mono'; font-size: 26px; font-weight: 500; }
+  .chips { left: 780px; top: 300px; width: 1040px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 46px 20px; }
+  .chip { display: flex; flex-direction: column; align-items: center; gap: 16px; opacity: 0; font-size: 25px; font-weight: 600; font-stretch: 90%; color: #2E4A45; text-align: center; line-height: 1.2; }
+  .chip .lg { width: 116px; height: 116px; border-radius: 30px; background: #F3F4F6; display: grid; place-items: center; box-shadow: 0 18px 36px -22px rgba(14,42,38,.55); overflow: hidden; }
+  .chip .lg img { width: 116px; height: 116px; }
+  .chip .lg .mi { width: 64px; height: 64px; color: #111827; }
+  .chip .lg .mi.more { color: #9CA3AF; }
   .end { inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
   .end .big { display: flex; align-items: center; gap: 34px; font-size: 150px; }
   .end .big svg { width: 170px; height: 170px; }
   .end .tag { font-size: 52px; margin-top: 30px; font-weight: 700; font-stretch: 72%; color: #2E4A45; }
+  .end .sub { font-size: 30px; margin-top: 14px; color: var(--teal); font-weight: 600; font-stretch: 90%; }
   .end .url { font-family: 'JetBrains Mono'; font-size: 30px; margin-top: 44px; color: var(--teal); }
   .end .lic { font-size: 22px; margin-top: 12px; color: #5B7671; }
 </style></head>
 <body>
 <div id="mark" class="abs mark"></div>
 <div id="cap" class="abs display"></div>
+<div id="kick" class="abs"></div>
 <section class="scene" id="sFold"></section>
 <section class="scene" id="sCompact"></section>
 <section class="scene" id="sLearn"></section>
@@ -90,16 +101,22 @@ const SCENES = { sFold: [0, 15.2], sCompact: [15, 29.2], sLearn: [29, 41.2], sAg
 window.DURATION = 53
 
 const CAPS = zh ? [
-  [0.4, 7, 'agent 会把这些<br>一行行全读进去。'], [7.4, 15, 'TokenWise 只给模型<br>看要紧的部分，<br>失败信息一行不少。'],
-  [15.4, 22, '会话一长就要压缩，<br>摘要没写到的内容<br>通常就丢了。'], [22, 29, '有了 TokenWise，<br>每个工具结果<br>都能一次调回。'],
-  [29.4, 41, '它还会学会你自己的工具，<br>只采用在没见过的输出上<br>也成立的规则。'],
-  [41.4, 46.6, '装进你正在用的 agent。'],
+  [0.4, 7, 'agent 会把这些<br>一行行全读进去。'], [7.4, 15, 'TokenWise 只给模型<br>它需要的部分，<br>失败信息一行不少。'],
+  [15.4, 22, '上下文一满就要压缩，<br>agent 就会忘事。'], [22, 29, '有了 TokenWise，<br>暂放的内容<br>一次调用就取回。'],
+  [29.4, 41, '它会学会你的项目，<br>验证通过才用，<br>越用越省。'],
+  [41.4, 46.6, '装一次，<br>所有 agent<br>共享所学。'],
 ] : [
-  [0.4, 7, 'Your agent reads every line of this.'], [7.4, 15, 'TokenWise shows the model what matters. Every failure stays.'],
-  [15.4, 22, 'Long sessions get compacted. What the summary leaves out is usually gone.'], [22, 29, 'With TokenWise, every tool result stays one call away.'],
-  [29.4, 41, 'It learns your own tools, and keeps a filter only if it holds on output it never saw.'],
-  [41.4, 46.6, 'Works in the agent you already use.'],
+  [0.4, 7, 'Your agent reads every line of this.'], [7.4, 15, 'TokenWise gives the model only what it needs. Every failure stays.'],
+  [15.4, 22, 'When the context fills up, agents compact, and forget.'], [22, 29, 'With TokenWise, whatever was set aside comes back in one call.'],
+  [29.4, 41, 'It learns your project, checks every rule first, and saves more each round.'],
+  [41.4, 46.6, 'One install. Every agent shares what it learns.'],
 ]
+// The README's three points, as chapter labels: [from, to, label, Flaticon icon]
+const KICKS = zh ? [[0.3, 29.2, '按需读取', 'demand'], [29.2, 41.2, '自进化', 'evolve'], [41.2, 46.6, '跨平台', 'cross']]
+  : [[0.3, 29.2, 'Context on demand', 'demand'], [29.2, 41.2, 'Self-evolving', 'evolve'], [41.2, 46.6, 'Cross-platform', 'cross']]
+const kickEl = document.getElementById('kick')
+kickEl.innerHTML = KICKS.map(([, , l, i]) => `<div class="k"><span class="ic"><i class="mi" style="--i:url(.icons/${i}.png)"></i></span>${l}</div>`).join('')
+const kicks = [...kickEl.children]
 const capEl = document.getElementById('cap')
 capEl.innerHTML = CAPS.map(c => `<div class="line">${c[2]}</div>`).join('')
 const capLines = [...capEl.children]
@@ -212,17 +229,22 @@ function renderLearn(t) {
 
 // ---- scene 5 + 6: agents, end card ----
 const ag = document.getElementById('sAgents')
-ag.innerHTML = `<div class="abs chips">${['Claude Code', 'Codex', 'pi', 'DeepSeek Harness', 'OpenCode', 'Hermes Agent', 'CodeBuddy', 'Grok Build'].map(a => `<div class="chip">${a}</div>`).join('')}<div class="chip any">tw run -c 'cargo test'</div></div>`
+const AG = [['claude-code', 'Claude Code'], ['codex', 'Codex'], ['hermes', 'Hermes Agent'], ['opencode', 'OpenCode'], ['codebuddy', 'CodeBuddy'],
+  ['grok', 'Grok Build'], ['dsh', 'DeepSeek Harness'], ['pi', 'pi'], ['shell', zh ? '任何 shell' : 'Any shell'], ['more', zh ? '更多接入中' : 'More coming']]
+ag.innerHTML = `<div class="abs chips">${AG.map(([id, name]) => `<div class="chip"><div class="lg">${id === 'shell' || id === 'more'
+  ? `<i class="mi ${id}" style="--i:url(.icons/${id}.png)"></i>` : `<img src="agents/${id}.svg" alt="">`}</div><span>${name}</span></div>`).join('')}</div>`
 const chips = [...ag.querySelectorAll('.chip')]
 const endEl = document.getElementById('sEnd')
 endEl.innerHTML = `<div class="abs end"><div class="big mark">${LOGO}<span>TokenWise</span></div>
   <div class="tag">${zh ? '让 agent 的每个 token 都物有所值' : 'Make every token count for your agent.'}</div>
+  <div class="sub">${zh ? '给 AI agent 用的自进化省 token 层' : 'The self-evolving token layer for AI agents'}</div>
   <div class="url">github.com/Zongwei9888/tokenwise</div><div class="lic">${zh ? '开源，MIT 许可' : 'Open source, MIT licensed'}</div></div>`
 
 window.render = t => {
   for (const [id, [a, b]] of Object.entries(SCENES)) document.getElementById(id).style.opacity = (a === 0 ? (t < b - .5 ? 1 : 1 - p(t, b - .5, b)) : window_(t, a, b)).toFixed(3)
   capLines.forEach((el, i) => { const [a, b] = CAPS[i]; const o = window_(t, a, b, .45); el.style.opacity = o.toFixed(3); el.style.transform = `translateY(${((1 - outc(p(t, a, a + .45))) * 18).toFixed(1)}px)` })
   const markO = 1 - p(t, 46.2, 46.7); document.getElementById('mark').style.opacity = markO
+  kicks.forEach((el, i) => { const [a, b] = KICKS[i]; el.style.opacity = window_(t, a, b, .4).toFixed(3) })
   if (t < 15.3) renderFold(t)
   if (t > 14.8 && t < 29.4) renderCompact(t)
   if (t > 28.8 && t < 41.4) renderLearn(t)
@@ -230,5 +252,7 @@ window.render = t => {
   const e = outc(p(t, 46.8, 47.6)); endEl.firstChild.style.transform = `translateY(${(1 - e) * 20}px)`
 }
 window.render(0)
+const preload = [...document.images, ...['demand', 'evolve', 'cross', 'shell', 'more'].map(n => Object.assign(new Image(), { src: `.icons/${n}.png` }))]
+await Promise.all(preload.map(img => img.complete ? null : new Promise(r => { img.onload = img.onerror = r })))
 window.ready = true
 </script></body></html>

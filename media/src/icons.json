@@ -1,0 +1,25 @@
+{
+  "_attribution": "Icons made by Magnific (https://www.magnific.com) from Flaticon (https://www.flaticon.com), Special Lineal style, free with attribution under the Flaticon License. The icon files are not part of this repository: render.mjs downloads them into media/src/.icons/ when it renders.",
+  "icons": {
+    "demand": {
+      "page": "https://www.flaticon.com/free-icon/backup_2818821",
+      "png": "https://cdn-icons-png.flaticon.com/512/2818/2818821.png"
+    },
+    "evolve": {
+      "page": "https://www.flaticon.com/free-icon/dna_3207536",
+      "png": "https://cdn-icons-png.flaticon.com/512/3207/3207536.png"
+    },
+    "cross": {
+      "page": "https://www.flaticon.com/free-icon/cross-platform_10435216",
+      "png": "https://cdn-icons-png.flaticon.com/512/10435/10435216.png"
+    },
+    "shell": {
+      "page": "https://www.flaticon.com/free-icon/programming_2721594",
+      "png": "https://cdn-icons-png.flaticon.com/512/2721/2721594.png"
+    },
+    "more": {
+      "page": "https://www.flaticon.com/free-icon/add_667353",
+      "png": "https://cdn-icons-png.flaticon.com/512/667/667353.png"
+    }
+  }
+}

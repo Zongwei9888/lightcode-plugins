@@ -1,0 +1,34 @@
+{
+  "claude-code.svg": {
+    "source": "https://raw.githubusercontent.com/lobehub/lobe-icons/master/packages/static-svg/icons/claudecode-color.svg",
+    "note": "Original product/brand artwork; SVG badge background added for light/dark readability"
+  },
+  "codex.svg": {
+    "source": "https://raw.githubusercontent.com/lobehub/lobe-icons/master/packages/static-svg/icons/codex-color.svg",
+    "note": "Original product/brand artwork; SVG badge background added for light/dark readability"
+  },
+  "opencode.svg": {
+    "source": "https://raw.githubusercontent.com/lobehub/lobe-icons/master/packages/static-svg/icons/opencode.svg",
+    "note": "Original product/brand artwork; SVG badge background added for light/dark readability"
+  },
+  "codebuddy.svg": {
+    "source": "https://raw.githubusercontent.com/lobehub/lobe-icons/master/packages/static-svg/icons/codebuddy-color.svg",
+    "note": "Original product/brand artwork; SVG badge background added for light/dark readability"
+  },
+  "hermes.svg": {
+    "source": "https://raw.githubusercontent.com/lobehub/lobe-icons/master/packages/static-svg/icons/hermesagent.svg",
+    "note": "Original product/brand artwork; SVG badge background added for light/dark readability"
+  },
+  "dsh.svg": {
+    "source": "https://raw.githubusercontent.com/deepseek-ai/deepseek-harness/master/apps/desktop/resources/icon.svg",
+    "note": "Original product/brand artwork; SVG badge background added for light/dark readability"
+  },
+  "grok.svg": {
+    "source": "https://raw.githubusercontent.com/lobehub/lobe-icons/master/packages/static-svg/icons/grok.svg",
+    "note": "Original product/brand artwork; SVG badge background added for light/dark readability"
+  },
+  "pi.svg": {
+    "source": "https://pi.dev/logo.svg",
+    "note": "The pi logo (pi.dev, MIT) on the shared badge background"
+  }
+}

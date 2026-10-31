@@ -7,7 +7,7 @@ and sandbox; TokenWise never re-implements them.
 ## Layers
 
 ```
-adapters      @tokenwise/pi · @tokenwise/dsh · adapters/codex
+adapters      pi · DeepSeek Harness · OpenCode · Hermes Agent · Claude Code · Codex · CodeBuddy · Grok Build
               translate host events into port calls; install, configure, show receipts
 mechanisms    @tokenwise/mechanisms — compact-output engine, compaction, evolution (evidence, replay,
               verification), command normalization, receipts
@@ -29,6 +29,9 @@ declares what it needs (`MechanismSpec`). `negotiate` picks the strongest
 supported mode — `apply`, `observe` or `off` — and records why. User
 configuration can lower a mode, never raise it. No mechanism requires a host
 patch.
+
+The table shows the three hosts the design started from; the other five are
+summarized under [Hosts at a glance](#hosts-at-a-glance).
 
 | Capability | pi 1.x | Codex 0.162 | DeepSeek Harness 0.2 |
 |---|---|---|---|
@@ -74,7 +77,32 @@ How the projection reaches the model differs by host:
   projection. Its own `grep` and `glob` results qualify only as the complete
   rendering of their structured value, before DSH caps or spills a search. DSH's spill policy (a `prepend` listener) then bounds the
   smaller text; the session log and tool card show what the model read.
+- **Claude Code** — a `PostToolUse` hook replaces the shell result (output
+  over 30,000 characters arrives as a file, which the hook reads in full).
+  `PreToolUse` wraps the command in `tokenwise run` instead when Claude's own
+  permissions would allow the rewritten command: bypass mode, or an allow
+  rule that matches the command as written.
+- **CodeBuddy** — like Codex: `PreToolUse` wraps the command in `tokenwise run`.
+- **Grok Build** — a `PostToolUse` hook replaces the shell result.
+- **OpenCode, Hermes Agent** — in-process plugins replace the result after
+  execution (Hermes: `transform_terminal_output`).
 - **Any agent** — `tokenwise run` directly.
+
+### Hosts at a glance
+
+| Host | Shell output | Compaction | Learning from inside |
+|---|---|---|---|
+| pi 1.1+ | before and after execution, in-process | writes the checkpoint | `/tokenwise` panel |
+| DeepSeek Harness 0.2.x | after execution, in-process | writes the checkpoint | Plugins page |
+| OpenCode 1.19+ | after execution, in-process | writes the checkpoint | `tokenwise learn` |
+| Hermes Agent 0.22+ | after execution, Python plugin | context engine | `tokenwise learn` |
+| Claude Code 2.1+ | hooks, before and after | catalog after Claude's own summary | `/tokenwise:learn` |
+| Codex 0.162+ | hooks, before execution | catalog after Codex's own summary | `$tokenwise learn` |
+| CodeBuddy 2.175+ | hooks, before execution | a mod rewrites the stored summary | `/tokenwise:learn` |
+| Grok Build 1.0+ | hooks, after execution | catalog after Grok's own summary | `/tokenwise:learn` |
+
+`tokenwise setup` installs each one; `tokenwise doctor` reports what the
+installed version supports.
 
 pi and Codex merge stdout and stderr into one text; on those hosts filters
 see the merged stream, and the journal records `streams: "merged"`.
@@ -174,6 +202,11 @@ the agent keeps recalling.
 
 ## Packaging
 
+The Claude Code, Codex, CodeBuddy and Grok plugins are folders under
+`adapters/` that call the `tokenwise` CLI from their hooks; OpenCode and
+Hermes get a single file or a Python package copied into their plugin
+directory.
+
 `@tokenwise/pi`, `@tokenwise/dsh` and `@tokenwise/cli` are single-file
 bundles built by `scripts/bundle.mjs` from the workspace sources, with no
 runtime dependencies: the host's own modules (`@earendil-works/*`,
@@ -229,4 +262,5 @@ uncovered commands — the list of filters worth writing next.
 |---|---|
 | 0.1 | Compact output on pi, DeepSeek Harness 0.2.x, Codex and `tokenwise run` |
 | 0.2 | Recoverable compaction on pi and DeepSeek Harness; self-evolving filters (`tokenwise evolve`, learned rules on every host) |
-| 0.3 | Delegation and a cross-host usage ledger (unified trace format); compaction catalog + MCP retrieval on Codex |
+| 0.3 | Eight hosts (adds OpenCode, Hermes Agent, Claude Code, CodeBuddy, Grok Build); `tokenwise setup`; learning started from inside every host; every built-in filter written as TokenWise code |
+| next | More hosts (GitHub Copilot CLI, Gemini CLI, Cursor); a cross-host usage ledger |
