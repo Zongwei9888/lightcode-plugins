@@ -25,6 +25,8 @@ const CONTRACTS = {
   'go-test-json': { format: 'explicit go test -json event stream', action: 'remove per-line JSON layout whitespace', preserves: 'all events in order and exact Output strings; compact input usually has no gain' },
   'git-show': { format: 'default-format `git show <commit>` and `git log -p` text: commit headers followed by validated unified patches', action: 'preview head/tail of oversized hunks, as git-diff', preserves: 'every commit header and message verbatim, file identities, hunk headers, change counts and patch-use warning; merge (--cc) diffs pass through' },
   'git-status': { format: 'English long git status text', action: 'remove four exact usage hints', preserves: 'all paths, statuses, branch information, conflicts and other text' },
+  make: { format: 'GNU make output (3.81 and 4.x message forms) whose sub-make directory lines pair up', action: 'fold the directory lines of idle sub-makes and "is up to date" / "Nothing to be done" messages into one count', preserves: 'every recipe line, compiler message, warning, error and make: *** line, and the directory lines of every sub-make that ran or reported anything' },
+  maven: { format: 'Maven (mvn, mvnw) console output with [INFO]/[WARNING]/[ERROR] lines', action: 'fold artifact download/upload lines and transfer progress into one count per run', preserves: 'plugin banners, compiler and test output, every [WARNING] and [ERROR], stack traces, results, reactor summary and BUILD status' },
 } as const satisfies Partial<Record<EconomyFilterName, { format: string; action: string; preserves: string }>>
 
 export function economyCoverage() {
