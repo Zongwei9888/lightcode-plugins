@@ -2,8 +2,7 @@
 
 The packages users install are `@tokenwise/pi`, `@tokenwise/dsh`,
 `@tokenwise/opencode` and `@tokenwise/cli`. Each is one self-contained bundle (`scripts/bundle.mjs`) with
-no runtime dependencies, plus `LICENSE`, `LICENSE.rtk` (the bundled RTK filter
-data is Apache-2.0) and `NOTICE.md`, all generated at build time. The library
+no runtime dependencies, plus the MIT `LICENSE`, copied at build time. The library
 packages (`@tokenwise/core`, `protocol`, `store`, `mechanisms`) are published
 for people who build their own adapters; the plugins do not depend on them.
 

@@ -6,12 +6,12 @@ import { economyCoverage } from '../src/coverage.ts'
 import { ECONOMY_FILTER_NAMES } from '../src/filter-names.ts'
 
 describe('data-only filter options', () => {
-  it('inventories every registered filter, separately from non-integrated Python assets', () => {
+  it('inventories every registered filter, each with its contract', () => {
     const coverage = economyCoverage()
     expect(coverage.filters.map(filter => filter.name)).toEqual(ECONOMY_FILTER_NAMES.filter(name => name !== 'learned-rule'))
     expect(coverage.filters.filter(filter => filter.entry === 'recognized-shell-output').map(filter => filter.name).sort())
       .toEqual(STATIC_FILTERS.map(filter => filter.name).sort())
-    expect(coverage.boundaries.pythonAssets).toContain('not loaded')
+    for (const filter of coverage.filters) expect(filter.preserves, filter.name).toMatch(/\w/u)
   })
   it('keeps default output identical and snapshots mutable input', () => {
     const input = { command: 'rg -n x src', stdout: Array.from({ length: 60 }, (_, i) => `a.ts:${i + 1}: x`).join('\n'), exitCode: 0 }

@@ -34,8 +34,8 @@ another agent, it needs no configuration, and everything stays on your machine.
 
 ### Read less
 
-When the agent runs `pytest`, `cargo test`, `git diff`, `grep -rn`, `tsc`, a
-package install or one of about 80 other recognized commands, the model reads a
+When the agent runs `pytest`, `cargo test`, `git diff`, `git show`, `grep -rn`,
+`tsc`, `ls`, a package install or another recognized command, the model reads a
 shorter, deterministic version. Passing tests are counted instead of listed,
 progress bars and repeated rows are folded, and long searches and diffs are
 previewed with exact omission counts. Failures, warnings, totals and the exit
@@ -255,5 +255,4 @@ Further reading: [architecture](docs/architecture.md),
 
 ## License
 
-MIT. The RTK filter data in `packages/core/src/rtk/` is Apache-2.0; see
-[`third-party/rtk`](third-party/rtk/NOTICE.md).
+MIT.

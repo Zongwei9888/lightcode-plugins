@@ -9,15 +9,17 @@ filters through `@tokenwise/core` must reproduce these bytes and source maps.
   `node --test`, recorded in a throwaway sandbox by `capture-inputs.mjs`.
   Sandbox paths, home paths and the local user name are replaced.
 - `fixture/*` — scripted coding-tool outputs from the original test suite.
-- `rtk/*` — RTK upstream inline examples (Apache-2.0, see
-  `third-party/rtk/`), each run with exit code 0 and 1.
 - `synthetic/*` — boundaries: CRLF, missing final newline, ANSI escapes,
   NUL bytes, CJK and emoji text, very long lines, compound commands, filter
   options and empty output.
 
-The expectations reproduce, byte for byte, what the TokenWise research runtime
-(the DeepSeek Harness plugin) produced before the code was split into
-host-independent packages, so they also pin the open-source core to the
-published experiments.
-Changing a filter's output requires a new `ECONOMY_RUNTIME_VERSION` and a new
-expected file; never edit an existing one.
+Up to `static-v11` the expectations reproduced, byte for byte, what the
+TokenWise research runtime (the DeepSeek Harness plugin) produced, so they pin
+the open-source core to the published experiments; `static-v12` keeps every
+one of those results unchanged.
+
+Changing a filter's output, or adding a filter, requires a new
+`ECONOMY_RUNTIME_VERSION` and a new expected file; never edit an existing one.
+`node --conditions=source conformance/economy/write-expected.mts <previous>`
+writes the new file and lists every case that changed or is new; review that
+list before committing.

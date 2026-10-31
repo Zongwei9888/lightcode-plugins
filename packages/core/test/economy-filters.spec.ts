@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { gitDiffFilter, grepFilter, pytestFilter } from '../src/filters/index.ts'
+import { gitDiffFilter, gitShowFilter, grepFilter, pytestFilter } from '../src/filters/index.ts'
 
 describe('Token Economy static filter parity', () => {
   it('keeps pytest failure identity and relevant diagnostics', () => {
@@ -61,5 +61,28 @@ ${additions}
     expect(projected).toContain('lines truncated')
     expect(projected).toContain('+200 -0')
     expect(projected).toContain('+line199')
+  })
+
+  it('previews oversized hunks of git show and git log -p, keeping every commit header and message', () => {
+    const hunk = (file: string) => [`diff --git a/${file} b/${file}`, 'index 1111111..2222222 100644', `--- a/${file}`, `+++ b/${file}`, '@@ -1,150 +1,150 @@',
+      ...Array.from({ length: 150 }, (_, i) => i % 2 ? `-old line ${i}` : `+new line ${i}`), ...Array.from({ length: 75 }, (_, i) => ` context ${i}`)].join('\n')
+    const fix = 'Fix rounding in to_cents\n\nThe export expects half-up rounding.'
+    const commit = (sha: string, message: string, file: string) => [`commit ${sha}`, 'Author: Dana Lee <dana@example.com>', 'Date:   Tue Jul 1 09:15:00 2026 +0000', '',
+      ...message.split('\n').map(line => line ? `    ${line}` : ''), '', hunk(file)].join('\n')
+    const show = commit('5cac6a1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b', fix, 'ledger/money.py') + '\n'
+    const projected = gitShowFilter.project({ command: 'git show 5cac6a1', stdout: show, exitCode: 0 })!
+    expect(projected.length).toBeLessThan(show.length)
+    for (const kept of ['commit 5cac6a1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b', 'Author: Dana Lee', '    Fix rounding in to_cents', '    The export expects half-up rounding.',
+      'diff --git a/ledger/money.py b/ledger/money.py', '@@ -1,150 +1,150 @@', '  +75 -75', 'lines truncated']) expect(projected, kept).toContain(kept)
+    // git log -p: several commits, each header kept; a decorated header too.
+    const log = [commit('aaaaaaa1111111111111111111111111111111111 (HEAD -> main)', 'Second change', 'b.py'), commit('bbbbbbb2222222222222222222222222222222222', 'First change', 'a.py')].join('\n') + '\n'
+    const logged = gitShowFilter.project({ command: 'git log -p -2', stdout: log, exitCode: 0 })!
+    for (const kept of ['commit aaaaaaa1111111111111111111111111111111111 (HEAD -> main)', '    Second change', 'commit bbbbbbb2222222222222222222222222222222222', '    First change']) expect(logged).toContain(kept)
+    // Other layouts, merge diffs, file contents and plain git log pass through.
+    for (const command of ['git show --stat 5cac6a1', 'git show --format=%H 5cac6a1', 'git log -2', 'git log --oneline -p']) {
+      expect(gitShowFilter.project({ command, stdout: show, exitCode: 0 }), command).toBeUndefined()
+    }
+    expect(gitShowFilter.project({ command: 'git show HEAD:ledger/money.py', stdout: 'def to_cents(x):\n    return x\n', exitCode: 0 })).toBeUndefined()
+    expect(gitShowFilter.project({ command: 'git show 5cac6a1', stdout: show.replace('diff --git a/ledger/money.py b/ledger/money.py', 'diff --cc ledger/money.py'), exitCode: 0 })).toBeUndefined()
   })
 })

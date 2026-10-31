@@ -6,6 +6,13 @@ First open-source release line: compact tool output on eight hosts and any shell
 recoverable compaction on every host whose plugin interface
 allows it (in full on five, assisted on three), and self-evolving filters. (0.1.0 and 0.2.0 were never published; their contents are part of this release.)
 
+- `git-show`: `git show <commit>` and `git log -p` keep every commit header
+  and message verbatim and preview oversized hunks exactly as `git diff`
+  does; merge diffs and other layouts pass through.
+- Every filter is TokenWise code under the MIT license: the 63 declarative
+  rules adapted from RTK, which never applied in real sessions recorded on
+  eight agents, are gone, with their Apache-2.0 notices. Filter runtime
+  `static-v12`: the remaining conformance cases are unchanged.
 - Claude Code filters failed commands outside bypassPermissions mode too:
   PostToolUse sees only successful calls, so a command is wrapped in
   `tokenwise run` (and allowed) when it is one simple command the user's own
@@ -131,8 +138,8 @@ allows it (in full on five, assisted on three), and self-evolving filters. (0.1.
   counts toward switching the rule off.
 - A program given by its path (`.venv/bin/pytest`,
   `/opt/homebrew/bin/python3 -m pytest`, `/usr/bin/git diff`) is recognized
-  by the built-in filters, the RTK filter catalog included, like the bare
-  name; learned rules still see the command as written.
+  by the built-in filters like the bare name; learned rules still see the
+  command as written.
 - A recall query that does not occur exactly is matched again ignoring
   case: Kimi K2.6 on OpenCode searched a spec it had read for "archived"
   where the text said "Archived", and got nothing.
@@ -210,10 +217,11 @@ allows it (in full on five, assisted on three), and self-evolving filters. (0.1.
   switched off.
 
 - `@tokenwise/core`: the deterministic output filters of the TokenWise
-  research runtime — 79 shell-output filters (16 hand-written, 63 from pinned
-  RTK built-ins) plus 2 host-native search formats — source maps, the strict-shrink admission rule and command normalization,
-  with no host dependency. A conformance corpus pins them byte-for-byte to
-  the research runtime (`static-v11`).
+  research runtime — 17 shell-output filters plus 2 host-native search
+  formats, all TokenWise code — source maps, the strict-shrink admission rule
+  and command normalization, with no host dependency. A conformance corpus
+  pins them byte-for-byte to the research runtime; `static-v12` keeps every
+  research-runtime result and adds `git-show`.
 - `@tokenwise/protocol`: host capability vocabulary, verified host profiles
   and mode negotiation (`off` / `observe` / `apply`).
 - `@tokenwise/store`: private journal, content-addressed original store with

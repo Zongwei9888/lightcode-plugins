@@ -8,4 +8,4 @@ TokenWise, install a plugin instead: `@tokenwise/pi` for pi,
 command (Codex and any other agent). The plugins are self-contained and do not
 depend on this package.
 
-MIT licensed. The RTK filter data in `src/rtk/` is Apache-2.0 (`LICENSE.rtk`, `NOTICE.md`).
+MIT licensed.

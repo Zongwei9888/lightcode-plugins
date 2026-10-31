@@ -11,14 +11,46 @@ const METADATA = /^(?:index |--- |\+\+\+ |old mode |new mode |new file mode |del
 function projectMapped(input: FilterInput): MappedProjection | undefined {
   const options = resolveFilterOptions(input.options)
   if (options === undefined) return undefined
-  const maxHunkLines = options['git-diff'].maxHunkLines
   const argv = toolArgv(input.command)
   if (argv === undefined || argv[0] !== 'git' || argv[1] !== 'diff'
     || argv.some(arg => NON_PATCH.test(arg)) || ![0, 1].includes(input.exitCode)
     || /[\u001b\0]/.test(input.stdout)) return undefined
   const lines = sourceLines(input.stdout)
   if (!lines[0]?.text.startsWith('diff --git ')) return undefined
-  const builder = new ProjectionBuilder(input.stdout)
+  return previewPatch(input.stdout, lines, options['git-diff'].maxHunkLines, false)
+}
+
+/** A commit header line of the default `git show` / `git log` format: `commit <sha>` and optional decorations. */
+const COMMIT = /^commit [0-9a-f]{7,64}(?: \(.*\))?$/u
+/** Options that change the layout of each commit or leave out the patch. */
+const NON_DEFAULT_LOG = /^(?:--(?:oneline|graph|pretty|format|stat|numstat|shortstat|name-only|name-status|raw|summary|no-patch|word-diff|color-words|cc|combined-all-paths|first-parent|show-signature|notes)(?:=|$)|-[^-]*[sc]|--format=|--pretty=)/u
+
+/**
+ * `git show <commit>` and `git log -p`: each commit's header (author, dates,
+ * message) kept verbatim, its patch previewed exactly like `git diff`. Merge
+ * diffs (`diff --cc`), other layouts and non-commit objects pass through.
+ */
+function projectCommitPatches(input: FilterInput): MappedProjection | undefined {
+  const options = resolveFilterOptions(input.options)
+  if (options === undefined) return undefined
+  const argv = toolArgv(input.command)
+  if (argv === undefined || argv[0] !== 'git' || input.exitCode !== 0 || /[\u001b\0]/.test(input.stdout)) return undefined
+  const patchLog = argv[1] === 'log' && argv.slice(2).some(arg => arg === '-p' || arg === '-u' || arg === '--patch')
+  if (!(argv[1] === 'show' || patchLog) || argv.slice(2).some(arg => NON_PATCH.test(arg) || NON_DEFAULT_LOG.test(arg))) return undefined
+  const lines = sourceLines(input.stdout)
+  if (!COMMIT.test(lines[0]?.text ?? '')) return undefined
+  return previewPatch(input.stdout, lines, options['git-diff'].maxHunkLines, true)
+}
+
+/**
+ * Keep every line of a unified git patch except the middle of hunks longer
+ * than `maxHunkLines`, which becomes a counted omission; undefined for
+ * anything not recognized. With `commits`, `commit <sha>` blocks (header and
+ * message, kept verbatim) may precede each commit's patch.
+ */
+function previewPatch(raw: string, lines: readonly SourceLine[], maxHunkLines: number, commits: boolean): MappedProjection | undefined {
+  const builder = new ProjectionBuilder(raw)
+  let inHeader = false
   let oldRemaining = 0
   let newRemaining = 0
   let hunkLines: SourceLine[] = []
@@ -66,10 +98,17 @@ function projectMapped(input: FilterInput): MappedProjection | undefined {
       continue
     }
     flush()
-    if (value.startsWith('diff --git ')) {
+    if (commits && COMMIT.test(value)) {
       fileSummary()
+      inHeader = true
       builder.keep(line.start, line.end)
-    } else if (value.startsWith('@@ ')) {
+    } else if (value.startsWith('diff --git ')) {
+      fileSummary()
+      inHeader = false
+      builder.keep(line.start, line.end)
+    } else if (value.startsWith('diff ')) return undefined
+    else if (inHeader || (commits && value === '')) builder.keep(line.start, line.end)
+    else if (value.startsWith('@@ ')) {
       const hunk = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(?:.*)$/.exec(value)
       if (hunk === null) return undefined
       oldRemaining = Number(hunk[2] ?? 1)
@@ -83,8 +122,8 @@ function projectMapped(input: FilterInput): MappedProjection | undefined {
   flush()
   fileSummary()
   if (!truncated) {
-    const unchanged = new ProjectionBuilder(input.stdout)
-    unchanged.keep(0, input.stdout.length)
+    const unchanged = new ProjectionBuilder(raw)
+    unchanged.keep(0, raw.length)
     return unchanged.finish()
   }
   if (truncated) builder.generate('[diff sample; omitted lines are counted above; not an applicable patch]\n', 'diff-preview-warning')
@@ -96,4 +135,11 @@ export const gitDiffFilter: EconomyFilter = {
   transformation: 'preview',
   project: input => projectMapped(input)?.text,
   projectMapped,
+}
+
+export const gitShowFilter: EconomyFilter = {
+  name: 'git-show',
+  transformation: 'preview',
+  project: input => projectCommitPatches(input)?.text,
+  projectMapped: projectCommitPatches,
 }
